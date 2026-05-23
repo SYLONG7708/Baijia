@@ -14,12 +14,27 @@ const {
   getEvents,
   logEvent
 } = require("./db");
-const { summarizeAll, predictFromSequence, estimateCardModel } = require("./analytics");
+const {
+  summarizeAll,
+  predictFromSequence,
+  estimateCardModel,
+  isPredictionUsable,
+  currentShoeRounds
+} = require("./analytics");
 const { buildRoads } = require("./roads");
 const { backtestPredictions } = require("./backtest");
 const { buildDataQuality } = require("./quality");
 
 openDatabase();
+
+function reliableRounds(allRounds) {
+  const reliable = allRounds.filter(isPredictionUsable);
+  return reliable.length ? reliable : allRounds;
+}
+
+function reliableTableRounds(tableCode) {
+  return reliableRounds(getTableRounds(tableCode));
+}
 
 function sendJson(res, status, body) {
   const text = JSON.stringify(body);
@@ -160,16 +175,21 @@ async function handleApi(req, res) {
 
   if (req.method === "GET" && url.pathname === "/api/status") {
     const allRounds = rounds();
+    const summaryRounds = reliableRounds(allRounds);
     return sendJson(res, 200, {
       ok: true,
       now: new Date().toISOString(),
-      summary: summarizeAll(allRounds),
+      summary: summarizeAll(summaryRounds),
+      rawTotals: {
+        allRounds: allRounds.length,
+        reliableRounds: summaryRounds.length
+      },
       scraper: getStatus()
     });
   }
 
   if (req.method === "GET" && url.pathname === "/api/tables") {
-    return sendJson(res, 200, summarizeAll(rounds()));
+    return sendJson(res, 200, summarizeAll(reliableRounds(rounds())));
   }
 
   if (req.method === "GET" && url.pathname === "/api/quality") {
@@ -185,20 +205,25 @@ async function handleApi(req, res) {
   }
 
   if (req.method === "GET" && url.pathname === "/api/rounds") {
+    const includeSnapshots = url.searchParams.get("includeSnapshots") === "true";
+    const tableCode = normalizeTableCode(url.searchParams.get("tableCode"));
+    const sourceRounds = includeSnapshots
+      ? getRounds({ tableCode, limit: url.searchParams.get("limit") || 2000 })
+      : reliableRounds(getRounds({ tableCode, limit: url.searchParams.get("limit") || 2000 }));
     return sendJson(res, 200, {
-      rounds: getRounds({
-        tableCode: url.searchParams.get("tableCode"),
-        limit: url.searchParams.get("limit") || 2000
-      })
+      rounds: sourceRounds,
+      source: includeSnapshots ? "all" : "reliable-live"
     });
   }
 
   if (req.method === "GET" && url.pathname === "/api/roads") {
     const tableCode = normalizeTableCode(url.searchParams.get("tableCode"));
     if (!tableCode) return sendJson(res, 400, { error: "tableCode is required" });
-    const tableRounds = getTableRounds(tableCode);
+    const reliable = reliableTableRounds(tableCode);
+    const tableRounds = currentShoeRounds(reliable);
     return sendJson(res, 200, {
       tableCode,
+      source: "reliable-live-current-shoe",
       roads: buildRoads(tableRounds),
       rounds: tableRounds.slice(-500)
     });
@@ -239,7 +264,7 @@ async function handleApi(req, res) {
     return sendJson(res, 200, {
       exportedAt: new Date().toISOString(),
       tables: TARGET_TABLES,
-      rounds: rounds()
+      rounds: reliableRounds(rounds())
     });
   }
 

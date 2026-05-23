@@ -1,5 +1,5 @@
 const { TARGET_TABLES, normalizeTableCode } = require("./tables");
-const { isPredictionUsable } = require("./analytics");
+const { currentShoeRounds, isPredictionUsable } = require("./analytics");
 
 function pct(value) {
   return Math.round(Number(value || 0) * 1000) / 10;
@@ -57,12 +57,24 @@ function tableQuality(rounds) {
   return TARGET_TABLES.map((table) => {
     const tableRounds = rounds.filter((round) => round.tableCode === table.code);
     const live = tableRounds.filter(isPredictionUsable);
+    const currentShoe = currentShoeRounds(live);
+    const currentSlots = new Set(currentShoe.map((round) => Number(round.roundNo || 0)).filter(Boolean));
+    const currentRoundNo = Math.max(0, ...currentSlots);
+    const firstCurrentRoundNo = currentSlots.size ? Math.min(...currentSlots) : 0;
+    const missingRoundNos = [];
+    for (let roundNo = firstCurrentRoundNo; roundNo <= currentRoundNo; roundNo += 1) {
+      if (!currentSlots.has(roundNo)) missingRoundNos.push(roundNo);
+    }
     const cardRows = tableRounds.filter((round) => round.cardCount > 0);
     const latestRound = latest.get(table.code);
     return {
       code: table.code,
       total: tableRounds.length,
       reliable: live.length,
+      currentShoeRounds: currentShoe.length,
+      firstCurrentRoundNo,
+      currentRoundNo,
+      missingRoundNos,
       cardRows: cardRows.length,
       cardCoverage: pct(cardRows.length / Math.max(1, live.length)),
       latestRoundNo: latestRound?.roundNo || 0,
@@ -77,6 +89,7 @@ function buildDataQuality(rounds, status = {}) {
   const cardRows = reliable.filter((round) => round.cardCount > 0);
   const invalidRoundNo = rounds.filter((round) => Number(round.roundNo || 0) <= 0).length;
   const noRawResult = rounds.filter((round) => !round.rawResult).length;
+  const tables = tableQuality(rounds);
   return {
     generatedAt: new Date().toISOString(),
     totals: {
@@ -91,7 +104,16 @@ function buildDataQuality(rounds, status = {}) {
     sources: sourceCounts(rounds),
     duplicateSlots: duplicateSlots(reliable),
     suspiciousAliases: suspiciousAliases(rounds),
-    tables: tableQuality(rounds),
+    currentShoeGaps: tables
+      .filter((table) => table.missingRoundNos.length)
+      .map((table) => ({
+        code: table.code,
+        firstCurrentRoundNo: table.firstCurrentRoundNo,
+        currentRoundNo: table.currentRoundNo,
+        missingRoundNos: table.missingRoundNos,
+        recordedCurrentShoeRounds: table.currentShoeRounds
+      })),
+    tables,
     checklist: [
       "Use live result events before hall snapshots.",
       "Store provider table id, table code, game round id, round number, raw result, cards, source event, and timestamps.",

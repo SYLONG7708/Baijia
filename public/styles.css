@@ -266,6 +266,7 @@ h3 {
 .prediction-card,
 .tool-surface,
 .prediction-panel,
+.alert-panel,
 .road-panel,
 .recent-panel {
   border: 1px solid var(--line);
@@ -316,10 +317,49 @@ h3 {
 }
 
 .prediction-panel,
+.alert-panel,
 .road-panel,
 .recent-panel,
 .tool-surface {
   padding: 14px;
+}
+
+.alert-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.alert-item {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
+  gap: 8px;
+  min-height: 54px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+  color: var(--text);
+  text-align: left;
+}
+
+.alert-item strong {
+  justify-self: end;
+  font-size: 18px;
+}
+
+.alert-item small {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.alert-code {
+  font-weight: 800;
 }
 
 .sequence-tools {
@@ -622,6 +662,7 @@ input[type="password"] {
 
   .metrics-grid,
   .prediction-grid,
+  .alert-list,
   .ops-panel {
     grid-template-columns: 1fr;
   }

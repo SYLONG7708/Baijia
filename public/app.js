@@ -76,6 +76,13 @@ function fmtTime(value) {
   return date.toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
+function healthLabel(value) {
+  if (value === "OK") return "\u6b63\u5e38";
+  if (value === "RATE_LIMITED") return "\u9650\u6d41";
+  if (value === "NO_WEBSOCKET") return "\u7b49\u5f85\u8cc7\u6599\u6d41";
+  return value || "\u672a\u77e5";
+}
+
 function currentTable() {
   return state.summary?.tables?.find((table) => table.code === state.selectedTable) ||
     state.config?.tables?.find((table) => table.code === state.selectedTable) ||
@@ -101,7 +108,8 @@ function renderTopMetrics() {
 
   const scraper = state.status?.scraper || {};
   const status = scraper.running ? "擷取中" : "待命";
-  $("connectionText").textContent = `${status} · ${state.apiBase || location.origin}`;
+  const health = scraper.health && scraper.health !== "OK" ? ` · ${healthLabel(scraper.health)}` : "";
+  $("connectionText").textContent = `${status}${health} · ${state.apiBase || location.origin}`;
 }
 
 function renderTableGroups() {
@@ -163,6 +171,37 @@ function renderPrediction(prediction) {
     <strong class="prediction-value">${data.percentages?.[key] ?? 0}%</strong>
     <small>${key === data.pick ? "最高主結果" : `歷史 ${data.historicalPercentages?.[key] ?? 0}%`}</small>
   </div>`).join("");
+}
+
+function renderPredictionAlerts() {
+  const tables = [...(state.summary?.tables || [])]
+    .filter((table) => table.total > 0)
+    .sort((left, right) => {
+      const lp = Math.max(
+        left.prediction?.probabilities?.BANKER || 0,
+        left.prediction?.probabilities?.PLAYER || 0,
+        left.prediction?.probabilities?.TIE || 0
+      );
+      const rp = Math.max(
+        right.prediction?.probabilities?.BANKER || 0,
+        right.prediction?.probabilities?.PLAYER || 0,
+        right.prediction?.probabilities?.TIE || 0
+      );
+      return rp - lp;
+    });
+  $("predictionAlerts").innerHTML = tables.map((table) => {
+    const prediction = table.prediction || {};
+    const pick = prediction.pick || "";
+    const rawPick = prediction.rawPick || pick;
+    const percent = prediction.percentages?.[pick] ?? 0;
+    const rawPercent = prediction.percentages?.[rawPick] ?? percent;
+    return `<button class="alert-item" type="button" data-table="${table.code}">
+      <span class="alert-code">${table.code}</span>
+      <span class="chip ${outcomeClass[pick]}">${labels[pick] || "-"}</span>
+      <strong>${percent}%</strong>
+      <small>最高 ${labels[rawPick] || "-"} ${rawPercent}% · ${table.latestSix?.join("") || ""}</small>
+    </button>`;
+  }).join("");
 }
 
 function renderSequence() {
@@ -243,6 +282,7 @@ function renderStatus() {
   $("statusList").innerHTML = [
     ["Daemon", daemon.running ? "運行" : "待命"],
     ["Scraper", scraper.running ? "運行" : "待命"],
+    ["健康", healthLabel(scraper.health)],
     ["新增", scraper.insertedTotal || 0],
     ["WebSocket", scraper.lastWebsocketAt ? fmtTime(scraper.lastWebsocketAt) : ""],
     ["心跳", scraper.heartbeatAt ? fmtTime(scraper.heartbeatAt) : ""]
@@ -264,6 +304,7 @@ async function refresh() {
     renderTableGroups();
     renderTableHeader();
     renderPrediction(currentTable().prediction);
+    renderPredictionAlerts();
     renderStatus();
     await loadRoads();
   } catch (error) {
@@ -291,6 +332,16 @@ function bindEvents() {
     state.selectedTable = button.dataset.table;
     const table = currentTable();
     state.sequence = table.latestSix || [];
+    renderSequence();
+    await refresh();
+    await predictNow();
+  });
+
+  $("predictionAlerts").addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-table]");
+    if (!button) return;
+    state.selectedTable = button.dataset.table;
+    state.sequence = currentTable().latestSix || [];
     renderSequence();
     await refresh();
     await predictNow();

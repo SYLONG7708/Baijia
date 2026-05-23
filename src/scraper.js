@@ -1,6 +1,6 @@
 const { chromium } = require("playwright");
 const { ALLBET_URL, ALLBET_HEADLESS, ROOT } = require("./env");
-const { insertRound, updateRoundCards, setStatus, logEvent } = require("./db");
+const { insertRound, updateRoundCards, slotHasRound, setStatus, logEvent } = require("./db");
 const {
   extractRoundsFromPayload,
   extractLiveRoundsFromPayload,
@@ -14,13 +14,22 @@ const userDataDir = `${ROOT}/data/playwright-profile`;
 
 let insertedTotal = 0;
 let browserContext;
-let snapshotBackfilled = false;
 const tableRefs = new Map();
 const pendingPayloads = [];
 const recentRoundKeys = new Map();
 const scraperStatus = {};
 const cardSnapshotsByTable = new Map();
 const cardSnapshotsByGame = new Map();
+const shoeStateByTable = new Map();
+let lastWebsocketAtMs = 0;
+let lastRecoveryAtMs = 0;
+
+function isLikelyNewShoe(previousRoundNo, roundNo) {
+  return previousRoundNo > 0
+    && roundNo > 0
+    && roundNo < previousRoundNo
+    && (roundNo <= 5 || previousRoundNo - roundNo >= 20);
+}
 
 function seenRecently(round) {
   const now = Date.now();
@@ -81,6 +90,33 @@ function attachCards(round) {
   };
 }
 
+function attachShoe(round) {
+  if (!round.providerTableId || round.sourceEvent === "getGameHall:snapshot") return round;
+  const key = `${round.tableCode}:${round.providerTableId}`;
+  const today = new Date().toISOString().slice(0, 10);
+  const roundNo = Number(round.roundNo || 0) || 0;
+  const state = shoeStateByTable.get(key) || { shoeNo: 1, lastRoundNo: 0 };
+  if (isLikelyNewShoe(state.lastRoundNo, roundNo)) {
+    state.shoeNo += 1;
+  }
+  if (roundNo > 0) state.lastRoundNo = roundNo;
+  shoeStateByTable.set(key, state);
+  return {
+    ...round,
+    shoeId: `live:${round.tableCode}:${today}:${state.shoeNo}`
+  };
+}
+
+function shouldInsertRound(round) {
+  if (round.sourceEvent !== "roadSnapshot") return true;
+  return !slotHasRound(round);
+}
+
+function roundSlotKey(round) {
+  const roundNo = Number(round.roundNo || 0) || 0;
+  return round.tableCode && roundNo > 0 ? `${round.tableCode}|${roundNo}` : "";
+}
+
 function updateStatus(patch) {
   Object.assign(scraperStatus, patch);
   setStatus("scraper", {
@@ -135,19 +171,25 @@ function handlePayload(payload, source) {
     }
   }
 
-  if (!rounds.length && !snapshotBackfilled && text.includes('"getGameHall"')) {
-    rounds = extractRoundsFromPayload(text, {
+  if (text.includes('"getGameHall"')) {
+    const snapshotRounds = extractRoundsFromPayload(text, {
       source,
-      sourceEvent: "getGameHall:snapshot",
-      snapshotShoeId: `snapshot:${new Date().toISOString().slice(0, 10)}`
+      sourceEvent: "roadSnapshot",
+      snapshotShoeId: `road:${new Date().toISOString().slice(0, 10)}`
     });
-    snapshotBackfilled = true;
-    updateStatus({ snapshotBackfilledAt: new Date().toISOString(), snapshotBackfillRows: rounds.length });
+    const reservedSlots = new Set(rounds.map(roundSlotKey).filter(Boolean));
+    for (const round of snapshotRounds) {
+      const slotKey = roundSlotKey(round);
+      if (!slotKey || reservedSlots.has(slotKey) || slotHasRound(round)) continue;
+      rounds.push(round);
+      reservedSlots.add(slotKey);
+    }
   }
 
   let inserted = 0;
   for (const rawRound of rounds) {
-    const round = attachCards(rawRound);
+    const round = attachShoe(attachCards(rawRound));
+    if (!shouldInsertRound(round)) continue;
     const hasCards = (round.bankerCardsRaw?.length || 0) + (round.playerCardsRaw?.length || 0) > 0;
     if (round.sourceEvent !== "getGameHall:snapshot" && seenRecently(round)) {
       if (hasCards) updateRoundCards(round);
@@ -165,6 +207,7 @@ function handlePayload(payload, source) {
 
 async function attachPage(page) {
   page.on("websocket", (ws) => {
+    lastWebsocketAtMs = Date.now();
     logEvent("info", "websocket connected", ws.url());
     updateStatus({ lastWebsocketUrl: ws.url(), lastWebsocketAt: new Date().toISOString() });
     ws.on("framereceived", (frame) => handlePayload(frame.payload, "allbet-ws"));
@@ -196,6 +239,45 @@ async function attachPage(page) {
   });
 }
 
+async function inspectPageHealth(page) {
+  const bodyText = await page.locator("body").innerText({ timeout: 2000 }).catch(() => "");
+  if (/請求過於頻繁|\[5001\]/.test(bodyText)) {
+    const now = Date.now();
+    updateStatus({
+      health: "RATE_LIMITED",
+      healthDetail: "Allbet trial page returned request frequency limit [5001]. Waiting before recovery.",
+      lastRateLimitAt: new Date().toISOString()
+    });
+    if (now - lastRecoveryAtMs > 5 * 60 * 1000) {
+      lastRecoveryAtMs = now;
+      await page.getByText("確定").click({ timeout: 2000 }).catch(() => {});
+    }
+    return "RATE_LIMITED";
+  }
+
+  const startedAtMs = Date.parse(scraperStatus.startedAt || "") || Date.now();
+  const noWebsocketTooLong = !lastWebsocketAtMs && Date.now() - startedAtMs > 2 * 60 * 1000;
+  if (noWebsocketTooLong) {
+    updateStatus({
+      health: "NO_WEBSOCKET",
+      healthDetail: "Page loaded but no Allbet websocket has connected yet."
+    });
+    if (Date.now() - lastRecoveryAtMs > 10 * 60 * 1000) {
+      lastRecoveryAtMs = Date.now();
+      await page.reload({ waitUntil: "domcontentloaded", timeout: 60000 }).catch((error) => {
+        logEvent("warn", "scraper websocket recovery reload failed", error.message);
+      });
+      updateStatus({ lastRecoveryReloadAt: new Date().toISOString() });
+    }
+    return "NO_WEBSOCKET";
+  }
+
+  if (lastWebsocketAtMs) {
+    updateStatus({ health: "OK", healthDetail: "" });
+  }
+  return "OK";
+}
+
 async function run() {
   if (!TARGET_URL) {
     setStatus("scraper", { running: false, urlConfigured: false, error: "ALLBET_URL is not configured" });
@@ -221,6 +303,7 @@ async function run() {
       if (page.isClosed()) return;
       const title = await page.title().catch(() => "");
       if (title !== undefined) updateStatus({ title });
+      await inspectPageHealth(page);
     } catch (error) {
       logEvent("warn", "scraper heartbeat failed", error.message);
     }

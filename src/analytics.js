@@ -56,6 +56,41 @@ function validRound(round) {
   return round && normalizeOutcome(round.outcome) && round.tableCode && Number(round.roundNo || 0) > 0;
 }
 
+function isLikelyNewShoe(previousRoundNo, roundNo) {
+  return previousRoundNo > 0
+    && roundNo > 0
+    && roundNo < previousRoundNo
+    && (roundNo <= 5 || previousRoundNo - roundNo >= 20);
+}
+
+function roundNumber(round) {
+  return Number(round.roundNo || 0) || 0;
+}
+
+function isProgressAnchor(round) {
+  return round && !OLD_SNAPSHOT_EVENTS.has(round.sourceEvent) && round.sourceEvent !== "roadSnapshot";
+}
+
+function betterCurrentShoeRound(candidate, existing) {
+  if (!existing) return candidate;
+  const candidateScore = [
+    isProgressAnchor(candidate) ? 1 : 0,
+    Number(candidate.cardCount || 0) > 0 ? 1 : 0,
+    Number(candidate.id || 0)
+  ];
+  const existingScore = [
+    isProgressAnchor(existing) ? 1 : 0,
+    Number(existing.cardCount || 0) > 0 ? 1 : 0,
+    Number(existing.id || 0)
+  ];
+  for (let index = 0; index < candidateScore.length; index += 1) {
+    if (candidateScore[index] !== existingScore[index]) {
+      return candidateScore[index] > existingScore[index] ? candidate : existing;
+    }
+  }
+  return existing;
+}
+
 function predictionPool(allRounds, tableCode) {
   const valid = allRounds.filter(validRound);
   const reliable = valid.filter(isPredictionUsable);
@@ -178,20 +213,32 @@ function pointCountsFromRanks(rankCounts) {
   return points;
 }
 
-function latestShoeRounds(tableRounds) {
-  const sorted = [...tableRounds].sort((a, b) => a.id - b.id);
+function currentShoeRounds(tableRounds) {
+  const sorted = [...tableRounds]
+    .filter((round) => roundNumber(round) > 0)
+    .sort((a, b) => Number(a.id || 0) - Number(b.id || 0));
   if (!sorted.length) return [];
-  const shoe = [sorted.at(-1)];
-  let nextRoundNo = Number(sorted.at(-1).roundNo || 0);
-  for (let index = sorted.length - 2; index >= 0; index -= 1) {
-    const round = sorted[index];
-    const roundNo = Number(round.roundNo || 0);
-    if (roundNo <= 0 || nextRoundNo <= 0) break;
-    if (roundNo >= nextRoundNo) break;
-    shoe.unshift(round);
-    nextRoundNo = roundNo;
+
+  const progress = sorted.filter(isProgressAnchor);
+  const anchors = progress.length ? progress : sorted;
+  let currentStartId = Number(anchors[0].id || 0);
+  let previousRoundNo = roundNumber(anchors[0]);
+  for (let index = 1; index < anchors.length; index += 1) {
+    const roundNo = roundNumber(anchors[index]);
+    if (isLikelyNewShoe(previousRoundNo, roundNo)) currentStartId = Number(anchors[index].id || 0);
+    if (roundNo > 0) previousRoundNo = roundNo;
   }
-  return shoe;
+
+  const postStart = sorted.filter((round) => Number(round.id || 0) >= currentStartId);
+  const maxRoundNo = Math.max(...postStart.map(roundNumber));
+  const byRoundNo = new Map();
+  for (const round of postStart) {
+    const roundNo = roundNumber(round);
+    if (roundNo <= 0 || roundNo > maxRoundNo) continue;
+    byRoundNo.set(roundNo, betterCurrentShoeRound(round, byRoundNo.get(roundNo)));
+  }
+
+  return [...byRoundNo.values()].sort((a, b) => roundNumber(a) - roundNumber(b) || Number(a.id || 0) - Number(b.id || 0));
 }
 
 function usedRanksFromRounds(rounds) {
@@ -304,7 +351,7 @@ function simulateBaccaratRound(remainingRanks, rng) {
 }
 
 function estimateCardModel(tableRounds) {
-  const shoeRounds = latestShoeRounds(tableRounds).filter((round) => round.cardCount > 0);
+  const shoeRounds = currentShoeRounds(tableRounds).filter((round) => round.cardCount > 0);
   const usedRanks = usedRanksFromRounds(shoeRounds);
   const remainingRanks = baseRankCounts();
   let observedCards = 0;
@@ -534,6 +581,7 @@ module.exports = {
   ratesFromCounts,
   isPredictionUsable,
   predictionPool,
+  currentShoeRounds,
   normalizeSequence,
   sequenceOf,
   predictFromSequence,

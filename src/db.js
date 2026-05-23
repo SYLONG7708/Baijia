@@ -297,6 +297,50 @@ function updateRoundCards(input) {
   return { updated: result.changes > 0 };
 }
 
+function rowRoundNo(row) {
+  return Number(row.round_no || 0) || 0;
+}
+
+function isLikelyNewShoe(previousRoundNo, roundNo) {
+  return previousRoundNo > 0
+    && roundNo > 0
+    && roundNo < previousRoundNo
+    && (roundNo <= 5 || previousRoundNo - roundNo >= 20);
+}
+
+function isCurrentProgressAnchor(row) {
+  return row.source_event !== "roadSnapshot" && row.source_event !== "getGameHall" && row.source_event !== "getGameHall:snapshot";
+}
+
+function currentShoeSlotRows(tableCode) {
+  const rows = openDatabase().prepare(`
+    SELECT id, round_no, source_event
+    FROM rounds
+    WHERE table_code = ? AND source_event NOT IN ('getGameHall', 'getGameHall:snapshot')
+    ORDER BY id ASC
+  `).all(tableCode);
+  if (!rows.length) return rows;
+
+  const anchors = rows.filter(isCurrentProgressAnchor);
+  const progress = anchors.length ? anchors : rows;
+  let currentStartId = Number(progress[0].id || 0);
+  let previousRoundNo = rowRoundNo(progress[0]);
+  for (let index = 1; index < progress.length; index += 1) {
+    const roundNo = rowRoundNo(progress[index]);
+    if (isLikelyNewShoe(previousRoundNo, roundNo)) currentStartId = Number(progress[index].id || 0);
+    if (roundNo > 0) previousRoundNo = roundNo;
+  }
+
+  return rows.filter((row) => Number(row.id || 0) >= currentStartId);
+}
+
+function slotHasRound(input) {
+  const tableCode = normalizeTableCode(input.tableCode || input.table_code);
+  const roundNo = Number(input.roundNo || input.round_no || 0) || 0;
+  if (!tableCode || roundNo <= 0) return true;
+  return currentShoeSlotRows(tableCode).some((row) => rowRoundNo(row) === roundNo);
+}
+
 function getRounds(options = {}) {
   const database = openDatabase();
   const tableCode = normalizeTableCode(options.tableCode);
@@ -365,6 +409,7 @@ module.exports = {
   openDatabase,
   insertRound,
   updateRoundCards,
+  slotHasRound,
   getRounds,
   getAllRounds,
   getTableRounds,
