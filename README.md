@@ -60,6 +60,12 @@ APK output:
 android\app\build\outputs\apk\debug\app-debug.apk
 ```
 
+This repository also includes the latest local debug build at:
+
+```text
+dist\Baijia-Pro-debug.apk
+```
+
 If Android SDK is not installed locally, push to GitHub and run the `Android APK` workflow. It uploads `baijia-debug-apk` as an artifact.
 
 ## iPhone
