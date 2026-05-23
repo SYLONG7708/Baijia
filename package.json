@@ -7,6 +7,7 @@
   "scripts": {
     "start": "node src/server.js",
     "scraper": "node src/scraper.js",
+    "trainer": "node src/trainer.js",
     "daemon": "node src/daemon.js",
     "build:web": "node scripts/build-web.js",
     "cap:sync": "npm run build:web && npx cap sync",

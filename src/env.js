@@ -47,6 +47,8 @@ module.exports = {
   ALLBET_URL: process.env.ALLBET_URL || "",
   ALLBET_HEADLESS: boolEnv("ALLBET_HEADLESS", true),
   SCRAPER_ENABLED: boolEnv("SCRAPER_ENABLED", true),
+  TRAINER_ENABLED: boolEnv("TRAINER_ENABLED", true),
+  TRAINER_INTERVAL_MS: Math.max(60_000, intEnv("TRAINER_INTERVAL_MS", 5 * 60_000)),
   CLOUD_WEBHOOK_URL: process.env.CLOUD_WEBHOOK_URL || "",
   PUBLIC_API_BASE: process.env.PUBLIC_API_BASE || ""
 };

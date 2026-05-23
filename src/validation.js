@@ -80,6 +80,17 @@ function snapshotLooksLikeNewerShoe(snapshotRows, liveRows) {
     && maxId(snapshotRows) > maxId(liveRows);
 }
 
+function snapshotLooksLikeOlderShoe(snapshotRows, liveRows) {
+  if (!snapshotRows.length || !liveRows.length) return false;
+  const liveFirst = Math.min(...liveRows.map(roundNoOf).filter(Boolean));
+  const snapshotMax = maxRoundNo(snapshotRows);
+  const liveMax = maxRoundNo(liveRows);
+  return liveFirst <= 3
+    && liveMax <= 12
+    && snapshotMax >= liveMax + 20
+    && maxId(liveRows) > maxId(snapshotRows);
+}
+
 function snapshotComparison(snapshotRows, liveRows) {
   const liveByRoundNo = new Map();
   for (const round of liveRows) {
@@ -172,6 +183,7 @@ function tableValidation(rounds, table) {
   const currentSnapshots = currentShoeRounds(tableRows.filter((round) => round.sourceEvent === SNAPSHOT_EVENT));
   const selectedCurrent = currentShoeRounds(reliableRows);
   const snapshotNewerShoe = snapshotLooksLikeNewerShoe(currentSnapshots, selectedCurrent);
+  const snapshotOlderShoe = snapshotLooksLikeOlderShoe(currentSnapshots, selectedCurrent);
   const segmentRows = currentSegmentRows(reliableRows, selectedCurrent);
   const sourceCounts = {};
   for (const round of segmentRows) {
@@ -179,7 +191,8 @@ function tableValidation(rounds, table) {
   }
 
   const missing = missingRoundNos(selectedCurrent);
-  const snapshotCheck = snapshotComparison(currentSnapshots, snapshotNewerShoe ? [] : selectedCurrent);
+  const comparableSnapshots = snapshotOlderShoe ? [] : currentSnapshots;
+  const snapshotCheck = snapshotComparison(comparableSnapshots, snapshotNewerShoe ? [] : selectedCurrent);
   const nonLive = selectedCurrent
     .filter((round) => !LIVE_EVENTS.has(round.sourceEvent))
     .map((round) => ({
@@ -219,6 +232,7 @@ function tableValidation(rounds, table) {
     snapshotCurrentRoundNo: snapshotCheck.snapshotCurrentRoundNo,
     snapshotLatest: snapshotCheck.snapshotLatest,
     snapshotNewerShoe,
+    snapshotOlderShoe,
     snapshotOnlyRoundNos: snapshotCheck.snapshotOnlyRoundNos,
     snapshotConflicts: snapshotCheck.snapshotConflicts,
     snapshotShiftedMatches: snapshotCheck.snapshotShiftedMatches,

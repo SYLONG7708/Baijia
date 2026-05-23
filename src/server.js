@@ -27,6 +27,7 @@ const { backtestPredictions } = require("./backtest");
 const { buildDataQuality } = require("./quality");
 const { buildModelSelection, predictByModel } = require("./model-selection");
 const { buildValidation } = require("./validation");
+const { getTrainingSummary } = require("./training-store");
 
 openDatabase();
 
@@ -60,8 +61,18 @@ function snapshotLooksLikeNewerShoe(liveRounds, snapshotRounds) {
     && maxId(snapshotRounds) > maxId(liveRounds);
 }
 
+function snapshotLooksLikeOlderShoe(liveRounds, snapshotRounds) {
+  if (!snapshotRounds.length || !liveRounds.length) return false;
+  const liveFirst = Math.min(...liveRounds.map(roundNoOf).filter(Boolean));
+  return liveFirst <= 3
+    && maxRoundNo(liveRounds) <= 12
+    && maxRoundNo(snapshotRounds) >= maxRoundNo(liveRounds) + 20
+    && maxId(liveRounds) > maxId(snapshotRounds);
+}
+
 function mergeSnapshotRoadRounds(liveRounds, snapshotRounds) {
   if (!snapshotRounds.length) return liveRounds;
+  if (snapshotLooksLikeOlderShoe(liveRounds, snapshotRounds)) return liveRounds;
   if (snapshotLooksLikeNewerShoe(liveRounds, snapshotRounds)) return snapshotRounds;
   const liveByRoundNo = new Map();
   for (const round of liveRounds) {
@@ -91,6 +102,21 @@ function mergeSnapshotRoadRounds(liveRounds, snapshotRounds) {
     const roundDiff = (Number(left.roundNo || 0) || 0) - (Number(right.roundNo || 0) || 0);
     return roundDiff || (Number(left.id || 0) || 0) - (Number(right.id || 0) || 0);
   });
+}
+
+function summaryWithActiveModel(summary, rounds, status = {}) {
+  const activeModel = status.modelSelection?.activeModel || status.trainer?.activeModel || "";
+  if (!activeModel) return summary;
+  return {
+    ...summary,
+    activeModel,
+    prediction: predictByModel(rounds, "", activeModel),
+    tables: (summary.tables || []).map((table) => ({
+      ...table,
+      activeModel,
+      prediction: predictByModel(rounds, table.code, activeModel)
+    }))
+  };
 }
 
 function sendJson(res, status, body) {
@@ -233,20 +259,23 @@ async function handleApi(req, res) {
   if (req.method === "GET" && url.pathname === "/api/status") {
     const allRounds = rounds();
     const summaryRounds = reliableRounds(allRounds);
+    const status = getStatus();
     return sendJson(res, 200, {
       ok: true,
       now: new Date().toISOString(),
-      summary: summarizeAll(summaryRounds),
+      summary: summaryWithActiveModel(summarizeAll(summaryRounds), summaryRounds, status),
       rawTotals: {
         allRounds: allRounds.length,
         reliableRounds: summaryRounds.length
       },
-      scraper: getStatus()
+      scraper: status
     });
   }
 
   if (req.method === "GET" && url.pathname === "/api/tables") {
-    return sendJson(res, 200, summarizeAll(reliableRounds(rounds())));
+    const status = getStatus();
+    const summaryRounds = reliableRounds(rounds());
+    return sendJson(res, 200, summaryWithActiveModel(summarizeAll(summaryRounds), summaryRounds, status));
   }
 
   if (req.method === "GET" && url.pathname === "/api/quality") {
@@ -262,8 +291,17 @@ async function handleApi(req, res) {
     return sendJson(res, 200, {
       monitor: status.monitor || {},
       monitorProcess: status.monitorProcess || {},
+      trainer: status.trainer || {},
+      trainerProcess: status.trainerProcess || {},
       scraper: status.scraper || {},
       ingest: getRoundIngestSummary()
+    });
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/training") {
+    return sendJson(res, 200, {
+      trainer: getStatus().trainer || {},
+      training: getTrainingSummary(url.searchParams.get("limit") || 20)
     });
   }
 
