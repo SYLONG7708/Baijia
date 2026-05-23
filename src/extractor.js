@@ -18,6 +18,10 @@ function maybeJson(value) {
   }
 }
 
+function payloadBody(parsed) {
+  return parsed?.p || parsed?.data || parsed;
+}
+
 function findTargetCodeInValue(value) {
   if (value === undefined || value === null) return "";
   const text = String(value).toUpperCase();
@@ -70,6 +74,11 @@ function extractRawResults(value, results = []) {
   return results;
 }
 
+function extractValidRawResults(value, results = []) {
+  extractRawResults(value, results);
+  return results.filter((raw) => raw !== "-1" && raw !== "-2");
+}
+
 function firstValue(...values) {
   for (const value of values) {
     if (value !== undefined && value !== null && value !== "") return value;
@@ -97,10 +106,10 @@ function parseTableObject(obj, context) {
     obj.shoeNo,
     obj.inningsId,
     obj.inningsID,
-    status.BB,
     status.inningsID,
     context.shoeId,
-    new Date().toISOString().slice(0, 10)
+    context.snapshotShoeId,
+    "snapshot"
   ));
   const currentGameRoundId = String(firstValue(
     obj.gameRoundId,
@@ -128,7 +137,7 @@ function parseTableObject(obj, context) {
   ];
 
   const rawResults = [];
-  for (const source of resultSources) extractRawResults(source, rawResults);
+  for (const source of resultSources) extractValidRawResults(source, rawResults);
 
   const uniqueRaw = [];
   for (const raw of rawResults) {
@@ -170,9 +179,9 @@ function walk(value, context, rounds, visited) {
     return;
   }
 
-  const tableCode = detectTableCode(value) || context.tableCode;
-  const nextContext = tableCode ? { ...context, tableCode } : context;
-  if (tableCode) rounds.push(...parseTableObject(value, nextContext));
+  const ownTableCode = detectTableCode(value);
+  const nextContext = ownTableCode ? { ...context, tableCode: ownTableCode } : context;
+  if (ownTableCode) rounds.push(...parseTableObject(value, nextContext));
 
   for (const item of Object.values(value)) {
     walk(item, nextContext, rounds, visited);
@@ -183,9 +192,13 @@ function extractRoundsFromPayload(payload, context = {}) {
   const parsed = maybeJson(payload);
   if (!parsed || typeof parsed !== "object") return [];
   const sourceEvent = context.sourceEvent || parsed.c || parsed.cmd || parsed.eventType || "";
-  const body = parsed.p || parsed.data || parsed;
+  const body = payloadBody(parsed);
   const rounds = [];
-  walk(body, { ...context, sourceEvent }, rounds, new WeakSet());
+  walk(body, {
+    ...context,
+    sourceEvent,
+    snapshotShoeId: context.snapshotShoeId || `snapshot:${new Date().toISOString().slice(0, 10)}`
+  }, rounds, new WeakSet());
 
   const deduped = [];
   const seen = new Set();
@@ -205,8 +218,139 @@ function extractRoundsFromPayload(payload, context = {}) {
   return deduped;
 }
 
+function extractTableReferencesFromPayload(payload) {
+  const parsed = maybeJson(payload);
+  if (!parsed || typeof parsed !== "object") return [];
+  const body = payloadBody(parsed);
+  const refs = [];
+  const visited = new WeakSet();
+
+  function visit(value) {
+    if (!value || typeof value !== "object" || visited.has(value)) return;
+    visited.add(value);
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+      return;
+    }
+
+    const tableCode = detectTableCode(value);
+    const tableId = value.AA ?? value.tableId ?? value.tableID;
+    if (tableCode && tableId !== undefined && tableId !== null) {
+      const status = value.HH || value.gameStatus || value.status || {};
+      refs.push({
+        tableId: String(tableId),
+        tableCode,
+        tableName: tableNameFromObject(value, tableCode),
+        category: tableMeta(tableCode).category,
+        currentRoundNo: Number(status.BB || value.roundNo || 0) || 0,
+        gameRoundId: String(status.CC || value.gameRoundId || value.game_round_id || ""),
+        status: status.DD ?? value.status ?? "",
+        updatedAt: new Date().toISOString()
+      });
+    }
+
+    for (const item of Object.values(value)) visit(item);
+  }
+
+  visit(body);
+  return refs;
+}
+
+function roundFromLiveRaw(raw, tableRef, details, context) {
+  const roundNo = Number(details.roundNo || tableRef.currentRoundNo || 0) || 0;
+  if (roundNo <= 0) return null;
+  const parsed = parseBaccaratResult(raw, {
+    tableCode: tableRef.tableCode,
+    shoeId: details.shoeId || tableRef.shoeId || "live",
+    gameRoundId: details.gameRoundId || tableRef.gameRoundId || "",
+    roundNo
+  });
+  if (!parsed) return null;
+  return {
+    ...parsed,
+    tableCode: tableRef.tableCode,
+    tableName: tableRef.tableName || tableMeta(tableRef.tableCode).label,
+    category: tableRef.category || tableMeta(tableRef.tableCode).category,
+    shoeId: parsed.shoeId || "live",
+    roundNo: parsed.roundNo || 0,
+    gameRoundId: parsed.gameRoundId || `${tableRef.tableCode}:${parsed.roundNo}:${raw}`,
+    source: context.source || "allbet",
+    sourceEvent: context.sourceEvent || ""
+  };
+}
+
+function extractLiveRoundsFromPayload(payload, tableRefs = new Map(), context = {}) {
+  const parsed = maybeJson(payload);
+  if (!parsed || typeof parsed !== "object") return { rounds: [], unmatched: [] };
+
+  const sourceEvent = context.sourceEvent || parsed.c || parsed.cmd || parsed.eventType || "";
+  const body = payloadBody(parsed);
+  const rounds = [];
+  const unmatched = [];
+
+  function tableRefFor(id) {
+    if (id === undefined || id === null) return null;
+    return tableRefs.get(String(id)) || null;
+  }
+
+  if (sourceEvent === "pushGameTableResults") {
+    const tableId = body.A ?? body.AA ?? body.tableId;
+    const ref = tableRefFor(tableId);
+    if (!ref) unmatched.push(String(tableId));
+    const raws = extractValidRawResults(body.G || body.results || body.result);
+    raws.forEach((raw, index) => {
+      if (!ref) return;
+      const roundNo = Number(body.C || body.roundNo || 0) - Math.max(0, raws.length - 1 - index);
+      const round = roundFromLiveRaw(raw, ref, {
+        roundNo,
+        gameRoundId: String(body.E || body.gameRoundId || `${ref.tableCode}:${roundNo}:${raw}`)
+      }, { ...context, sourceEvent });
+      if (round) rounds.push(round);
+    });
+  }
+
+  if (sourceEvent === "pushGameStatus") {
+    const items = Array.isArray(body.A) ? body.A : [body];
+    for (const item of items) {
+      const tableId = item.AA ?? item.A ?? item.tableId;
+      const ref = tableRefFor(tableId);
+      if (!ref) {
+        if (tableId !== undefined && tableId !== null) unmatched.push(String(tableId));
+        continue;
+      }
+      const raws = extractValidRawResults(item.NN || item.MM || item.FF || item.result);
+      for (const raw of raws) {
+        const round = roundFromLiveRaw(raw, ref, {
+          roundNo: Number(item.BB || item.roundNo || ref.currentRoundNo || 0) || 0,
+          gameRoundId: String(item.CC || item.gameRoundId || ref.gameRoundId || "")
+        }, { ...context, sourceEvent });
+        if (round) rounds.push(round);
+      }
+    }
+  }
+
+  const deduped = [];
+  const seen = new Set();
+  for (const round of rounds) {
+    const key = sha1([
+      round.tableCode,
+      round.gameRoundId,
+      round.roundNo,
+      round.rawResult,
+      round.outcome
+    ].join("|"));
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(round);
+  }
+
+  return { rounds: deduped, unmatched: [...new Set(unmatched)] };
+}
+
 module.exports = {
   extractRoundsFromPayload,
+  extractLiveRoundsFromPayload,
+  extractTableReferencesFromPayload,
   detectTableCode,
   extractRawResults,
   findTargetCodeInValue

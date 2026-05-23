@@ -1,7 +1,11 @@
 const { chromium } = require("playwright");
 const { ALLBET_URL, ALLBET_HEADLESS, ROOT } = require("./env");
 const { insertRound, setStatus, logEvent } = require("./db");
-const { extractRoundsFromPayload } = require("./extractor");
+const {
+  extractRoundsFromPayload,
+  extractLiveRoundsFromPayload,
+  extractTableReferencesFromPayload
+} = require("./extractor");
 
 const urlArg = process.argv.find((arg) => arg.startsWith("http"));
 const TARGET_URL = urlArg || ALLBET_URL;
@@ -9,14 +13,31 @@ const userDataDir = `${ROOT}/data/playwright-profile`;
 
 let insertedTotal = 0;
 let browserContext;
+let snapshotBackfilled = false;
+const tableRefs = new Map();
+const pendingPayloads = [];
+const recentRoundKeys = new Map();
+const scraperStatus = {};
+
+function seenRecently(round) {
+  const now = Date.now();
+  for (const [key, at] of recentRoundKeys.entries()) {
+    if (now - at > 10 * 60 * 1000) recentRoundKeys.delete(key);
+  }
+  const key = `${round.tableCode}|${round.roundNo}|${round.rawResult}`;
+  if (recentRoundKeys.has(key)) return true;
+  recentRoundKeys.set(key, now);
+  return false;
+}
 
 function updateStatus(patch) {
+  Object.assign(scraperStatus, patch);
   setStatus("scraper", {
     urlConfigured: Boolean(TARGET_URL),
     running: true,
     insertedTotal,
     pid: process.pid,
-    ...patch
+    ...scraperStatus
   });
 }
 
@@ -28,9 +49,44 @@ function safePayload(payload) {
 
 function handlePayload(payload, source) {
   const text = safePayload(payload);
-  const rounds = extractRoundsFromPayload(text, { source });
+  const refs = extractTableReferencesFromPayload(text);
+  if (refs.length) {
+    for (const ref of refs) tableRefs.set(ref.tableId, ref);
+    updateStatus({
+      tableRefCount: tableRefs.size,
+      lastTableRefAt: new Date().toISOString()
+    });
+  }
+
+  const live = extractLiveRoundsFromPayload(text, tableRefs, { source });
+  let rounds = live.rounds;
+  if (!rounds.length && live.unmatched.length) {
+    pendingPayloads.push({ text, source, at: Date.now() });
+    if (pendingPayloads.length > 50) pendingPayloads.shift();
+    updateStatus({ unmatchedTableIds: live.unmatched.slice(0, 10) });
+  }
+
+  if (refs.length && pendingPayloads.length) {
+    const retry = pendingPayloads.splice(0, pendingPayloads.length);
+    for (const pending of retry) {
+      const retried = extractLiveRoundsFromPayload(pending.text, tableRefs, { source: pending.source });
+      rounds.push(...retried.rounds);
+    }
+  }
+
+  if (!rounds.length && !snapshotBackfilled && text.includes('"getGameHall"')) {
+    rounds = extractRoundsFromPayload(text, {
+      source,
+      sourceEvent: "getGameHall:snapshot",
+      snapshotShoeId: `snapshot:${new Date().toISOString().slice(0, 10)}`
+    });
+    snapshotBackfilled = true;
+    updateStatus({ snapshotBackfilledAt: new Date().toISOString(), snapshotBackfillRows: rounds.length });
+  }
+
   let inserted = 0;
   for (const round of rounds) {
+    if (round.sourceEvent !== "getGameHall:snapshot" && seenRecently(round)) continue;
     const result = insertRound(round);
     if (result.inserted) inserted += 1;
   }

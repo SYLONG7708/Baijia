@@ -5,6 +5,9 @@ data/*.sqlite
 data/*.sqlite-*
 data/*.jsonl
 data/*.pid
+data/ws-*.json
+data/ws-*.jsonl
+data/sample-profile*/
 data/playwright-profile/
 logs/*.log
 logs/*.err
