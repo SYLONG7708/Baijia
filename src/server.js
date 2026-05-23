@@ -25,6 +25,7 @@ const {
 const { buildRoads } = require("./roads");
 const { backtestPredictions } = require("./backtest");
 const { buildDataQuality } = require("./quality");
+const { buildModelSelection, predictByModel } = require("./model-selection");
 const { buildValidation } = require("./validation");
 
 openDatabase();
@@ -220,6 +221,13 @@ async function handleApi(req, res) {
     }));
   }
 
+  if (req.method === "GET" && url.pathname === "/api/models") {
+    return sendJson(res, 200, buildModelSelection(rounds(), {
+      limit: url.searchParams.get("limit"),
+      warmup: url.searchParams.get("warmup")
+    }));
+  }
+
   if (req.method === "GET" && url.pathname === "/api/rounds") {
     const includeSnapshots = url.searchParams.get("includeSnapshots") === "true";
     const tableCode = normalizeTableCode(url.searchParams.get("tableCode"));
@@ -270,6 +278,10 @@ async function handleApi(req, res) {
   if (req.method === "POST" && url.pathname === "/api/predict") {
     try {
       const body = await parseBody(req);
+      const modelId = body.modelId || body.model || "";
+      if (modelId) {
+        return sendJson(res, 200, predictByModel(rounds(), body.tableCode, modelId));
+      }
       return sendJson(res, 200, predictFromSequence(rounds(), body));
     } catch (error) {
       return sendJson(res, 400, { error: error.message });

@@ -280,6 +280,7 @@ function renderStatus() {
   const monitorProcess = state.status?.monitorProcess || {};
   const validation = state.status?.validation || {};
   const validationSummary = validation.summary || {};
+  const modelSelection = state.status?.modelSelection || {};
   const validationValue = validationSummary.error || validationSummary.warn
     ? `${validationSummary.error || 0}衝突 / ${validationSummary.warn || 0}警告`
     : "正常";
@@ -293,6 +294,7 @@ function renderStatus() {
     ["最新資料", monitor.latestRound?.insertedAt ? fmtTime(monitor.latestRound.insertedAt) : ""],
     ["檢查", monitor.lastCheckAt ? fmtTime(monitor.lastCheckAt) : ""],
     ["資料校驗", validationValue],
+    ["自訓模型", modelSelection.activeModel || "等待"],
     ["健康", healthLabel(scraper.health)],
     ["新增", scraper.insertedTotal || 0],
     ["WebSocket", scraper.lastWebsocketAt ? fmtTime(scraper.lastWebsocketAt) : ""],

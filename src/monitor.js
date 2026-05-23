@@ -1,4 +1,5 @@
 const { openDatabase, getAllRounds, getRoundIngestSummary, getStatus, setStatus, logEvent } = require("./db");
+const { buildModelSelection } = require("./model-selection");
 const { buildValidation } = require("./validation");
 
 const INTERVAL_MS = Math.max(15_000, Number(process.env.MONITOR_INTERVAL_MS || 60_000));
@@ -77,7 +78,9 @@ function checkOnce() {
   const status = getStatus();
   const scraper = status.scraper || {};
   const summary = getRoundIngestSummary();
-  const validation = buildValidation(getAllRounds());
+  const allRounds = getAllRounds();
+  const validation = buildValidation(allRounds);
+  const modelSelection = buildModelSelection(allRounds, { limit: 1200, warmup: 45 });
   const deltaSinceLastCheck = lastTotalRounds > 0
     ? Math.max(0, summary.totalRounds - lastTotalRounds)
     : 0;
@@ -112,6 +115,7 @@ function checkOnce() {
 
   setStatus("monitor", monitor);
   setStatus("validation", validation);
+  setStatus("modelSelection", modelSelection);
   if (monitor.state !== lastState) {
     const level = monitor.canReadNewInfo ? "info" : "warn";
     logEvent(level, "monitor state changed", monitor);
