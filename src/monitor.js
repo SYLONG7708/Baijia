@@ -1,4 +1,5 @@
-const { openDatabase, getRoundIngestSummary, getStatus, setStatus, logEvent } = require("./db");
+const { openDatabase, getAllRounds, getRoundIngestSummary, getStatus, setStatus, logEvent } = require("./db");
+const { buildValidation } = require("./validation");
 
 const INTERVAL_MS = Math.max(15_000, Number(process.env.MONITOR_INTERVAL_MS || 60_000));
 const STALE_WARN_MS = Math.max(INTERVAL_MS, Number(process.env.MONITOR_STALE_WARN_MS || 10 * 60_000));
@@ -76,6 +77,7 @@ function checkOnce() {
   const status = getStatus();
   const scraper = status.scraper || {};
   const summary = getRoundIngestSummary();
+  const validation = buildValidation(getAllRounds());
   const deltaSinceLastCheck = lastTotalRounds > 0
     ? Math.max(0, summary.totalRounds - lastTotalRounds)
     : 0;
@@ -109,6 +111,7 @@ function checkOnce() {
   };
 
   setStatus("monitor", monitor);
+  setStatus("validation", validation);
   if (monitor.state !== lastState) {
     const level = monitor.canReadNewInfo ? "info" : "warn";
     logEvent(level, "monitor state changed", monitor);

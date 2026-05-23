@@ -407,7 +407,7 @@ function getEvents(limit = 100) {
 
 function getRoundIngestSummary() {
   const database = openDatabase();
-  const reliableWhere = "source_event NOT IN ('getGameHall', 'getGameHall:snapshot')";
+  const reliableWhere = "source_event NOT IN ('getGameHall', 'getGameHall:snapshot', 'roadSnapshot')";
   const totals = database.prepare(`
     SELECT COUNT(*) AS total_rounds, MAX(id) AS latest_id
     FROM rounds

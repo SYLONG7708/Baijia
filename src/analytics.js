@@ -11,7 +11,7 @@ const DECKS_PER_SHOE = 8;
 const CARDS_PER_DECK = 52;
 const CARDS_PER_SHOE = DECKS_PER_SHOE * CARDS_PER_DECK;
 const CARD_MODEL_TRIALS = 900;
-const OLD_SNAPSHOT_EVENTS = new Set(["getGameHall", "getGameHall:snapshot"]);
+const OLD_SNAPSHOT_EVENTS = new Set(["getGameHall", "getGameHall:snapshot", "roadSnapshot"]);
 
 function pct(value) {
   return Math.round(Number(value || 0) * 1000) / 10;

@@ -115,6 +115,19 @@ function streakRateText(streak) {
   return `${streak.continuationPercent}%`;
 }
 
+function currentValidation() {
+  const tables = state.status?.validation?.tables || [];
+  return tables.find((table) => table.code === state.selectedTable) || null;
+}
+
+function validationText(validation) {
+  if (!validation) return "等待";
+  if (validation.severity === "OK") return "正常";
+  if (validation.severity === "ERROR") return "衝突";
+  if (validation.missingRoundNos?.length) return `缺 ${validation.missingRoundNos.join(",")}`;
+  return "需檢查";
+}
+
 function renderTopMetrics() {
   const summary = state.summary || {};
   $("topMetrics").innerHTML = [
@@ -161,6 +174,7 @@ function renderTableHeader() {
   const cardModel = table.prediction?.cardModel || {};
   const counts = table.counts || {};
   const streak = table.streak || {};
+  const validation = currentValidation();
   $("tableCategory").textContent = table.category || "";
   $("tableTitle").textContent = `${table.code} ${table.category || ""}`.trim();
   $("latestSix").replaceChildren(...(table.latestSix || []).map(chip));
@@ -173,6 +187,7 @@ function renderTableHeader() {
     ["連勝", streakText(streak)],
     ["連勝率", streakRateText(streak)],
     ["連勝樣本", `${streak.continuations || 0}/${streak.opportunities || 0}`],
+    ["校驗", validationText(validation)],
     ["莊對", counts.bankerPair || 0],
     ["閒對", counts.playerPair || 0],
     ["已見牌", cardModel.available ? `${cardModel.observedCards}/${cardModel.totalCards}` : "等待"],
@@ -263,6 +278,11 @@ function renderStatus() {
   const daemon = state.status?.daemon || {};
   const monitor = state.status?.monitor || {};
   const monitorProcess = state.status?.monitorProcess || {};
+  const validation = state.status?.validation || {};
+  const validationSummary = validation.summary || {};
+  const validationValue = validationSummary.error || validationSummary.warn
+    ? `${validationSummary.error || 0}衝突 / ${validationSummary.warn || 0}警告`
+    : "正常";
   $("statusList").innerHTML = [
     ["Daemon", daemon.running ? "運行" : "待命"],
     ["Scraper", scraper.running ? "運行" : "待命"],
@@ -272,6 +292,7 @@ function renderStatus() {
     ["15分鐘新增", monitor.recent?.last15m ?? 0],
     ["最新資料", monitor.latestRound?.insertedAt ? fmtTime(monitor.latestRound.insertedAt) : ""],
     ["檢查", monitor.lastCheckAt ? fmtTime(monitor.lastCheckAt) : ""],
+    ["資料校驗", validationValue],
     ["健康", healthLabel(scraper.health)],
     ["新增", scraper.insertedTotal || 0],
     ["WebSocket", scraper.lastWebsocketAt ? fmtTime(scraper.lastWebsocketAt) : ""],

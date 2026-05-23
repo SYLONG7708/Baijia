@@ -25,6 +25,7 @@ const {
 const { buildRoads } = require("./roads");
 const { backtestPredictions } = require("./backtest");
 const { buildDataQuality } = require("./quality");
+const { buildValidation } = require("./validation");
 
 openDatabase();
 
@@ -195,6 +196,10 @@ async function handleApi(req, res) {
 
   if (req.method === "GET" && url.pathname === "/api/quality") {
     return sendJson(res, 200, buildDataQuality(rounds(), getStatus()));
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/validation") {
+    return sendJson(res, 200, buildValidation(rounds()));
   }
 
   if (req.method === "GET" && url.pathname === "/api/monitor") {
