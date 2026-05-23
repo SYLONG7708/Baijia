@@ -8,6 +8,64 @@ const OUTCOME_BY_CODE = {
   "6": "PLAYER"
 };
 
+function cardPointFromRank(rank) {
+  const value = Number(rank);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  if (value === 1) return 1;
+  if (value >= 10) return 0;
+  return value;
+}
+
+function parseAllbetCard(value) {
+  const raw = String(value || "").trim().toUpperCase();
+  if (!raw || raw === "-1" || raw === "-2") return null;
+  const match = raw.match(/^([1-4])([0-9]{2})$/);
+  if (!match) return null;
+  const rank = Number(match[2]);
+  if (!Number.isInteger(rank) || rank < 1 || rank > 13) return null;
+  return {
+    raw,
+    suit: match[1],
+    rank,
+    point: cardPointFromRank(rank)
+  };
+}
+
+function normalizeCardList(cards) {
+  if (!Array.isArray(cards)) return [];
+  return cards
+    .map((card) => {
+      if (card && typeof card === "object" && card.raw && card.rank !== undefined) {
+        return {
+          raw: String(card.raw),
+          suit: String(card.suit || String(card.raw)[0] || ""),
+          rank: Number(card.rank),
+          point: card.point === undefined ? cardPointFromRank(card.rank) : Number(card.point)
+        };
+      }
+      return parseAllbetCard(card);
+    })
+    .filter(Boolean);
+}
+
+function parseAllbetCardMatrix(matrix) {
+  if (!Array.isArray(matrix)) return null;
+  const bankerCards = normalizeCardList(Array.isArray(matrix[0]) ? matrix[0] : []);
+  const playerCards = normalizeCardList(Array.isArray(matrix[1]) ? matrix[1] : []);
+  if (!bankerCards.length && !playerCards.length) return null;
+  return {
+    bankerCards,
+    playerCards,
+    bankerCardPoints: bankerCards.map((card) => card.point),
+    playerCardPoints: playerCards.map((card) => card.point),
+    bankerCardRanks: bankerCards.map((card) => card.rank),
+    playerCardRanks: playerCards.map((card) => card.rank),
+    bankerCardsRaw: bankerCards.map((card) => card.raw),
+    playerCardsRaw: playerCards.map((card) => card.raw),
+    cardCount: bankerCards.length + playerCards.length
+  };
+}
+
 function normalizeOutcome(value) {
   const raw = String(value || "").trim().toUpperCase();
   if (["B", "BANKER", "莊", "庄"].includes(raw)) return "BANKER";
@@ -69,5 +127,9 @@ module.exports = {
   looksLikeBaccaratResult,
   normalizeOutcome,
   outcomeShort,
-  parseBaccaratResult
+  parseBaccaratResult,
+  parseAllbetCard,
+  parseAllbetCardMatrix,
+  normalizeCardList,
+  cardPointFromRank
 };

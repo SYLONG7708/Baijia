@@ -14,7 +14,7 @@ const {
   getEvents,
   logEvent
 } = require("./db");
-const { summarizeAll, predictFromSequence } = require("./analytics");
+const { summarizeAll, predictFromSequence, estimateCardModel } = require("./analytics");
 const { buildRoads } = require("./roads");
 
 openDatabase();
@@ -101,6 +101,13 @@ function roundFromInput(input) {
       tableCode,
       tableName: input.tableName || meta.label,
       category: meta.category,
+      bankerCards: input.bankerCards || input.banker_cards || input.bankerCardsRaw || input.banker_cards_raw || [],
+      playerCards: input.playerCards || input.player_cards || input.playerCardsRaw || input.player_cards_raw || [],
+      bankerCardPoints: input.bankerCardPoints || input.banker_card_points || [],
+      playerCardPoints: input.playerCardPoints || input.player_card_points || [],
+      bankerCardRanks: input.bankerCardRanks || input.banker_card_ranks || [],
+      playerCardRanks: input.playerCardRanks || input.player_card_ranks || [],
+      cardObservedAt: input.cardObservedAt || input.card_observed_at || "",
       source: input.source || "manual",
       sourceEvent: "manual"
     };
@@ -121,6 +128,13 @@ function roundFromInput(input) {
     luckySix: Boolean(input.luckySix || input.lucky_six),
     bankerPoint: input.bankerPoint || "",
     playerPoint: input.playerPoint || "",
+    bankerCards: input.bankerCards || input.banker_cards || input.bankerCardsRaw || input.banker_cards_raw || [],
+    playerCards: input.playerCards || input.player_cards || input.playerCardsRaw || input.player_cards_raw || [],
+    bankerCardPoints: input.bankerCardPoints || input.banker_card_points || [],
+    playerCardPoints: input.playerCardPoints || input.player_card_points || [],
+    bankerCardRanks: input.bankerCardRanks || input.banker_card_ranks || [],
+    playerCardRanks: input.playerCardRanks || input.player_card_ranks || [],
+    cardObservedAt: input.cardObservedAt || input.card_observed_at || "",
     rawResult: input.rawResult || "",
     source: input.source || "manual",
     sourceEvent: "manual"
@@ -173,6 +187,15 @@ async function handleApi(req, res) {
       tableCode,
       roads: buildRoads(tableRounds),
       rounds: tableRounds.slice(-500)
+    });
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/shoe") {
+    const tableCode = normalizeTableCode(url.searchParams.get("tableCode"));
+    if (!tableCode) return sendJson(res, 400, { error: "tableCode is required" });
+    return sendJson(res, 200, {
+      tableCode,
+      cardModel: estimateCardModel(getTableRounds(tableCode))
     });
   }
 

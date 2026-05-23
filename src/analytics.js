@@ -1,5 +1,5 @@
 const { TARGET_TABLES, tableMeta, normalizeTableCode } = require("./tables");
-const { outcomeShort, normalizeOutcome } = require("./baccarat-codec");
+const { outcomeShort, normalizeOutcome, cardPointFromRank } = require("./baccarat-codec");
 
 const DEFAULT_BASELINE = {
   outcome: { BANKER: 0.4586, PLAYER: 0.4462, TIE: 0.0952 },
@@ -7,6 +7,10 @@ const DEFAULT_BASELINE = {
   playerPair: 0.0747,
   luckySix: 0.054
 };
+const DECKS_PER_SHOE = 8;
+const CARDS_PER_DECK = 52;
+const CARDS_PER_SHOE = DECKS_PER_SHOE * CARDS_PER_DECK;
+const CARD_MODEL_TRIALS = 900;
 
 function pct(value) {
   return Math.round(Number(value || 0) * 1000) / 10;
@@ -127,6 +131,218 @@ function choosePick(probabilities) {
     .sort((left, right) => right[1] - left[1])[0][0];
 }
 
+function baseRankCounts() {
+  const counts = {};
+  for (let rank = 1; rank <= 13; rank += 1) counts[rank] = DECKS_PER_SHOE * 4;
+  return counts;
+}
+
+function pointCountsFromRanks(rankCounts) {
+  const points = {};
+  for (let point = 0; point <= 9; point += 1) points[point] = 0;
+  for (const [rank, count] of Object.entries(rankCounts)) {
+    const point = cardPointFromRank(Number(rank));
+    if (point !== null) points[point] += count;
+  }
+  return points;
+}
+
+function latestShoeRounds(tableRounds) {
+  const sorted = [...tableRounds].sort((a, b) => a.id - b.id);
+  if (!sorted.length) return [];
+  const shoe = [sorted.at(-1)];
+  let nextRoundNo = Number(sorted.at(-1).roundNo || 0);
+  for (let index = sorted.length - 2; index >= 0; index -= 1) {
+    const round = sorted[index];
+    const roundNo = Number(round.roundNo || 0);
+    if (roundNo <= 0 || nextRoundNo <= 0) break;
+    if (roundNo >= nextRoundNo) break;
+    shoe.unshift(round);
+    nextRoundNo = roundNo;
+  }
+  return shoe;
+}
+
+function usedRanksFromRounds(rounds) {
+  const used = {};
+  for (let rank = 1; rank <= 13; rank += 1) used[rank] = 0;
+  for (const round of rounds) {
+    const ranks = [
+      ...(round.bankerCardRanks || []),
+      ...(round.playerCardRanks || [])
+    ];
+    for (const rankValue of ranks) {
+      const rank = Number(rankValue);
+      if (Number.isInteger(rank) && rank >= 1 && rank <= 13) used[rank] += 1;
+    }
+  }
+  return used;
+}
+
+function hashSeed(text) {
+  let hash = 2166136261;
+  for (const char of String(text)) {
+    hash ^= char.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function seededRandom(seedText) {
+  let state = hashSeed(seedText) || 1;
+  return () => {
+    state += 0x6D2B79F5;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function drawRank(rankCounts, rng) {
+  const total = Object.values(rankCounts).reduce((sum, count) => sum + count, 0);
+  if (total <= 0) return 1;
+  let target = rng() * total;
+  for (let rank = 1; rank <= 13; rank += 1) {
+    target -= rankCounts[rank] || 0;
+    if (target < 0) {
+      rankCounts[rank] -= 1;
+      return rank;
+    }
+  }
+  for (let rank = 13; rank >= 1; rank -= 1) {
+    if ((rankCounts[rank] || 0) > 0) {
+      rankCounts[rank] -= 1;
+      return rank;
+    }
+  }
+  return 1;
+}
+
+function handTotal(ranks) {
+  return ranks.reduce((sum, rank) => sum + cardPointFromRank(rank), 0) % 10;
+}
+
+function simulateBaccaratRound(remainingRanks, rng) {
+  const ranks = { ...remainingRanks };
+  const player = [drawRank(ranks, rng)];
+  const banker = [drawRank(ranks, rng)];
+  player.push(drawRank(ranks, rng));
+  banker.push(drawRank(ranks, rng));
+
+  let playerTotal = handTotal(player);
+  let bankerTotal = handTotal(banker);
+
+  if (playerTotal < 8 && bankerTotal < 8) {
+    let playerThirdPoint = null;
+    if (playerTotal <= 5) {
+      const rank = drawRank(ranks, rng);
+      player.push(rank);
+      playerThirdPoint = cardPointFromRank(rank);
+      playerTotal = handTotal(player);
+    }
+
+    let bankerDraw = false;
+    if (playerThirdPoint === null) {
+      bankerDraw = bankerTotal <= 5;
+    } else if (bankerTotal <= 2) {
+      bankerDraw = true;
+    } else if (bankerTotal === 3) {
+      bankerDraw = playerThirdPoint !== 8;
+    } else if (bankerTotal === 4) {
+      bankerDraw = playerThirdPoint >= 2 && playerThirdPoint <= 7;
+    } else if (bankerTotal === 5) {
+      bankerDraw = playerThirdPoint >= 4 && playerThirdPoint <= 7;
+    } else if (bankerTotal === 6) {
+      bankerDraw = playerThirdPoint === 6 || playerThirdPoint === 7;
+    }
+
+    if (bankerDraw) {
+      banker.push(drawRank(ranks, rng));
+      bankerTotal = handTotal(banker);
+    }
+  }
+
+  const outcome = bankerTotal > playerTotal ? "BANKER" : playerTotal > bankerTotal ? "PLAYER" : "TIE";
+  return {
+    outcome,
+    bankerPair: banker[0] === banker[1],
+    playerPair: player[0] === player[1],
+    luckySix: outcome === "BANKER" && bankerTotal === 6
+  };
+}
+
+function estimateCardModel(tableRounds) {
+  const shoeRounds = latestShoeRounds(tableRounds).filter((round) => round.cardCount > 0);
+  const usedRanks = usedRanksFromRounds(shoeRounds);
+  const remainingRanks = baseRankCounts();
+  let observedCards = 0;
+  for (let rank = 1; rank <= 13; rank += 1) {
+    const used = Math.min(remainingRanks[rank], usedRanks[rank] || 0);
+    remainingRanks[rank] -= used;
+    observedCards += used;
+  }
+  if (observedCards < 4) {
+    return {
+      available: false,
+      decks: DECKS_PER_SHOE,
+      cardsPerDeck: CARDS_PER_DECK,
+      totalCards: CARDS_PER_SHOE,
+      observedCards,
+      remainingCards: CARDS_PER_SHOE - observedCards
+    };
+  }
+
+  const counts = emptyCounts();
+  const seed = shoeRounds.map((round) => `${round.tableCode}:${round.roundNo}:${round.rawResult}`).join("|");
+  const rng = seededRandom(seed);
+  for (let index = 0; index < CARD_MODEL_TRIALS; index += 1) {
+    const result = simulateBaccaratRound(remainingRanks, rng);
+    counts.total += 1;
+    counts[result.outcome] += 1;
+    if (result.bankerPair) counts.bankerPair += 1;
+    if (result.playerPair) counts.playerPair += 1;
+    if (result.luckySix) counts.luckySix += 1;
+  }
+
+  const probabilities = ratesFromCounts(counts);
+  return {
+    available: true,
+    decks: DECKS_PER_SHOE,
+    cardsPerDeck: CARDS_PER_DECK,
+    totalCards: CARDS_PER_SHOE,
+    observedCards,
+    remainingCards: CARDS_PER_SHOE - observedCards,
+    currentShoeRounds: shoeRounds.length,
+    trials: CARD_MODEL_TRIALS,
+    usedRankCounts: usedRanks,
+    remainingRankCounts: remainingRanks,
+    remainingPointCounts: pointCountsFromRanks(remainingRanks),
+    probabilities,
+    percentages: {
+      BANKER: pct(probabilities.BANKER),
+      PLAYER: pct(probabilities.PLAYER),
+      TIE: pct(probabilities.TIE),
+      bankerPair: pct(probabilities.bankerPair),
+      playerPair: pct(probabilities.playerPair),
+      luckySix: pct(probabilities.luckySix)
+    }
+  };
+}
+
+function blendValue(historical, card, weight) {
+  return historical * (1 - weight) + card * weight;
+}
+
+function normalizeOutcomeProbabilities(probabilities) {
+  const total = probabilities.BANKER + probabilities.PLAYER + probabilities.TIE || 1;
+  return {
+    BANKER: probabilities.BANKER / total,
+    PLAYER: probabilities.PLAYER / total,
+    TIE: probabilities.TIE / total
+  };
+}
+
 function predictFromSequence(allRounds, options = {}) {
   const tableCode = normalizeTableCode(options.tableCode);
   const tableRounds = tableCode
@@ -138,7 +354,26 @@ function predictFromSequence(allRounds, options = {}) {
   const matchRounds = primaryMatches.length >= 8 ? primaryMatches : globalMatches;
   const counts = countRounds(matchRounds);
   const baseline = baselineFrom(tableRounds.length >= 20 ? tableRounds : allRounds);
-  const outcome = smoothOutcomeProbabilities(counts, baseline, counts.total);
+  const historicalOutcome = smoothOutcomeProbabilities(counts, baseline, counts.total);
+  const historicalFeatures = {
+    bankerPair: smoothFeature(counts.bankerPair, counts.total, baseline.bankerPair),
+    playerPair: smoothFeature(counts.playerPair, counts.total, baseline.playerPair),
+    luckySix: smoothFeature(counts.luckySix, counts.total, baseline.luckySix)
+  };
+  const cardModel = tableCode ? estimateCardModel(tableRounds) : { available: false };
+  const cardWeight = cardModel.available
+    ? Math.min(0.3, 0.08 + (cardModel.observedCards / CARDS_PER_SHOE) * 0.5)
+    : 0;
+  const blendedOutcome = cardModel.available ? normalizeOutcomeProbabilities({
+    BANKER: blendValue(historicalOutcome.BANKER, cardModel.probabilities.BANKER, cardWeight),
+    PLAYER: blendValue(historicalOutcome.PLAYER, cardModel.probabilities.PLAYER, cardWeight),
+    TIE: blendValue(historicalOutcome.TIE, cardModel.probabilities.TIE, cardWeight)
+  }) : historicalOutcome;
+  const blendedFeatures = cardModel.available ? {
+    bankerPair: blendValue(historicalFeatures.bankerPair, cardModel.probabilities.bankerPair, cardWeight),
+    playerPair: blendValue(historicalFeatures.playerPair, cardModel.probabilities.playerPair, cardWeight),
+    luckySix: blendValue(historicalFeatures.luckySix, cardModel.probabilities.luckySix, cardWeight)
+  } : historicalFeatures;
 
   return {
     tableCode,
@@ -147,26 +382,39 @@ function predictFromSequence(allRounds, options = {}) {
     sampleSize: counts.total,
     tableSampleSize: primaryMatches.length,
     globalSampleSize: globalMatches.length,
-    pick: choosePick(outcome),
+    pick: choosePick(blendedOutcome),
     probabilities: {
-      BANKER: outcome.BANKER,
-      PLAYER: outcome.PLAYER,
-      TIE: outcome.TIE,
-      bankerPair: smoothFeature(counts.bankerPair, counts.total, baseline.bankerPair),
-      playerPair: smoothFeature(counts.playerPair, counts.total, baseline.playerPair),
-      luckySix: smoothFeature(counts.luckySix, counts.total, baseline.luckySix)
+      BANKER: blendedOutcome.BANKER,
+      PLAYER: blendedOutcome.PLAYER,
+      TIE: blendedOutcome.TIE,
+      bankerPair: blendedFeatures.bankerPair,
+      playerPair: blendedFeatures.playerPair,
+      luckySix: blendedFeatures.luckySix
     },
     percentages: {
-      BANKER: pct(outcome.BANKER),
-      PLAYER: pct(outcome.PLAYER),
-      TIE: pct(outcome.TIE),
-      bankerPair: pct(smoothFeature(counts.bankerPair, counts.total, baseline.bankerPair)),
-      playerPair: pct(smoothFeature(counts.playerPair, counts.total, baseline.playerPair)),
-      luckySix: pct(smoothFeature(counts.luckySix, counts.total, baseline.luckySix))
+      BANKER: pct(blendedOutcome.BANKER),
+      PLAYER: pct(blendedOutcome.PLAYER),
+      TIE: pct(blendedOutcome.TIE),
+      bankerPair: pct(blendedFeatures.bankerPair),
+      playerPair: pct(blendedFeatures.playerPair),
+      luckySix: pct(blendedFeatures.luckySix)
+    },
+    historicalPercentages: {
+      BANKER: pct(historicalOutcome.BANKER),
+      PLAYER: pct(historicalOutcome.PLAYER),
+      TIE: pct(historicalOutcome.TIE),
+      bankerPair: pct(historicalFeatures.bankerPair),
+      playerPair: pct(historicalFeatures.playerPair),
+      luckySix: pct(historicalFeatures.luckySix)
+    },
+    cardModel,
+    modelWeights: {
+      historical: Math.round((1 - cardWeight) * 1000) / 1000,
+      cardShoe: Math.round(cardWeight * 1000) / 1000
     },
     counts,
     confidence: counts.total >= 100 ? "HIGH" : counts.total >= 30 ? "MEDIUM" : "LOW",
-    note: "Percentages are historical pattern statistics with smoothing. Baccarat remains random and results are not guaranteed."
+    note: "Percentages blend historical pattern statistics with recorded 8-deck shoe cards when available. Baccarat remains random and results are not guaranteed."
   };
 }
 
@@ -213,6 +461,7 @@ module.exports = {
   normalizeSequence,
   sequenceOf,
   predictFromSequence,
+  estimateCardModel,
   summarizeTable,
   summarizeAll
 };

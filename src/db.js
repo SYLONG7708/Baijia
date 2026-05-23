@@ -3,7 +3,7 @@ const crypto = require("node:crypto");
 const { DatabaseSync } = require("node:sqlite");
 const { DATA_DIR, DB_PATH } = require("./env");
 const { tableMeta, normalizeTableCode } = require("./tables");
-const { normalizeOutcome } = require("./baccarat-codec");
+const { normalizeOutcome, normalizeCardList } = require("./baccarat-codec");
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
@@ -57,7 +57,29 @@ function openDatabase() {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
+  migrateDatabase(db);
   return db;
+}
+
+function columnNames(table) {
+  return new Set(db.prepare(`PRAGMA table_info(${table})`).all().map((column) => column.name));
+}
+
+function addColumnIfMissing(table, name, definition) {
+  const columns = columnNames(table);
+  if (!columns.has(name)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`);
+}
+
+function migrateDatabase(database) {
+  db = database;
+  addColumnIfMissing("rounds", "banker_cards_raw", "TEXT NOT NULL DEFAULT '[]'");
+  addColumnIfMissing("rounds", "player_cards_raw", "TEXT NOT NULL DEFAULT '[]'");
+  addColumnIfMissing("rounds", "banker_card_points", "TEXT NOT NULL DEFAULT '[]'");
+  addColumnIfMissing("rounds", "player_card_points", "TEXT NOT NULL DEFAULT '[]'");
+  addColumnIfMissing("rounds", "banker_card_ranks", "TEXT NOT NULL DEFAULT '[]'");
+  addColumnIfMissing("rounds", "player_card_ranks", "TEXT NOT NULL DEFAULT '[]'");
+  addColumnIfMissing("rounds", "card_count", "INTEGER NOT NULL DEFAULT 0");
+  addColumnIfMissing("rounds", "card_observed_at", "TEXT NOT NULL DEFAULT ''");
 }
 
 function makeDedupeKey(round) {
@@ -88,11 +110,50 @@ function rowToRound(row) {
     luckySix: Boolean(row.lucky_six),
     bankerPoint: row.banker_point,
     playerPoint: row.player_point,
+    bankerCardsRaw: parseJsonArray(row.banker_cards_raw),
+    playerCardsRaw: parseJsonArray(row.player_cards_raw),
+    bankerCardPoints: parseJsonArray(row.banker_card_points),
+    playerCardPoints: parseJsonArray(row.player_card_points),
+    bankerCardRanks: parseJsonArray(row.banker_card_ranks),
+    playerCardRanks: parseJsonArray(row.player_card_ranks),
+    cardCount: row.card_count || 0,
+    cardObservedAt: row.card_observed_at,
     rawResult: row.raw_result,
     source: row.source,
     sourceEvent: row.source_event,
     observedAt: row.observed_at,
     insertedAt: row.inserted_at
+  };
+}
+
+function parseJsonArray(value) {
+  try {
+    const parsed = JSON.parse(value || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function cardFields(input) {
+  const bankerCards = normalizeCardList(input.bankerCards || input.banker_cards || input.bankerCardsRaw || input.banker_cards_raw || []);
+  const playerCards = normalizeCardList(input.playerCards || input.player_cards || input.playerCardsRaw || input.player_cards_raw || []);
+  const bankerCardPoints = input.bankerCardPoints || input.banker_card_points || bankerCards.map((card) => card.point);
+  const playerCardPoints = input.playerCardPoints || input.player_card_points || playerCards.map((card) => card.point);
+  const bankerCardRanks = input.bankerCardRanks || input.banker_card_ranks || bankerCards.map((card) => card.rank);
+  const playerCardRanks = input.playerCardRanks || input.player_card_ranks || playerCards.map((card) => card.rank);
+  const bankerCardsRaw = input.bankerCardsRaw || input.banker_cards_raw || bankerCards.map((card) => card.raw);
+  const playerCardsRaw = input.playerCardsRaw || input.player_cards_raw || playerCards.map((card) => card.raw);
+  const cardCount = bankerCardsRaw.length + playerCardsRaw.length;
+  return {
+    bankerCardsRaw,
+    playerCardsRaw,
+    bankerCardPoints,
+    playerCardPoints,
+    bankerCardRanks,
+    playerCardRanks,
+    cardCount,
+    cardObservedAt: input.cardObservedAt || input.card_observed_at || ""
   };
 }
 
@@ -116,6 +177,7 @@ function insertRound(input) {
     luckySix: Boolean(input.luckySix ?? input.lucky_six),
     bankerPoint: String(input.bankerPoint || input.banker_point || ""),
     playerPoint: String(input.playerPoint || input.player_point || ""),
+    ...cardFields(input),
     rawResult: String(input.rawResult || input.raw_result || ""),
     source: String(input.source || ""),
     sourceEvent: String(input.sourceEvent || input.source_event || ""),
@@ -130,8 +192,10 @@ function insertRound(input) {
     INSERT OR IGNORE INTO rounds (
       dedupe_key, table_code, table_name, category, shoe_id, round_no, game_round_id,
       outcome, banker_pair, player_pair, lucky_six, banker_point, player_point,
+      banker_cards_raw, player_cards_raw, banker_card_points, player_card_points,
+      banker_card_ranks, player_card_ranks, card_count, card_observed_at,
       raw_result, source, source_event, observed_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     dedupeKey,
     round.tableCode,
@@ -146,16 +210,91 @@ function insertRound(input) {
     round.luckySix ? 1 : 0,
     round.bankerPoint,
     round.playerPoint,
+    JSON.stringify(round.bankerCardsRaw),
+    JSON.stringify(round.playerCardsRaw),
+    JSON.stringify(round.bankerCardPoints),
+    JSON.stringify(round.playerCardPoints),
+    JSON.stringify(round.bankerCardRanks),
+    JSON.stringify(round.playerCardRanks),
+    round.cardCount,
+    round.cardObservedAt,
     round.rawResult,
     round.source,
     round.sourceEvent,
     round.observedAt
   );
 
+  if (result.changes === 0 && round.cardCount > 0) {
+    database.prepare(`
+      UPDATE rounds
+      SET banker_cards_raw = ?,
+          player_cards_raw = ?,
+          banker_card_points = ?,
+          player_card_points = ?,
+          banker_card_ranks = ?,
+          player_card_ranks = ?,
+          card_count = ?,
+          card_observed_at = ?
+      WHERE dedupe_key = ? AND card_count = 0
+    `).run(
+      JSON.stringify(round.bankerCardsRaw),
+      JSON.stringify(round.playerCardsRaw),
+      JSON.stringify(round.bankerCardPoints),
+      JSON.stringify(round.playerCardPoints),
+      JSON.stringify(round.bankerCardRanks),
+      JSON.stringify(round.playerCardRanks),
+      round.cardCount,
+      round.cardObservedAt,
+      dedupeKey
+    );
+  }
+
   return {
     inserted: result.changes > 0,
     round: { ...round, dedupeKey }
   };
+}
+
+function updateRoundCards(input) {
+  const database = openDatabase();
+  const tableCode = normalizeTableCode(input.tableCode || input.table_code);
+  const roundNo = Number(input.roundNo || input.round_no || 0) || 0;
+  const rawResult = String(input.rawResult || input.raw_result || "");
+  const fields = cardFields(input);
+  if (!tableCode || roundNo <= 0 || !rawResult || fields.cardCount <= 0) {
+    return { updated: false, reason: "invalid-card-update" };
+  }
+
+  const result = database.prepare(`
+    UPDATE rounds
+    SET banker_cards_raw = ?,
+        player_cards_raw = ?,
+        banker_card_points = ?,
+        player_card_points = ?,
+        banker_card_ranks = ?,
+        player_card_ranks = ?,
+        card_count = ?,
+        card_observed_at = ?
+    WHERE id = (
+      SELECT id FROM rounds
+      WHERE table_code = ? AND round_no = ? AND raw_result = ? AND card_count = 0
+      ORDER BY id DESC
+      LIMIT 1
+    )
+  `).run(
+    JSON.stringify(fields.bankerCardsRaw),
+    JSON.stringify(fields.playerCardsRaw),
+    JSON.stringify(fields.bankerCardPoints),
+    JSON.stringify(fields.playerCardPoints),
+    JSON.stringify(fields.bankerCardRanks),
+    JSON.stringify(fields.playerCardRanks),
+    fields.cardCount,
+    fields.cardObservedAt,
+    tableCode,
+    roundNo,
+    rawResult
+  );
+  return { updated: result.changes > 0 };
 }
 
 function getRounds(options = {}) {
@@ -225,6 +364,7 @@ function getEvents(limit = 100) {
 module.exports = {
   openDatabase,
   insertRound,
+  updateRoundCards,
   getRounds,
   getAllRounds,
   getTableRounds,

@@ -1,10 +1,11 @@
 const { chromium } = require("playwright");
 const { ALLBET_URL, ALLBET_HEADLESS, ROOT } = require("./env");
-const { insertRound, setStatus, logEvent } = require("./db");
+const { insertRound, updateRoundCards, setStatus, logEvent } = require("./db");
 const {
   extractRoundsFromPayload,
   extractLiveRoundsFromPayload,
-  extractTableReferencesFromPayload
+  extractTableReferencesFromPayload,
+  extractCardSnapshotsFromPayload
 } = require("./extractor");
 
 const urlArg = process.argv.find((arg) => arg.startsWith("http"));
@@ -18,6 +19,8 @@ const tableRefs = new Map();
 const pendingPayloads = [];
 const recentRoundKeys = new Map();
 const scraperStatus = {};
+const cardSnapshotsByTable = new Map();
+const cardSnapshotsByGame = new Map();
 
 function seenRecently(round) {
   const now = Date.now();
@@ -28,6 +31,54 @@ function seenRecently(round) {
   if (recentRoundKeys.has(key)) return true;
   recentRoundKeys.set(key, now);
   return false;
+}
+
+function storeCardSnapshot(snapshot) {
+  if (!snapshot.providerTableId || snapshot.cardCount < 4) return;
+  const tableKey = snapshot.providerTableId;
+  const gameKey = `${snapshot.providerTableId}|${snapshot.gameRoundId || ""}`;
+  const existingTable = cardSnapshotsByTable.get(tableKey);
+  if (!existingTable || snapshot.cardCount >= existingTable.cardCount) {
+    cardSnapshotsByTable.set(tableKey, snapshot);
+  }
+  if (snapshot.gameRoundId) {
+    const existingGame = cardSnapshotsByGame.get(gameKey);
+    if (!existingGame || snapshot.cardCount >= existingGame.cardCount) {
+      cardSnapshotsByGame.set(gameKey, snapshot);
+    }
+  }
+}
+
+function pruneCardSnapshots() {
+  const now = Date.now();
+  for (const [key, snapshot] of cardSnapshotsByTable.entries()) {
+    if (now - Date.parse(snapshot.observedAt || 0) > 10 * 60 * 1000) cardSnapshotsByTable.delete(key);
+  }
+  for (const [key, snapshot] of cardSnapshotsByGame.entries()) {
+    if (now - Date.parse(snapshot.observedAt || 0) > 10 * 60 * 1000) cardSnapshotsByGame.delete(key);
+  }
+}
+
+function attachCards(round) {
+  const tableId = round.providerTableId;
+  if (!tableId) return round;
+  const exact = cardSnapshotsByGame.get(`${tableId}|${round.gameRoundId || ""}`);
+  const latest = cardSnapshotsByTable.get(String(tableId));
+  const snapshot = exact || latest;
+  if (!snapshot) return round;
+  if (!exact && Date.now() - Date.parse(snapshot.observedAt || 0) > 2 * 60 * 1000) return round;
+  return {
+    ...round,
+    bankerCards: snapshot.bankerCards,
+    playerCards: snapshot.playerCards,
+    bankerCardsRaw: snapshot.bankerCardsRaw,
+    playerCardsRaw: snapshot.playerCardsRaw,
+    bankerCardPoints: snapshot.bankerCardPoints,
+    playerCardPoints: snapshot.playerCardPoints,
+    bankerCardRanks: snapshot.bankerCardRanks,
+    playerCardRanks: snapshot.playerCardRanks,
+    cardObservedAt: snapshot.observedAt
+  };
 }
 
 function updateStatus(patch) {
@@ -49,6 +100,16 @@ function safePayload(payload) {
 
 function handlePayload(payload, source) {
   const text = safePayload(payload);
+  const cardSnapshots = extractCardSnapshotsFromPayload(text);
+  if (cardSnapshots.length) {
+    for (const snapshot of cardSnapshots) storeCardSnapshot(snapshot);
+    pruneCardSnapshots();
+    updateStatus({
+      cardSnapshotCount: cardSnapshotsByTable.size,
+      lastCardSnapshotAt: new Date().toISOString()
+    });
+  }
+
   const refs = extractTableReferencesFromPayload(text);
   if (refs.length) {
     for (const ref of refs) tableRefs.set(ref.tableId, ref);
@@ -85,8 +146,13 @@ function handlePayload(payload, source) {
   }
 
   let inserted = 0;
-  for (const round of rounds) {
-    if (round.sourceEvent !== "getGameHall:snapshot" && seenRecently(round)) continue;
+  for (const rawRound of rounds) {
+    const round = attachCards(rawRound);
+    const hasCards = (round.bankerCardsRaw?.length || 0) + (round.playerCardsRaw?.length || 0) > 0;
+    if (round.sourceEvent !== "getGameHall:snapshot" && seenRecently(round)) {
+      if (hasCards) updateRoundCards(round);
+      continue;
+    }
     const result = insertRound(round);
     if (result.inserted) inserted += 1;
   }

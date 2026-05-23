@@ -1,6 +1,10 @@
 const crypto = require("node:crypto");
 const { TARGET_CODES, tableMeta, normalizeTableCode } = require("./tables");
-const { looksLikeBaccaratResult, parseBaccaratResult } = require("./baccarat-codec");
+const {
+  looksLikeBaccaratResult,
+  parseBaccaratResult,
+  parseAllbetCardMatrix
+} = require("./baccarat-codec");
 
 function sha1(value) {
   return crypto.createHash("sha1").update(String(value)).digest("hex");
@@ -28,7 +32,9 @@ function findTargetCodeInValue(value) {
   const direct = normalizeTableCode(text.split("__")[0]);
   if (TARGET_CODES.has(direct)) return direct;
   for (const code of TARGET_CODES) {
-    if (text === code || text.includes(code)) return code;
+    if (text === code) return code;
+    const pattern = new RegExp(`(^|[^A-Z0-9])${code}([^A-Z0-9]|$)`);
+    if (pattern.test(text)) return code;
   }
   return "";
 }
@@ -95,12 +101,18 @@ function tableNameFromObject(obj, code) {
   return fromKnown;
 }
 
+function isNonTargetTableAlias(tableName, code) {
+  const name = String(tableName || "").toUpperCase();
+  return /^[A-Z]+[0-9]+$/.test(name) && name !== code;
+}
+
 function parseTableObject(obj, context) {
   const rounds = [];
   const tableCode = context.tableCode;
   const meta = tableMeta(tableCode);
   const status = obj.HH || obj.gameStatus || obj.status || {};
   const tableName = tableNameFromObject(obj, tableCode);
+  if (isNonTargetTableAlias(tableName, tableCode)) return rounds;
   const shoeId = String(firstValue(
     obj.shoeId,
     obj.shoeNo,
@@ -237,10 +249,12 @@ function extractTableReferencesFromPayload(payload) {
     const tableId = value.AA ?? value.tableId ?? value.tableID;
     if (tableCode && tableId !== undefined && tableId !== null) {
       const status = value.HH || value.gameStatus || value.status || {};
+      const tableName = tableNameFromObject(value, tableCode);
+      if (isNonTargetTableAlias(tableName, tableCode)) return;
       refs.push({
         tableId: String(tableId),
         tableCode,
-        tableName: tableNameFromObject(value, tableCode),
+        tableName,
         category: tableMeta(tableCode).category,
         currentRoundNo: Number(status.BB || value.roundNo || 0) || 0,
         gameRoundId: String(status.CC || value.gameRoundId || value.game_round_id || ""),
@@ -274,6 +288,10 @@ function roundFromLiveRaw(raw, tableRef, details, context) {
     shoeId: parsed.shoeId || "live",
     roundNo: parsed.roundNo || 0,
     gameRoundId: parsed.gameRoundId || `${tableRef.tableCode}:${parsed.roundNo}:${raw}`,
+    providerTableId: tableRef.tableId || "",
+    bankerCards: details.bankerCards || [],
+    playerCards: details.playerCards || [],
+    cardObservedAt: details.cardObservedAt || "",
     source: context.source || "allbet",
     sourceEvent: context.sourceEvent || ""
   };
@@ -347,10 +365,28 @@ function extractLiveRoundsFromPayload(payload, tableRefs = new Map(), context = 
   return { rounds: deduped, unmatched: [...new Set(unmatched)] };
 }
 
+function extractCardSnapshotsFromPayload(payload) {
+  const parsed = maybeJson(payload);
+  if (!parsed || typeof parsed !== "object") return [];
+  const sourceEvent = parsed.c || parsed.cmd || parsed.eventType || "";
+  if (sourceEvent !== "pushRawCards") return [];
+  const body = payloadBody(parsed);
+  const tableId = body.A ?? body.AA ?? body.tableId;
+  const matrix = parseAllbetCardMatrix(body.B || body.cards || body.rawCards);
+  if (!matrix || tableId === undefined || tableId === null) return [];
+  return [{
+    providerTableId: String(tableId),
+    gameRoundId: String(body.E || body.gameRoundId || ""),
+    observedAt: new Date().toISOString(),
+    ...matrix
+  }];
+}
+
 module.exports = {
   extractRoundsFromPayload,
   extractLiveRoundsFromPayload,
   extractTableReferencesFromPayload,
+  extractCardSnapshotsFromPayload,
   detectTableCode,
   extractRawResults,
   findTargetCodeInValue

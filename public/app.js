@@ -124,6 +124,7 @@ function renderTableGroups() {
 
 function renderTableHeader() {
   const table = currentTable();
+  const cardModel = table.prediction?.cardModel || {};
   $("tableCategory").textContent = table.category || "";
   $("tableTitle").textContent = `${table.code} ${table.category || ""}`.trim();
   $("latestSix").replaceChildren(...(table.latestSix || []).map(chip));
@@ -135,7 +136,9 @@ function renderTableHeader() {
     ["閒率", pct(table.rates?.PLAYER)],
     ["和率", pct(table.rates?.TIE)],
     ["莊對", counts.bankerPair || 0],
-    ["閒對", counts.playerPair || 0]
+    ["閒對", counts.playerPair || 0],
+    ["已記牌", cardModel.available ? `${cardModel.observedCards}/${cardModel.totalCards}` : "等待"],
+    ["剩餘牌", cardModel.available ? cardModel.remainingCards : "-"]
   ].map(([label, value]) => `<div class="metric-card">
     <span class="metric-label">${label}</span>
     <strong class="metric-value">${value}</strong>
@@ -144,7 +147,10 @@ function renderTableHeader() {
 
 function renderPrediction(prediction) {
   const data = prediction || currentTable().prediction || {};
-  $("predictionTitle").textContent = `下一把統計 · 樣本 ${data.sampleSize || 0}`;
+  const cardText = data.cardModel?.available
+    ? ` · 牌靴 ${data.cardModel.observedCards}/${data.cardModel.totalCards}`
+    : "";
+  $("predictionTitle").textContent = `下一把統計 · 樣本 ${data.sampleSize || 0}${cardText}`;
   $("predictionGrid").innerHTML = [
     ["BANKER", "莊", "banker"],
     ["PLAYER", "閒", "player"],
@@ -155,7 +161,7 @@ function renderPrediction(prediction) {
   ].map(([key, label, cls]) => `<div class="prediction-card ${cls}">
     <span class="prediction-label">${label}</span>
     <strong class="prediction-value">${data.percentages?.[key] ?? 0}%</strong>
-    <small>${key === data.pick ? "最高主結果" : data.confidence || "LOW"}</small>
+    <small>${key === data.pick ? "最高主結果" : `歷史 ${data.historicalPercentages?.[key] ?? 0}%`}</small>
   </div>`).join("");
 }
 
@@ -218,9 +224,12 @@ function renderRoad() {
 
 function renderRounds() {
   const rounds = state.roads?.rounds || [];
+  const cardText = (items) => (items || []).join(" ");
   $("recentRounds").innerHTML = rounds.slice(-36).reverse().map((round) => `<tr>
     <td>${round.roundNo || ""}</td>
     <td><span class="chip ${outcomeClass[round.outcome]}">${labels[round.outcome] || ""}</span></td>
+    <td>${cardText(round.bankerCardsRaw)} <span class="metric-label">${cardText(round.bankerCardPoints)}</span></td>
+    <td>${cardText(round.playerCardsRaw)} <span class="metric-label">${cardText(round.playerCardPoints)}</span></td>
     <td>${round.bankerPair ? "是" : ""}</td>
     <td>${round.playerPair ? "是" : ""}</td>
     <td>${round.luckySix ? "是" : ""}</td>
