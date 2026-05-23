@@ -405,6 +405,41 @@ function getEvents(limit = 100) {
   `).all(Math.min(Number(limit) || 100, 1000)).reverse();
 }
 
+function getRoundIngestSummary() {
+  const database = openDatabase();
+  const reliableWhere = "source_event NOT IN ('getGameHall', 'getGameHall:snapshot')";
+  const totals = database.prepare(`
+    SELECT COUNT(*) AS total_rounds, MAX(id) AS latest_id
+    FROM rounds
+    WHERE ${reliableWhere}
+  `).get();
+  const latest = database.prepare(`
+    SELECT * FROM rounds
+    WHERE ${reliableWhere}
+    ORDER BY id DESC
+    LIMIT 1
+  `).get();
+  const recent = database.prepare(`
+    SELECT
+      SUM(CASE WHEN inserted_at >= datetime('now', '-5 minutes') THEN 1 ELSE 0 END) AS last_5m,
+      SUM(CASE WHEN inserted_at >= datetime('now', '-15 minutes') THEN 1 ELSE 0 END) AS last_15m,
+      SUM(CASE WHEN inserted_at >= datetime('now', '-60 minutes') THEN 1 ELSE 0 END) AS last_60m
+    FROM rounds
+    WHERE ${reliableWhere}
+  `).get();
+
+  return {
+    totalRounds: Number(totals?.total_rounds || 0),
+    latestId: Number(totals?.latest_id || 0),
+    latestRound: rowToRound(latest),
+    recent: {
+      last5m: Number(recent?.last_5m || 0),
+      last15m: Number(recent?.last_15m || 0),
+      last60m: Number(recent?.last_60m || 0)
+    }
+  };
+}
+
 module.exports = {
   openDatabase,
   insertRound,
@@ -416,5 +451,6 @@ module.exports = {
   setStatus,
   getStatus,
   logEvent,
-  getEvents
+  getEvents,
+  getRoundIngestSummary
 };

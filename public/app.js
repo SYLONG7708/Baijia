@@ -83,6 +83,16 @@ function healthLabel(value) {
   return value || "\u672a\u77e5";
 }
 
+function monitorLabel(value) {
+  if (value === "READING") return "\u53ef\u8b80\u53d6\u65b0\u8cc7\u6599";
+  if (value === "WAITING") return "\u7b49\u5f85\u65b0\u5c40";
+  if (value === "NO_WEBSOCKET") return "\u7121\u8cc7\u6599\u6d41";
+  if (value === "RATE_LIMITED") return "\u8a66\u73a9\u7ad9\u9650\u6d41";
+  if (value === "STALE_WARN") return "\u8d85\u904e10\u5206\u9418\u672a\u66f4\u65b0";
+  if (value === "STALE_CRITICAL") return "\u8d85\u904e30\u5206\u9418\u672a\u66f4\u65b0";
+  return value || "\u672a\u555f\u52d5";
+}
+
 function currentTable() {
   return state.summary?.tables?.find((table) => table.code === state.selectedTable) ||
     state.config?.tables?.find((table) => table.code === state.selectedTable) ||
@@ -107,8 +117,13 @@ function renderTopMetrics() {
   ].map(([label, value]) => `<span class="metric-pill">${label}<strong>${value}</strong></span>`).join("");
 
   const scraper = state.status?.scraper || {};
+  const monitor = state.status?.monitor || {};
   const status = scraper.running ? "擷取中" : "待命";
-  const health = scraper.health && scraper.health !== "OK" ? ` · ${healthLabel(scraper.health)}` : "";
+  const health = monitor.state && monitor.state !== "READING"
+    ? ` · ${monitorLabel(monitor.state)}`
+    : scraper.health && scraper.health !== "OK"
+      ? ` · ${healthLabel(scraper.health)}`
+      : "";
   $("connectionText").textContent = `${status}${health} · ${state.apiBase || location.origin}`;
 }
 
@@ -279,9 +294,17 @@ function renderRounds() {
 function renderStatus() {
   const scraper = state.status?.scraper || {};
   const daemon = state.status?.daemon || {};
+  const monitor = state.status?.monitor || {};
+  const monitorProcess = state.status?.monitorProcess || {};
   $("statusList").innerHTML = [
     ["Daemon", daemon.running ? "運行" : "待命"],
     ["Scraper", scraper.running ? "運行" : "待命"],
+    ["Monitor", monitor.running || monitorProcess.running ? "24H 檢測" : "待命"],
+    ["讀取", monitorLabel(monitor.state)],
+    ["5分鐘新增", monitor.recent?.last5m ?? 0],
+    ["15分鐘新增", monitor.recent?.last15m ?? 0],
+    ["最新資料", monitor.latestRound?.insertedAt ? fmtTime(monitor.latestRound.insertedAt) : ""],
+    ["檢查", monitor.lastCheckAt ? fmtTime(monitor.lastCheckAt) : ""],
     ["健康", healthLabel(scraper.health)],
     ["新增", scraper.insertedTotal || 0],
     ["WebSocket", scraper.lastWebsocketAt ? fmtTime(scraper.lastWebsocketAt) : ""],

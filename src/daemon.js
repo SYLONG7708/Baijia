@@ -94,6 +94,7 @@ logEvent("info", "daemon started", { pid: process.pid, scraperEnabled: SCRAPER_E
 
 startProcess("server", ["src/server.js"]);
 if (SCRAPER_ENABLED) startProcess("scraper", ["src/scraper.js"]);
+startProcess("monitor", ["src/monitor.js"]);
 
 setInterval(heartbeat, 10000);
 heartbeat();

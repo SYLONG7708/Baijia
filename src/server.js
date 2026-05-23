@@ -12,6 +12,7 @@ const {
   getTableRounds,
   getStatus,
   getEvents,
+  getRoundIngestSummary,
   logEvent
 } = require("./db");
 const {
@@ -194,6 +195,16 @@ async function handleApi(req, res) {
 
   if (req.method === "GET" && url.pathname === "/api/quality") {
     return sendJson(res, 200, buildDataQuality(rounds(), getStatus()));
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/monitor") {
+    const status = getStatus();
+    return sendJson(res, 200, {
+      monitor: status.monitor || {},
+      monitorProcess: status.monitorProcess || {},
+      scraper: status.scraper || {},
+      ingest: getRoundIngestSummary()
+    });
   }
 
   if (req.method === "GET" && url.pathname === "/api/backtest") {
