@@ -132,7 +132,10 @@ function buildDerivedRoad(bigPoints, bigGrid, offset) {
 }
 
 function buildRoads(rounds) {
-  const sorted = [...rounds].sort((a, b) => a.id - b.id);
+  const sorted = [...rounds].sort((a, b) => {
+    const roundDiff = (Number(a.roundNo || 0) || 0) - (Number(b.roundNo || 0) || 0);
+    return roundDiff || (Number(a.id || 0) || 0) - (Number(b.id || 0) || 0);
+  });
   const bead = buildBeadRoad(sorted);
   const big = buildBigRoad(sorted);
   return {

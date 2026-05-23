@@ -148,19 +148,19 @@ function parseTableObject(obj, context) {
     status.lotteryResult
   ];
 
-  const rawResults = [];
-  for (const source of resultSources) extractValidRawResults(source, rawResults);
+  const rawSequences = resultSources
+    .map((source) => extractValidRawResults(source, []))
+    .filter((sequence) => sequence.length);
+  const rawResults = rawSequences.reduce(
+    (best, sequence) => (sequence.length > best.length ? sequence : best),
+    []
+  );
 
-  const uniqueRaw = [];
-  for (const raw of rawResults) {
-    if (!uniqueRaw.includes(raw)) uniqueRaw.push(raw);
-  }
-
-  uniqueRaw.forEach((raw, index) => {
+  rawResults.forEach((raw, index) => {
     const parsed = parseBaccaratResult(raw, {
       tableCode,
       shoeId,
-      gameRoundId: uniqueRaw.length === 1 ? currentGameRoundId : `${shoeId}:${index + 1}`,
+      gameRoundId: rawResults.length === 1 ? currentGameRoundId : `${shoeId}:${index + 1}`,
       roundNo: index + 1
     });
     if (!parsed) return;

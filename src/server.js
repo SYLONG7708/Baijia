@@ -35,8 +35,62 @@ function reliableRounds(allRounds) {
   return reliable.length ? reliable : allRounds;
 }
 
-function reliableTableRounds(tableCode) {
-  return reliableRounds(getTableRounds(tableCode));
+function sameRoadResult(left, right) {
+  return (left?.outcome || "") === (right?.outcome || "")
+    && (left?.rawResult || "") === (right?.rawResult || "");
+}
+
+function roundNoOf(round) {
+  return Number(round?.roundNo || 0) || 0;
+}
+
+function maxRoundNo(rounds) {
+  return Math.max(0, ...rounds.map(roundNoOf));
+}
+
+function maxId(rounds) {
+  return Math.max(0, ...rounds.map((round) => Number(round.id || 0) || 0));
+}
+
+function snapshotLooksLikeNewerShoe(liveRounds, snapshotRounds) {
+  if (!snapshotRounds.length || !liveRounds.length) return false;
+  const snapshotFirst = Math.min(...snapshotRounds.map(roundNoOf).filter(Boolean));
+  return snapshotFirst <= 3
+    && maxRoundNo(snapshotRounds) + 8 < maxRoundNo(liveRounds)
+    && maxId(snapshotRounds) > maxId(liveRounds);
+}
+
+function mergeSnapshotRoadRounds(liveRounds, snapshotRounds) {
+  if (!snapshotRounds.length) return liveRounds;
+  if (snapshotLooksLikeNewerShoe(liveRounds, snapshotRounds)) return snapshotRounds;
+  const liveByRoundNo = new Map();
+  for (const round of liveRounds) {
+    const roundNo = Number(round.roundNo || 0) || 0;
+    if (roundNo) liveByRoundNo.set(roundNo, round);
+  }
+
+  const usedLiveIds = new Set();
+  const merged = snapshotRounds.map((snapshot) => {
+    const live = liveByRoundNo.get(Number(snapshot.roundNo || 0) || 0);
+    if (live && sameRoadResult(live, snapshot)) {
+      usedLiveIds.add(Number(live.id || 0));
+      return live;
+    }
+    return snapshot;
+  });
+
+  const snapshotSlots = new Set(snapshotRounds.map((round) => Number(round.roundNo || 0) || 0));
+  for (const live of liveRounds) {
+    const liveId = Number(live.id || 0);
+    const roundNo = Number(live.roundNo || 0) || 0;
+    if (usedLiveIds.has(liveId) || snapshotSlots.has(roundNo)) continue;
+    merged.push(live);
+  }
+
+  return merged.sort((left, right) => {
+    const roundDiff = (Number(left.roundNo || 0) || 0) - (Number(right.roundNo || 0) || 0);
+    return roundDiff || (Number(left.id || 0) || 0) - (Number(right.id || 0) || 0);
+  });
 }
 
 function sendJson(res, status, body) {
@@ -243,11 +297,14 @@ async function handleApi(req, res) {
   if (req.method === "GET" && url.pathname === "/api/roads") {
     const tableCode = normalizeTableCode(url.searchParams.get("tableCode"));
     if (!tableCode) return sendJson(res, 400, { error: "tableCode is required" });
-    const reliable = reliableTableRounds(tableCode);
-    const tableRounds = currentShoeRounds(reliable);
+    const allTableRounds = getTableRounds(tableCode);
+    const reliable = reliableRounds(allTableRounds);
+    const liveRounds = currentShoeRounds(reliable);
+    const snapshotRounds = currentShoeRounds(allTableRounds.filter((round) => round.sourceEvent === "roadSnapshot"));
+    const tableRounds = mergeSnapshotRoadRounds(liveRounds, snapshotRounds);
     return sendJson(res, 200, {
       tableCode,
-      source: "reliable-live-current-shoe",
+      source: snapshotRounds.length ? "snapshot-verified-current-shoe" : "reliable-live-current-shoe",
       roads: buildRoads(tableRounds),
       rounds: tableRounds.slice(-500)
     });

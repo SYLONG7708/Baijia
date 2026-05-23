@@ -1,6 +1,6 @@
 const { chromium } = require("playwright");
 const { ALLBET_URL, ALLBET_HEADLESS, ROOT } = require("./env");
-const { insertRound, updateRoundCards, slotHasRound, setStatus, logEvent } = require("./db");
+const { insertRound, updateRoundCards, setStatus, logEvent } = require("./db");
 const {
   extractRoundsFromPayload,
   extractLiveRoundsFromPayload,
@@ -36,7 +36,8 @@ function seenRecently(round) {
   for (const [key, at] of recentRoundKeys.entries()) {
     if (now - at > 10 * 60 * 1000) recentRoundKeys.delete(key);
   }
-  const key = `${round.tableCode}|${round.roundNo}|${round.rawResult}`;
+  const sourceGroup = round.sourceEvent === "roadSnapshot" ? "snapshot" : "live";
+  const key = `${sourceGroup}|${round.tableCode}|${round.roundNo}|${round.rawResult}`;
   if (recentRoundKeys.has(key)) return true;
   recentRoundKeys.set(key, now);
   return false;
@@ -108,13 +109,7 @@ function attachShoe(round) {
 }
 
 function shouldInsertRound(round) {
-  if (round.sourceEvent !== "roadSnapshot") return true;
-  return !slotHasRound(round);
-}
-
-function roundSlotKey(round) {
-  const roundNo = Number(round.roundNo || 0) || 0;
-  return round.tableCode && roundNo > 0 ? `${round.tableCode}|${roundNo}` : "";
+  return Boolean(round);
 }
 
 function updateStatus(patch) {
@@ -177,12 +172,14 @@ function handlePayload(payload, source) {
       sourceEvent: "roadSnapshot",
       snapshotShoeId: `road:${new Date().toISOString().slice(0, 10)}`
     });
-    const reservedSlots = new Set(rounds.map(roundSlotKey).filter(Boolean));
     for (const round of snapshotRounds) {
-      const slotKey = roundSlotKey(round);
-      if (!slotKey || reservedSlots.has(slotKey) || slotHasRound(round)) continue;
       rounds.push(round);
-      reservedSlots.add(slotKey);
+    }
+    if (snapshotRounds.length) {
+      updateStatus({
+        lastRoadSnapshotAt: new Date().toISOString(),
+        lastRoadSnapshotRounds: snapshotRounds.length
+      });
     }
   }
 

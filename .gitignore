@@ -3,6 +3,7 @@ tools/
 www/
 data/*.sqlite
 data/*.sqlite-*
+data/backups/
 data/*.jsonl
 data/*.pid
 data/ws-*.json
