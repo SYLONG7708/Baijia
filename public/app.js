@@ -4,7 +4,6 @@ const state = {
   selectedTable: "B601",
   selectedRoad: "bead",
   roads: null,
-  sequence: [],
   manualOutcome: "BANKER",
   apiBase: localStorage.getItem("baijia.apiBase") || "",
   apiToken: localStorage.getItem("baijia.apiToken") || ""
@@ -77,20 +76,20 @@ function fmtTime(value) {
 }
 
 function healthLabel(value) {
-  if (value === "OK") return "\u6b63\u5e38";
-  if (value === "RATE_LIMITED") return "\u9650\u6d41";
-  if (value === "NO_WEBSOCKET") return "\u7b49\u5f85\u8cc7\u6599\u6d41";
-  return value || "\u672a\u77e5";
+  if (value === "OK") return "正常";
+  if (value === "RATE_LIMITED") return "限流";
+  if (value === "NO_WEBSOCKET") return "等待資料流";
+  return value || "未知";
 }
 
 function monitorLabel(value) {
-  if (value === "READING") return "\u53ef\u8b80\u53d6\u65b0\u8cc7\u6599";
-  if (value === "WAITING") return "\u7b49\u5f85\u65b0\u5c40";
-  if (value === "NO_WEBSOCKET") return "\u7121\u8cc7\u6599\u6d41";
-  if (value === "RATE_LIMITED") return "\u8a66\u73a9\u7ad9\u9650\u6d41";
-  if (value === "STALE_WARN") return "\u8d85\u904e10\u5206\u9418\u672a\u66f4\u65b0";
-  if (value === "STALE_CRITICAL") return "\u8d85\u904e30\u5206\u9418\u672a\u66f4\u65b0";
-  return value || "\u672a\u555f\u52d5";
+  if (value === "READING") return "可讀取新資料";
+  if (value === "WAITING") return "等待新局";
+  if (value === "NO_WEBSOCKET") return "無資料流";
+  if (value === "RATE_LIMITED") return "試玩站限流";
+  if (value === "STALE_WARN") return "超過10分鐘未更新";
+  if (value === "STALE_CRITICAL") return "超過30分鐘未更新";
+  return value || "未啟動";
 }
 
 function currentTable() {
@@ -106,11 +105,21 @@ function chip(value) {
   return span;
 }
 
+function streakText(streak) {
+  if (!streak?.outcome || !streak.length) return "等待";
+  return `${labels[streak.outcome] || ""}連${streak.length}`;
+}
+
+function streakRateText(streak) {
+  if (!streak?.opportunities) return "樣本0";
+  return `${streak.continuationPercent}%`;
+}
+
 function renderTopMetrics() {
   const summary = state.summary || {};
   $("topMetrics").innerHTML = [
     ["總局數", summary.totalRounds || 0],
-    ["有資料桌", summary.activeTables || 0],
+    ["有效桌", summary.activeTables || 0],
     ["莊", summary.counts?.BANKER || 0],
     ["閒", summary.counts?.PLAYER || 0],
     ["和", summary.counts?.TIE || 0]
@@ -133,9 +142,11 @@ function renderTableGroups() {
     const buttons = group.codes.map((code) => {
       const table = summaryByCode.get(code) || {};
       const active = code === state.selectedTable ? " active" : "";
+      const streak = table.streak || {};
+      const streakInfo = streak.outcome ? ` · ${streakText(streak)} ${streakRateText(streak)}` : "";
       return `<button class="table-button${active}" type="button" data-table="${code}">
         <span class="table-code">${code}</span>
-        <span class="table-sub">${table.total || 0} 局 · ${table.lastOutcome ? labels[table.lastOutcome] : "無資料"}</span>
+        <span class="table-sub">${table.total || 0} 局 · ${table.lastOutcome ? labels[table.lastOutcome] : "無資料"}${streakInfo}</span>
       </button>`;
     }).join("");
     return `<div>
@@ -148,19 +159,23 @@ function renderTableGroups() {
 function renderTableHeader() {
   const table = currentTable();
   const cardModel = table.prediction?.cardModel || {};
+  const counts = table.counts || {};
+  const streak = table.streak || {};
   $("tableCategory").textContent = table.category || "";
   $("tableTitle").textContent = `${table.code} ${table.category || ""}`.trim();
   $("latestSix").replaceChildren(...(table.latestSix || []).map(chip));
 
-  const counts = table.counts || {};
   $("tableMetrics").innerHTML = [
     ["累計局數", table.total || 0],
     ["莊率", pct(table.rates?.BANKER)],
     ["閒率", pct(table.rates?.PLAYER)],
     ["和率", pct(table.rates?.TIE)],
+    ["連勝", streakText(streak)],
+    ["連勝率", streakRateText(streak)],
+    ["連勝樣本", `${streak.continuations || 0}/${streak.opportunities || 0}`],
     ["莊對", counts.bankerPair || 0],
     ["閒對", counts.playerPair || 0],
-    ["已記牌", cardModel.available ? `${cardModel.observedCards}/${cardModel.totalCards}` : "等待"],
+    ["已見牌", cardModel.available ? `${cardModel.observedCards}/${cardModel.totalCards}` : "等待"],
     ["剩餘牌", cardModel.available ? cardModel.remainingCards : "-"]
   ].map(([label, value]) => `<div class="metric-card">
     <span class="metric-label">${label}</span>
@@ -168,75 +183,27 @@ function renderTableHeader() {
   </div>`).join("");
 }
 
-function renderPrediction(prediction) {
-  const data = prediction || currentTable().prediction || {};
-  const cardText = data.cardModel?.available
-    ? ` · 牌靴 ${data.cardModel.observedCards}/${data.cardModel.totalCards}`
-    : "";
-  $("predictionTitle").textContent = `下一把統計 · 樣本 ${data.sampleSize || 0}${cardText}`;
-  $("predictionGrid").innerHTML = [
-    ["BANKER", "莊", "banker"],
-    ["PLAYER", "閒", "player"],
-    ["TIE", "和局", "tie"],
-    ["bankerPair", "莊對", "side"],
-    ["playerPair", "閒對", "side"],
-    ["luckySix", "幸運六", "side"]
-  ].map(([key, label, cls]) => `<div class="prediction-card ${cls}">
-    <span class="prediction-label">${label}</span>
-    <strong class="prediction-value">${data.percentages?.[key] ?? 0}%</strong>
-    <small>${key === data.pick ? "最高主結果" : `歷史 ${data.historicalPercentages?.[key] ?? 0}%`}</small>
-  </div>`).join("");
-}
-
 function renderPredictionAlerts() {
   const tables = [...(state.summary?.tables || [])]
     .filter((table) => table.total > 0)
     .sort((left, right) => {
-      const lp = Math.max(
-        left.prediction?.probabilities?.BANKER || 0,
-        left.prediction?.probabilities?.PLAYER || 0,
-        left.prediction?.probabilities?.TIE || 0
-      );
-      const rp = Math.max(
-        right.prediction?.probabilities?.BANKER || 0,
-        right.prediction?.probabilities?.PLAYER || 0,
-        right.prediction?.probabilities?.TIE || 0
-      );
-      return rp - lp;
+      const leftRate = left.streak?.opportunities ? left.streak.continuationRate : -1;
+      const rightRate = right.streak?.opportunities ? right.streak.continuationRate : -1;
+      if (rightRate !== leftRate) return rightRate - leftRate;
+      return (right.streak?.length || 0) - (left.streak?.length || 0);
     });
+
   $("predictionAlerts").innerHTML = tables.map((table) => {
-    const prediction = table.prediction || {};
-    const pick = prediction.pick || "";
-    const rawPick = prediction.rawPick || pick;
-    const percent = prediction.percentages?.[pick] ?? 0;
-    const rawPercent = prediction.percentages?.[rawPick] ?? percent;
+    const streak = table.streak || {};
+    const outcome = streak.outcome || "";
+    const sample = streak.opportunities ? `${streak.continuations}/${streak.opportunities}` : "樣本0";
     return `<button class="alert-item" type="button" data-table="${table.code}">
       <span class="alert-code">${table.code}</span>
-      <span class="chip ${outcomeClass[pick]}">${labels[pick] || "-"}</span>
-      <strong>${percent}%</strong>
-      <small>最高 ${labels[rawPick] || "-"} ${rawPercent}% · ${table.latestSix?.join("") || ""}</small>
+      <span class="chip ${outcomeClass[outcome]}">${labels[outcome] || "-"}</span>
+      <strong>${streakRateText(streak)}</strong>
+      <small>${streakText(streak)} · 續連樣本 ${sample} · 最長莊${streak.longest?.BANKER || 0}/閒${streak.longest?.PLAYER || 0}</small>
     </button>`;
   }).join("");
-}
-
-function renderSequence() {
-  $("sequenceChips").replaceChildren(...state.sequence.map(chip));
-}
-
-async function predictNow() {
-  renderSequence();
-  try {
-    const prediction = await fetchJson("/api/predict", {
-      method: "POST",
-      body: JSON.stringify({
-        tableCode: state.selectedTable,
-        sequence: state.sequence
-      })
-    });
-    renderPrediction(prediction);
-  } catch (error) {
-    toast(`預測失敗：${error.message}`);
-  }
 }
 
 function roadDot(point, derived) {
@@ -326,7 +293,6 @@ async function refresh() {
     renderTopMetrics();
     renderTableGroups();
     renderTableHeader();
-    renderPrediction(currentTable().prediction);
     renderPredictionAlerts();
     renderStatus();
     await loadRoads();
@@ -353,21 +319,14 @@ function bindEvents() {
     const button = event.target.closest("[data-table]");
     if (!button) return;
     state.selectedTable = button.dataset.table;
-    const table = currentTable();
-    state.sequence = table.latestSix || [];
-    renderSequence();
     await refresh();
-    await predictNow();
   });
 
   $("predictionAlerts").addEventListener("click", async (event) => {
     const button = event.target.closest("[data-table]");
     if (!button) return;
     state.selectedTable = button.dataset.table;
-    state.sequence = currentTable().latestSix || [];
-    renderSequence();
     await refresh();
-    await predictNow();
   });
 
   $("roadTabs").addEventListener("click", (event) => {
@@ -375,18 +334,6 @@ function bindEvents() {
     if (!button) return;
     state.selectedRoad = button.dataset.road;
     renderRoad();
-  });
-
-  document.querySelectorAll("[data-add-outcome]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const map = { BANKER: "B", PLAYER: "P", TIE: "T" };
-      state.sequence = [...state.sequence, map[button.dataset.addOutcome]].slice(-6);
-      predictNow();
-    });
-  });
-  $("sequenceClear").addEventListener("click", () => {
-    state.sequence = [];
-    predictNow();
   });
 
   document.querySelectorAll("[data-manual-outcome]").forEach((button) => {
@@ -447,9 +394,6 @@ bindEvents();
 initConfig()
   .then(async () => {
     await refresh();
-    state.sequence = currentTable().latestSix || [];
-    renderSequence();
-    await predictNow();
     setInterval(refresh, 15000);
   })
   .catch((error) => {

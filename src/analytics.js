@@ -539,6 +539,85 @@ function predictFromSequence(allRounds, options = {}) {
   };
 }
 
+function streakLengthAt(rounds, index) {
+  const outcome = normalizeOutcome(rounds[index]?.outcome);
+  if (!["BANKER", "PLAYER"].includes(outcome)) return 0;
+  let length = 1;
+  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+    const cursorOutcome = normalizeOutcome(rounds[cursor]?.outcome);
+    if (cursorOutcome === "TIE") continue;
+    if (cursorOutcome !== outcome) break;
+    length += 1;
+  }
+  return length;
+}
+
+function tableStreakStats(tableRounds) {
+  const nonTieRounds = tableRounds.filter((round) => {
+    const outcome = normalizeOutcome(round.outcome);
+    return outcome === "BANKER" || outcome === "PLAYER";
+  });
+  const latest = nonTieRounds.at(-1);
+  const outcome = normalizeOutcome(latest?.outcome);
+  if (!outcome) {
+    return {
+      outcome: "",
+      length: 0,
+      continuationRate: 0,
+      continuationPercent: 0,
+      opportunities: 0,
+      continuations: 0,
+      sampleType: "none",
+      longest: { BANKER: 0, PLAYER: 0 }
+    };
+  }
+
+  let currentLength = 1;
+  for (let index = nonTieRounds.length - 2; index >= 0; index -= 1) {
+    if (normalizeOutcome(nonTieRounds[index].outcome) !== outcome) break;
+    currentLength += 1;
+  }
+
+  const samples = {
+    exact: { opportunities: 0, continuations: 0 },
+    atLeast: { opportunities: 0, continuations: 0 }
+  };
+  const longest = { BANKER: 0, PLAYER: 0 };
+  for (let index = 0; index < nonTieRounds.length; index += 1) {
+    const roundOutcome = normalizeOutcome(nonTieRounds[index].outcome);
+    const length = streakLengthAt(nonTieRounds, index);
+    if (roundOutcome === "BANKER" || roundOutcome === "PLAYER") {
+      longest[roundOutcome] = Math.max(longest[roundOutcome], length);
+    }
+    if (index >= nonTieRounds.length - 1 || roundOutcome !== outcome) continue;
+    const continued = normalizeOutcome(nonTieRounds[index + 1].outcome) === outcome;
+    if (length === currentLength) {
+      samples.exact.opportunities += 1;
+      if (continued) samples.exact.continuations += 1;
+    }
+    if (length >= currentLength) {
+      samples.atLeast.opportunities += 1;
+      if (continued) samples.atLeast.continuations += 1;
+    }
+  }
+
+  const sampleType = samples.exact.opportunities >= 5 ? "exact" : "atLeast";
+  const sample = samples[sampleType];
+  const continuationRate = sample.opportunities
+    ? sample.continuations / sample.opportunities
+    : 0;
+  return {
+    outcome,
+    length: currentLength,
+    continuationRate,
+    continuationPercent: pct(continuationRate),
+    opportunities: sample.opportunities,
+    continuations: sample.continuations,
+    sampleType,
+    longest
+  };
+}
+
 function summarizeTable(rounds, table) {
   const tableRounds = rounds.filter((round) => round.tableCode === table.code);
   const counts = countRounds(tableRounds);
@@ -555,6 +634,7 @@ function summarizeTable(rounds, table) {
     rates,
     latest,
     latestSix: sequenceOf(tableRounds, 6),
+    streak: tableStreakStats(tableRounds),
     lastShoeId: latest?.shoeId || "",
     lastRoundNo: latest?.roundNo || 0,
     lastOutcome: latest?.outcome || "",
@@ -585,6 +665,7 @@ module.exports = {
   normalizeSequence,
   sequenceOf,
   predictFromSequence,
+  tableStreakStats,
   estimateCardModel,
   summarizeTable,
   summarizeAll
