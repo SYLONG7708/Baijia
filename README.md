@@ -21,12 +21,26 @@ Each baccarat table is modeled as an 8-deck shoe:
 - 10/J/Q/K count as baccarat point 0.
 - A counts as 1, 2-9 count as face value.
 
-When Allbet sends card data, Baijia stores the banker/player cards and subtracts those ranks from the current table's estimated shoe. The next-hand estimate blends historical six-hand pattern statistics with the remaining-card simulation. This is for analysis only and does not guarantee future outcomes.
+When Allbet sends card data, Baijia stores the banker/player cards and subtracts those ranks from the current table's estimated shoe. The next-hand estimate blends baseline rates, historical six-hand pattern statistics, and the remaining-card simulation. This is for analysis only and does not guarantee future outcomes.
+
+The final main-result pick uses a conservative commercial rule:
+
+- Show full percentages for Banker, Player, Tie, pairs, and Lucky 6.
+- Never use Tie as the main pick because the base house edge is high.
+- Default to Banker unless Player is at least 7 percentage points higher than Banker in the blended model.
+- Keep `rawPick` in the API response to show the highest raw probability before the conservative rule.
 
 Card model API:
 
 ```http
 GET /api/shoe?tableCode=B601
+```
+
+Quality and backtest APIs:
+
+```http
+GET /api/quality
+GET /api/backtest?tableCode=B601&limit=500&warmup=40
 ```
 
 ## Local Run

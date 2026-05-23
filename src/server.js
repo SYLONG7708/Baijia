@@ -16,6 +16,8 @@ const {
 } = require("./db");
 const { summarizeAll, predictFromSequence, estimateCardModel } = require("./analytics");
 const { buildRoads } = require("./roads");
+const { backtestPredictions } = require("./backtest");
+const { buildDataQuality } = require("./quality");
 
 openDatabase();
 
@@ -168,6 +170,18 @@ async function handleApi(req, res) {
 
   if (req.method === "GET" && url.pathname === "/api/tables") {
     return sendJson(res, 200, summarizeAll(rounds()));
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/quality") {
+    return sendJson(res, 200, buildDataQuality(rounds(), getStatus()));
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/backtest") {
+    return sendJson(res, 200, backtestPredictions(rounds(), {
+      tableCode: url.searchParams.get("tableCode"),
+      limit: url.searchParams.get("limit"),
+      warmup: url.searchParams.get("warmup")
+    }));
   }
 
   if (req.method === "GET" && url.pathname === "/api/rounds") {

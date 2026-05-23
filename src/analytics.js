@@ -11,6 +11,7 @@ const DECKS_PER_SHOE = 8;
 const CARDS_PER_DECK = 52;
 const CARDS_PER_SHOE = DECKS_PER_SHOE * CARDS_PER_DECK;
 const CARD_MODEL_TRIALS = 900;
+const OLD_SNAPSHOT_EVENTS = new Set(["getGameHall", "getGameHall:snapshot"]);
 
 function pct(value) {
   return Math.round(Number(value || 0) * 1000) / 10;
@@ -38,6 +39,31 @@ function countRounds(rounds) {
     if (round.luckySix) counts.luckySix += 1;
   }
   return counts;
+}
+
+function isPredictionUsable(round) {
+  if (!round || !normalizeOutcome(round.outcome)) return false;
+  if (!round.tableCode || Number(round.roundNo || 0) <= 0) return false;
+  if (OLD_SNAPSHOT_EVENTS.has(round.sourceEvent)) return false;
+  const tableName = String(round.tableName || "").toUpperCase();
+  if (/^[A-Z]+[0-9]+$/.test(tableName) && tableName !== String(round.tableCode).toUpperCase()) {
+    return false;
+  }
+  return true;
+}
+
+function validRound(round) {
+  return round && normalizeOutcome(round.outcome) && round.tableCode && Number(round.roundNo || 0) > 0;
+}
+
+function predictionPool(allRounds, tableCode) {
+  const valid = allRounds.filter(validRound);
+  const reliable = valid.filter(isPredictionUsable);
+  const reliableTableCount = tableCode
+    ? reliable.filter((round) => round.tableCode === tableCode).length
+    : reliable.length;
+  if (reliableTableCount >= 20 || reliable.length >= 100) return reliable;
+  return valid;
 }
 
 function ratesFromCounts(counts) {
@@ -129,6 +155,11 @@ function smoothFeature(count, sample, baselineRate) {
 function choosePick(probabilities) {
   return Object.entries(probabilities)
     .sort((left, right) => right[1] - left[1])[0][0];
+}
+
+function chooseCommercialPick(probabilities, threshold = 0.07) {
+  if ((probabilities.PLAYER || 0) > (probabilities.BANKER || 0) + threshold) return "PLAYER";
+  return "BANKER";
 }
 
 function baseRankCounts() {
@@ -343,46 +374,79 @@ function normalizeOutcomeProbabilities(probabilities) {
   };
 }
 
+function patternWeightFor(sampleSize) {
+  if (sampleSize >= 150) return 0.12;
+  if (sampleSize >= 60) return 0.08;
+  if (sampleSize >= 20) return 0.05;
+  if (sampleSize >= 8) return 0.03;
+  return 0;
+}
+
 function predictFromSequence(allRounds, options = {}) {
   const tableCode = normalizeTableCode(options.tableCode);
+  const sourceRounds = options.useAllSources ? allRounds.filter(validRound) : predictionPool(allRounds, tableCode);
   const tableRounds = tableCode
-    ? allRounds.filter((round) => round.tableCode === tableCode)
-    : allRounds;
+    ? sourceRounds.filter((round) => round.tableCode === tableCode)
+    : sourceRounds;
   const sequence = normalizeSequence(options.sequence || sequenceOf(tableRounds, 6));
   const primaryMatches = collectMatches(tableRounds, sequence);
-  const globalMatches = tableCode ? collectMatches(allRounds, sequence) : primaryMatches;
+  const globalMatches = tableCode ? collectMatches(sourceRounds, sequence) : primaryMatches;
   const matchRounds = primaryMatches.length >= 8 ? primaryMatches : globalMatches;
   const counts = countRounds(matchRounds);
-  const baseline = baselineFrom(tableRounds.length >= 20 ? tableRounds : allRounds);
-  const historicalOutcome = smoothOutcomeProbabilities(counts, baseline, counts.total);
-  const historicalFeatures = {
+  const baseline = baselineFrom(tableRounds.length >= 20 ? tableRounds : sourceRounds);
+  const baselineOutcome = normalizeOutcomeProbabilities(baseline.outcome);
+  const patternOutcome = smoothOutcomeProbabilities(counts, baseline, counts.total);
+  const patternFeatures = {
     bankerPair: smoothFeature(counts.bankerPair, counts.total, baseline.bankerPair),
     playerPair: smoothFeature(counts.playerPair, counts.total, baseline.playerPair),
     luckySix: smoothFeature(counts.luckySix, counts.total, baseline.luckySix)
   };
   const cardModel = tableCode ? estimateCardModel(tableRounds) : { available: false };
   const cardWeight = cardModel.available
-    ? Math.min(0.3, 0.08 + (cardModel.observedCards / CARDS_PER_SHOE) * 0.5)
+    ? Math.min(0.18, 0.05 + (cardModel.observedCards / CARDS_PER_SHOE) * 0.35)
     : 0;
-  const blendedOutcome = cardModel.available ? normalizeOutcomeProbabilities({
-    BANKER: blendValue(historicalOutcome.BANKER, cardModel.probabilities.BANKER, cardWeight),
-    PLAYER: blendValue(historicalOutcome.PLAYER, cardModel.probabilities.PLAYER, cardWeight),
-    TIE: blendValue(historicalOutcome.TIE, cardModel.probabilities.TIE, cardWeight)
-  }) : historicalOutcome;
-  const blendedFeatures = cardModel.available ? {
-    bankerPair: blendValue(historicalFeatures.bankerPair, cardModel.probabilities.bankerPair, cardWeight),
-    playerPair: blendValue(historicalFeatures.playerPair, cardModel.probabilities.playerPair, cardWeight),
-    luckySix: blendValue(historicalFeatures.luckySix, cardModel.probabilities.luckySix, cardWeight)
-  } : historicalFeatures;
+  const patternWeight = Math.min(patternWeightFor(counts.total), 1 - cardWeight);
+  const baselineWeight = Math.max(0, 1 - cardWeight - patternWeight);
+  const blendedOutcome = normalizeOutcomeProbabilities({
+    BANKER:
+      baselineOutcome.BANKER * baselineWeight +
+      patternOutcome.BANKER * patternWeight +
+      (cardModel.available ? cardModel.probabilities.BANKER * cardWeight : 0),
+    PLAYER:
+      baselineOutcome.PLAYER * baselineWeight +
+      patternOutcome.PLAYER * patternWeight +
+      (cardModel.available ? cardModel.probabilities.PLAYER * cardWeight : 0),
+    TIE:
+      baselineOutcome.TIE * baselineWeight +
+      patternOutcome.TIE * patternWeight +
+      (cardModel.available ? cardModel.probabilities.TIE * cardWeight : 0)
+  });
+  const blendedFeatures = {
+    bankerPair:
+      baseline.bankerPair * baselineWeight +
+      patternFeatures.bankerPair * patternWeight +
+      (cardModel.available ? cardModel.probabilities.bankerPair * cardWeight : 0),
+    playerPair:
+      baseline.playerPair * baselineWeight +
+      patternFeatures.playerPair * patternWeight +
+      (cardModel.available ? cardModel.probabilities.playerPair * cardWeight : 0),
+    luckySix:
+      baseline.luckySix * baselineWeight +
+      patternFeatures.luckySix * patternWeight +
+      (cardModel.available ? cardModel.probabilities.luckySix * cardWeight : 0)
+  };
 
   return {
     tableCode,
     sequence,
     sequenceText: sequence.join(""),
+    usableRounds: sourceRounds.length,
+    usableTableRounds: tableRounds.length,
     sampleSize: counts.total,
     tableSampleSize: primaryMatches.length,
     globalSampleSize: globalMatches.length,
-    pick: choosePick(blendedOutcome),
+    rawPick: choosePick(blendedOutcome),
+    pick: chooseCommercialPick(blendedOutcome),
     probabilities: {
       BANKER: blendedOutcome.BANKER,
       PLAYER: blendedOutcome.PLAYER,
@@ -399,18 +463,28 @@ function predictFromSequence(allRounds, options = {}) {
       playerPair: pct(blendedFeatures.playerPair),
       luckySix: pct(blendedFeatures.luckySix)
     },
+    baselinePercentages: {
+      BANKER: pct(baselineOutcome.BANKER),
+      PLAYER: pct(baselineOutcome.PLAYER),
+      TIE: pct(baselineOutcome.TIE),
+      bankerPair: pct(baseline.bankerPair),
+      playerPair: pct(baseline.playerPair),
+      luckySix: pct(baseline.luckySix)
+    },
     historicalPercentages: {
-      BANKER: pct(historicalOutcome.BANKER),
-      PLAYER: pct(historicalOutcome.PLAYER),
-      TIE: pct(historicalOutcome.TIE),
-      bankerPair: pct(historicalFeatures.bankerPair),
-      playerPair: pct(historicalFeatures.playerPair),
-      luckySix: pct(historicalFeatures.luckySix)
+      BANKER: pct(patternOutcome.BANKER),
+      PLAYER: pct(patternOutcome.PLAYER),
+      TIE: pct(patternOutcome.TIE),
+      bankerPair: pct(patternFeatures.bankerPair),
+      playerPair: pct(patternFeatures.playerPair),
+      luckySix: pct(patternFeatures.luckySix)
     },
     cardModel,
     modelWeights: {
-      historical: Math.round((1 - cardWeight) * 1000) / 1000,
-      cardShoe: Math.round(cardWeight * 1000) / 1000
+      baseline: Math.round(baselineWeight * 1000) / 1000,
+      pattern: Math.round(patternWeight * 1000) / 1000,
+      cardShoe: Math.round(cardWeight * 1000) / 1000,
+      playerPickThreshold: 0.07
     },
     counts,
     confidence: counts.total >= 100 ? "HIGH" : counts.total >= 30 ? "MEDIUM" : "LOW",
@@ -458,6 +532,8 @@ function summarizeAll(rounds) {
 module.exports = {
   countRounds,
   ratesFromCounts,
+  isPredictionUsable,
+  predictionPool,
   normalizeSequence,
   sequenceOf,
   predictFromSequence,
