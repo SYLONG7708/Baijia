@@ -1,0 +1,9 @@
+{
+  "appId": "com.sylong7708.baijia",
+  "appName": "Baijia Pro",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "http",
+    "cleartext": true
+  }
+}

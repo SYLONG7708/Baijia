@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0d0f13">
+    <title>Baijia Pro</title>
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark">B</span>
+          <div>
+            <h1>Baijia Pro</h1>
+            <p id="connectionText">連線中</p>
+          </div>
+        </div>
+        <div class="top-metrics" id="topMetrics"></div>
+        <button class="icon-button" id="refreshButton" type="button" title="重新整理">↻</button>
+      </header>
+
+      <main class="layout">
+        <aside class="table-rail">
+          <div class="rail-title">桌台</div>
+          <div id="tableGroups" class="table-groups"></div>
+        </aside>
+
+        <section class="workspace">
+          <div class="workspace-head">
+            <div>
+              <div class="eyebrow" id="tableCategory">百家樂</div>
+              <h2 id="tableTitle">載入中</h2>
+            </div>
+            <div class="last-six" id="latestSix"></div>
+          </div>
+
+          <section class="metrics-grid" id="tableMetrics"></section>
+
+          <section class="prediction-panel">
+            <div class="panel-head">
+              <div>
+                <div class="eyebrow">六手序列預測</div>
+                <h3 id="predictionTitle">下一把統計</h3>
+              </div>
+              <div class="sequence-tools">
+                <div class="sequence" id="sequenceChips"></div>
+                <div class="segmented">
+                  <button type="button" data-add-outcome="BANKER" class="banker">莊</button>
+                  <button type="button" data-add-outcome="PLAYER" class="player">閒</button>
+                  <button type="button" data-add-outcome="TIE" class="tie">和</button>
+                  <button type="button" id="sequenceClear">清除</button>
+                </div>
+              </div>
+            </div>
+            <div class="prediction-grid" id="predictionGrid"></div>
+          </section>
+
+          <section class="road-panel">
+            <div class="tabs" id="roadTabs">
+              <button type="button" data-road="bead" class="active">珠盤</button>
+              <button type="button" data-road="big">大路</button>
+              <button type="button" data-road="bigEye">大眼仔</button>
+              <button type="button" data-road="small">小路</button>
+              <button type="button" data-road="cockroach">蟑螂路</button>
+            </div>
+            <div class="road-scroll">
+              <div id="roadGrid" class="road-grid"></div>
+            </div>
+          </section>
+
+          <section class="recent-panel">
+            <div class="panel-head compact">
+              <h3>最新開局</h3>
+              <button class="text-button" id="exportButton" type="button">匯出</button>
+            </div>
+            <div class="round-table-wrap">
+              <table class="round-table">
+                <thead>
+                  <tr>
+                    <th>局</th>
+                    <th>結果</th>
+                    <th>莊對</th>
+                    <th>閒對</th>
+                    <th>幸運六</th>
+                    <th>時間</th>
+                  </tr>
+                </thead>
+                <tbody id="recentRounds"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <aside class="ops-panel">
+          <section class="tool-surface">
+            <h3>連線</h3>
+            <label>
+              API
+              <input id="apiBaseInput" type="url" placeholder="同網域">
+            </label>
+            <label>
+              Token
+              <input id="apiTokenInput" type="password" placeholder="手動寫入用">
+            </label>
+            <button class="primary-button" id="saveSettings" type="button">套用</button>
+          </section>
+
+          <section class="tool-surface">
+            <h3>手動補錄</h3>
+            <div class="segmented wide" id="manualOutcome">
+              <button type="button" data-manual-outcome="BANKER" class="banker active">莊</button>
+              <button type="button" data-manual-outcome="PLAYER" class="player">閒</button>
+              <button type="button" data-manual-outcome="TIE" class="tie">和</button>
+            </div>
+            <div class="check-row">
+              <label><input id="manualBankerPair" type="checkbox"> 莊對</label>
+              <label><input id="manualPlayerPair" type="checkbox"> 閒對</label>
+              <label><input id="manualLuckySix" type="checkbox"> 幸運六</label>
+            </div>
+            <button class="primary-button" id="manualSubmit" type="button">寫入本桌</button>
+          </section>
+
+          <section class="tool-surface">
+            <h3>系統</h3>
+            <dl class="status-list" id="statusList"></dl>
+          </section>
+        </aside>
+      </main>
+    </div>
+    <div id="toast" class="toast" hidden></div>
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

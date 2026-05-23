@@ -1,0 +1,25 @@
+{
+  "name": "baijia",
+  "version": "1.0.0",
+  "description": "Allbet baccarat recorder, roadmaps, statistics dashboard, PWA, and mobile wrapper.",
+  "main": "src/server.js",
+  "private": true,
+  "scripts": {
+    "start": "node src/server.js",
+    "scraper": "node src/scraper.js",
+    "daemon": "node src/daemon.js",
+    "build:web": "node scripts/build-web.js",
+    "cap:sync": "npm run build:web && npx cap sync",
+    "android:debug": "npm run build:web && node scripts/ensure-android.js && npx cap sync android && cd android && gradlew.bat assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.4.3",
+    "@capacitor/cli": "^7.4.3",
+    "@capacitor/core": "^7.4.3",
+    "playwright": "^1.56.1"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=24"
+  }
+}
