@@ -350,15 +350,6 @@ h3 {
   font-size: 18px;
 }
 
-.alert-road {
-  grid-column: 1 / -1;
-  color: var(--accent);
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.35;
-  overflow-wrap: anywhere;
-}
-
 .alert-item small {
   grid-column: 1 / -1;
   color: var(--muted);

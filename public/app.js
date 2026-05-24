@@ -140,11 +140,6 @@ function streakText(streak) {
   return `${labels[streak.outcome] || ""}連${streak.length}`;
 }
 
-function streakRateText(streak) {
-  if (!streak?.opportunities) return "樣本0";
-  return `${streak.continuationPercent}%`;
-}
-
 function currentValidation() {
   const tables = state.status?.validation?.tables || [];
   return tables.find((table) => table.code === state.selectedTable) || null;
@@ -220,7 +215,6 @@ function renderTableGroups() {
 function renderTableHeader() {
   const table = currentTable();
   const cardModel = table.prediction?.cardModel || {};
-  const roadModel = table.prediction?.roadModel || {};
   const counts = table.counts || {};
   const streak = table.streak || {};
   const validation = currentValidation();
@@ -246,16 +240,12 @@ function renderTableHeader() {
     ["模型", modelText],
     ["回測", backtestText],
     ["連勝", streakText(streak)],
-    ["連勝延續", streakRateText(streak)],
-    ["連勝樣本", `${streak.continuations || 0}/${streak.opportunities || 0}`],
     ["校驗", validationText(validation)],
     ["莊對", counts.bankerPair || 0],
     ["閒對", counts.playerPair || 0],
     ["已見牌", cardModel.available ? `${cardModel.observedCards}/${cardModel.totalCards}` : "等待"],
     ["剩餘牌", cardModel.available ? cardModel.remainingCards : "-"]
   ];
-  metrics.splice(6, 0, ["路單", roadModel.available ? `${roadModel.noTiePercentages?.BANKER ?? 0}/${roadModel.noTiePercentages?.PLAYER ?? 0}` : "等待"]);
-  metrics.splice(7, 0, ["消牌率", cardModel.available ? pct((cardModel.observedCards || 0) / Math.max(1, cardModel.totalCards || 416)) : "等待"]);
   $("tableMetrics").innerHTML = metrics.map(([label, value]) => `<div class="metric-card">
     <span class="metric-label">${label}</span>
     <strong class="metric-value">${value}</strong>
@@ -267,13 +257,11 @@ function renderPredictionAlerts() {
 
   $("predictionAlerts").innerHTML = alerts.map((alert) => {
     const sample = alert.sampleSize || alert.opportunities || 0;
-    const streakSample = alert.opportunities ? `${alert.continuations}/${alert.opportunities}` : "0/0";
     return `<button class="alert-item" type="button" data-table="${alert.code}">
       <span class="alert-code">${alert.category || ""}${alert.code}</span>
       <span class="chip ${outcomeClass[alert.outcome]}">${alert.outcomeLabel || labels[alert.outcome] || "-"}</span>
       <strong>${alertScoreText(alert)}</strong>
-      <span class="alert-road">路單 ${alert.roadScorePercent ?? 0}% · 連勝 ${alert.trendPercent ?? 0}% · 消牌 ${alert.cardScorePercent ?? 0}%(${alert.cardDepletionPercent ?? 0}%) · 核心 ${alert.integratedCorePercent ?? 0}%</span>
-      <small>模型 ${alert.predictionScorePercent ?? 0}% · 回測 ${alert.modelBacktestAccuracyNoTie ?? 0}% · 樣本 ${sample} · 續連 ${streakSample}</small>
+      <small>樣本 ${sample}</small>
     </button>`;
   }).join("");
   if (!alerts.length) {

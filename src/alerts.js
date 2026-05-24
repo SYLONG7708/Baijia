@@ -250,7 +250,11 @@ function scoreForTable(table, validation) {
   const qualityPenalty = severity === "WARN" ? 0.97 : 1;
   const core = integratedCoreSignal({ trend, road, card, model, performance, tableFrequency, recent });
   const weightedScore = weightedAverage(components);
-  const scoreRate = severity === "ERROR" ? 0 : clamp(Math.max(weightedScore, core.rate) * qualityPenalty, 0, 1);
+  const singleWinRate = weightedAverage([
+    { key: "score", rate: weightedScore, weight: 0.45 },
+    { key: "core", rate: core.rate, weight: 0.55 }
+  ]);
+  const scoreRate = severity === "ERROR" ? 0 : clamp(singleWinRate * qualityPenalty, 0, 1);
   const sampleSize = Math.max(
     Number(streak.opportunities || 0),
     Number(prediction.sampleSize || 0),

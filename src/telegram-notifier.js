@@ -152,10 +152,6 @@ function formatMessage(alert, predictionState) {
     `預測: ${alert.outcomeLabel}`,
     `最高勝率: ${displayPercent}%`
   ];
-  lines.push(`路單/連勝/消牌: ${alert.roadScorePercent || 0}% / ${alert.trendPercent || 0}% / ${alert.cardScorePercent || 0}%(${alert.cardDepletionPercent || 0}%)`);
-  if (alert.modelBacktestTested) {
-    lines.push(`回測: ${alert.modelBacktestAccuracyNoTie}%`);
-  }
   if (successStreak > 0) {
     lines.push(`🔥🔥🔥 連續命中 ${successStreak} 連勝 🔥🔥🔥`);
   }
