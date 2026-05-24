@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0d0f13">
+    <title>Oracle Cloud 24H 雲端註冊教學 - Baijia Pro</title>
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <style>
+      :root {
+        --bg: #0d0f13;
+        --panel: #151922;
+        --panel-2: #1b2029;
+        --line: #2c3340;
+        --text: #f5f7fb;
+        --muted: #a6afbd;
+        --accent: #4e9bff;
+        --ok: #2fb875;
+        --warn: #d3a031;
+        --danger: #e05252;
+        color-scheme: dark;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-width: 320px;
+        font-family: Inter, "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      a {
+        color: #88bcff;
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 14px 18px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(13, 15, 19, 0.96);
+        backdrop-filter: blur(12px);
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+      }
+
+      .brand-mark {
+        display: grid;
+        width: 36px;
+        height: 36px;
+        place-items: center;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #e05252, #4e9bff);
+        font-weight: 800;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: 18px;
+      }
+
+      .brand p {
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .nav-link {
+        display: inline-flex;
+        min-height: 36px;
+        align-items: center;
+        padding: 0 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel-2);
+        color: var(--text);
+        font-size: 13px;
+        white-space: nowrap;
+      }
+
+      main {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 28px 18px 60px;
+      }
+
+      .intro {
+        display: grid;
+        gap: 12px;
+        padding-bottom: 24px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .intro h2 {
+        max-width: 880px;
+        font-size: clamp(28px, 4vw, 44px);
+        line-height: 1.14;
+        letter-spacing: 0;
+      }
+
+      .intro p {
+        max-width: 820px;
+        color: var(--muted);
+        line-height: 1.8;
+      }
+
+      .notice {
+        margin-top: 8px;
+        padding: 12px 14px;
+        border: 1px solid rgba(211, 160, 49, 0.35);
+        border-radius: 8px;
+        background: rgba(211, 160, 49, 0.1);
+        color: #efd28a;
+        line-height: 1.75;
+      }
+
+      .notice.danger {
+        border-color: rgba(224, 82, 82, 0.42);
+        background: rgba(224, 82, 82, 0.1);
+        color: #ffb7b7;
+      }
+
+      .section {
+        padding: 28px 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .section h2 {
+        margin-bottom: 14px;
+        font-size: 22px;
+      }
+
+      .section h3 {
+        margin: 18px 0 8px;
+        font-size: 16px;
+      }
+
+      .section p,
+      .section li {
+        color: var(--muted);
+        line-height: 1.8;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .panel {
+        min-height: 100%;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+      }
+
+      .panel h3 {
+        margin-top: 0;
+      }
+
+      .steps {
+        display: grid;
+        gap: 12px;
+        counter-reset: step;
+      }
+
+      .step {
+        display: grid;
+        grid-template-columns: 38px minmax(0, 1fr);
+        gap: 12px;
+        align-items: start;
+        padding: 14px 0;
+      }
+
+      .step::before {
+        counter-increment: step;
+        content: counter(step);
+        display: grid;
+        width: 32px;
+        height: 32px;
+        place-items: center;
+        border-radius: 50%;
+        background: var(--accent);
+        color: white;
+        font-weight: 800;
+      }
+
+      .step strong {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--text);
+      }
+
+      code {
+        padding: 2px 5px;
+        border-radius: 5px;
+        background: #0a0d12;
+        color: #d8e7ff;
+      }
+
+      pre {
+        overflow-x: auto;
+        margin: 12px 0 0;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #090c11;
+        color: #edf3ff;
+        line-height: 1.6;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+        font-size: 14px;
+      }
+
+      th,
+      td {
+        padding: 10px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        color: var(--text);
+      }
+
+      td {
+        color: var(--muted);
+      }
+
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        padding: 0 8px;
+        border-radius: 999px;
+        background: rgba(78, 155, 255, 0.14);
+        color: #9fc8ff;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .footer {
+        padding-top: 24px;
+        color: var(--muted);
+        line-height: 1.8;
+      }
+
+      @media (max-width: 760px) {
+        .topbar {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .grid {
+          grid-template-columns: 1fr;
+        }
+
+        .step {
+          grid-template-columns: 1fr;
+        }
+
+        .step::before {
+          width: 30px;
+          height: 30px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">B</span>
+        <div>
+          <h1>Baijia Pro</h1>
+          <p>Oracle Cloud Always Free 零基礎註冊教學</p>
+        </div>
+      </div>
+      <a class="nav-link" href="/">返回首頁</a>
+    </header>
+
+    <main>
+      <section class="intro">
+        <span class="tag">目標：電腦關機後仍 24 小時紀錄</span>
+        <h2>從零開始註冊 Oracle Cloud，建立 Always Free Ubuntu 主機，部署 Baijia Pro</h2>
+        <p>
+          這份教學帶你完成 Oracle Cloud 註冊、建立免費 Ubuntu VM、開放 Baijia Pro 連接埠、
+          SSH 登入主機、執行一鍵安裝腳本。完成後，Baijia Pro 會用 systemd 常駐在雲端，
+          本機電腦與 Codex 關閉後仍可繼續記錄。
+        </p>
+        <div class="notice danger">
+          Oracle 註冊通常需要手機與信用卡/簽帳金融卡做身分驗證。請只建立標示 Always Free 或免費額度內的資源，
+          不要建立付費 Shape、付費磁碟、付費 Load Balancer，避免產生費用。
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>開始前先準備</h2>
+        <div class="grid">
+          <div class="panel">
+            <h3>需要的資料</h3>
+            <ul>
+              <li>可收信的 Email。</li>
+              <li>可收簡訊的手機號碼。</li>
+              <li>可通過驗證的信用卡或簽帳金融卡。</li>
+              <li>一台 Windows 電腦，用來 SSH 連線。</li>
+            </ul>
+          </div>
+          <div class="panel">
+            <h3>建議的 Oracle VM</h3>
+            <ul>
+              <li>系統：Ubuntu 24.04 或 Ubuntu 22.04。</li>
+              <li>Shape：<code>VM.Standard.A1.Flex</code>。</li>
+              <li>規格：先用 <code>2 OCPU / 12 GB RAM</code>。</li>
+              <li>Boot Volume：<code>80 GB</code> 以內。</li>
+            </ul>
+          </div>
+        </div>
+        <div class="notice">
+          Oracle 官方說明：Always Free Compute 必須在 Home Region 建立；Ampere A1 免費額度等同最多
+          4 OCPU 與 24 GB RAM，Block Volume Always Free 額度為 200 GB。
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>第一部分：註冊 Oracle Cloud Free Tier</h2>
+        <div class="steps">
+          <div class="step">
+            <div>
+              <strong>打開 Oracle Free Tier 官方頁面</strong>
+              <p>到 <a href="https://www.oracle.com/cloud/free/" target="_blank" rel="noreferrer">https://www.oracle.com/cloud/free/</a>，點選 <code>Start for free</code> 或 <code>Create a Free Account</code>。</p>
+            </div>
+          </div>
+          <div class="step">
+            <div>
+              <strong>填寫國家、姓名、Email</strong>
+              <p>Country 選你實際所在國家或地區，姓名與地址後面要一致。Email 請用常用信箱，Oracle 會寄驗證信。</p>
+            </div>
+          </div>
+          <div class="step">
+            <div>
+              <strong>完成真人驗證</strong>
+              <p>點選 <code>I am human</code>，完成 CAPTCHA 驗證後按 <code>Verify my email</code>。</p>
+            </div>
+          </div>
+          <div class="step">
+            <div>
+              <strong>到信箱點驗證連結</strong>
+              <p>打開 Oracle 寄來的信，點擊驗證連結。官方文件說驗證連結有時間限制，收到後請立刻完成。</p>
+            </div>
+          </div>
+          <div class="step">
+            <div>
+              <strong>設定 Cloud Account Name</strong>
+              <p>這是你的 Oracle 租戶名稱，可用英文與數字，例如 <code>baijia7708</code>。之後登入 Oracle Console 會用到。</p>
+            </div>
+          </div>
+          <div class="step">
+            <div>
+              <strong>選 Home Region</strong>
+              <p>Home Region 很重要。Always Free Compute 要在 Home Region 建立。建議優先選日本、韓國、新加坡等離你較近的區域；如果 A1 容量不足，只能在該區域等待或改 Availability Domain。</p>
+            </div>
+          </div>
+          <div class="step">
+            <div>
+              <strong>填寫地址與手機</strong>
+              <p>地址、國家、電話請填真實資料，避免身分驗證失敗。手機驗證時輸入簡訊驗證碼。</p>
+            </div>
+          </div>
+          <div class="step">
+            <div>
+              <strong>填寫付款卡做驗證</strong>
+              <p>Oracle 會用卡片做身分驗證。Free Tier 頁面說卡片資訊用於帳號設定與身分驗證；請不要升級或建立付費資源。</p>
+            </div>
+          </div>
+          <div class="step">
+            <div>
+              <strong>等待帳號建立完成</strong>
+              <p>完成後會進入 Oracle Cloud Console，或收到登入網址。登入頁常見網址是 <a href="https://cloud.oracle.com/" target="_blank" rel="noreferrer">https://cloud.oracle.com/</a>。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>第二部分：建立 Always Free Ubuntu VM</h2>
+        <div class="steps">
+          <div class="step">
+            <div>
+              <strong>進入 Compute Instances</strong>
+              <p>Oracle Console 左上角選單，進入 <code>Compute</code>，再點 <code>Instances</code>。</p>
+            </div>
+          </div>
+          <div class="step">
+            <div>
+              <strong>點 Create instance</strong>
+              <p>名稱輸入 <code>baijia-pro-24h</code>。Compartment 沿用預設即可。</p>
+            </div>
+          </div>
+          <div class="step">
+            <div>
+              <strong>Image 選 Ubuntu</strong>
+              <p>點 <code>Change image</code>，選 <code>Canonical Ubuntu</code>，版本用 Ubuntu 24.04 或 22.04。</p>
+            </div>
+          </div>
+          <div class="step">
+            <div>
+              <strong>Shape 選 Ampere A1</strong>
+              <p>點 <code>Change shape</code>，選 <code>Virtual machine</code>，Processor 選 <code>Ampere</code>，Shape 選 <code>VM.Standard.A1.Flex</code>。</p>
+              <p>先設定 <code>2 OCPU</code> 與 <code>12 GB RAM</code>。如果顯示容量不足，改成 <code>1 OCPU / 6 GB RAM</code> 或換 Availability Domain 再試。</p>
+            </div>
+          </div>
+          <div class="step">
+            <div>
+              <strong>Networking 保留 Public IPv4</strong>
+              <p>可以讓 Oracle 自動建立 VCN。確認有勾選 <code>Assign a public IPv4 address</code>，否則你的瀏覽器無法直接連到 Baijia 頁面。</p>
+            </div>
+          </div>
+          <div class="step">
+            <div>
+              <strong>設定 SSH Key</strong>
+              <p>如果你沒有 SSH Key，可以用 Oracle 的 <code>Generate a key pair for me</code>，下載 Private Key 與 Public Key。Private Key 要保存好，不能外流。</p>
+              <p>如果你想自己在 Windows 產生，打開 PowerShell：</p>
+              <pre><code>ssh-keygen -t ed25519 -C "baijia-oracle"</code></pre>
+              <p>一路按 Enter，然後把 <code>C:\Users\Administrator\.ssh\id_ed25519.pub</code> 的內容貼到 Oracle。</p>
+            </div>
+          </div>
+          <div class="step">
+            <div>
+              <strong>Boot volume 不要超額</strong>
+              <p>Boot volume 建議 <code>80 GB</code>，不要超過 Always Free Block Volume 總額。建立前確認畫面上沒有付費警告。</p>
+            </div>
+          </div>
+          <div class="step">
+            <div>
+              <strong>建立 Instance</strong>
+              <p>按 <code>Create</code>。建立完成後，複製 Public IP，例如 <code>129.xxx.xxx.xxx</code>。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>第三部分：開放 Baijia Pro 連接埠 4173</h2>
+        <p>Oracle 預設只開 SSH 22。Baijia Pro 網頁需要 TCP 4173。</p>
+        <div class="steps">
+          <div class="step">
+            <div>
+              <strong>進入 VCN Security List</strong>
+              <p>在 Instance 詳細頁找到 VCN，點進去後找 <code>Security Lists</code> 或 <code>Network Security Groups</code>。</p>
+            </div>
+          </div>
+          <div class="step">
+            <div>
+              <strong>新增 Ingress Rule</strong>
+              <p>新增一條規則：</p>
+              <table>
+                <tbody>
+                  <tr><th>Source CIDR</th><td>建議填你的固定 IP。沒有固定 IP 才填 <code>0.0.0.0/0</code></td></tr>
+                  <tr><th>IP Protocol</th><td><code>TCP</code></td></tr>
+                  <tr><th>Destination Port Range</th><td><code>4173</code></td></tr>
+                  <tr><th>Description</th><td><code>Baijia Pro dashboard</code></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="notice">
+          如果你把 Source CIDR 設成 <code>0.0.0.0/0</code>，全世界都能看到你的 Baijia 首頁。更安全的做法是只允許自己的 IP，或之後加 Nginx 密碼保護。
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>第四部分：從 Windows 登入 Oracle VM</h2>
+        <p>打開 Windows PowerShell，使用 Oracle Instance 的 Public IP 登入。Ubuntu 預設使用者通常是 <code>ubuntu</code>。</p>
+        <pre><code>ssh ubuntu@你的Oracle公網IP</code></pre>
+        <p>如果你使用 Oracle 下載的 Private Key：</p>
+        <pre><code>ssh -i C:\Users\Administrator\Downloads\ssh-key-xxxx.key ubuntu@你的Oracle公網IP</code></pre>
+        <p>第一次連線會問是否信任主機，輸入 <code>yes</code>。</p>
+      </section>
+
+      <section class="section">
+        <h2>第五部分：一鍵安裝 Baijia Pro</h2>
+        <p>SSH 登入後，直接貼上這條命令：</p>
+        <pre><code>curl -fsSL https://raw.githubusercontent.com/SYLONG7708/Baijia/main/scripts/install-oracle-ubuntu.sh | bash</code></pre>
+        <p>安裝腳本會自動完成：</p>
+        <ul>
+          <li>安裝 Node.js 24。</li>
+          <li>下載 GitHub 上的 Baijia Pro。</li>
+          <li>安裝 npm 套件與 Playwright Chromium。</li>
+          <li>建立 <code>/etc/baijia/baijia.env</code>。</li>
+          <li>建立 systemd 服務 <code>baijia-pro</code>。</li>
+          <li>設定開機自動啟動。</li>
+        </ul>
+      </section>
+
+      <section class="section">
+        <h2>第六部分：填入 Allbet 與 Telegram 設定</h2>
+        <p>安裝完成後，編輯雲端主機上的環境檔：</p>
+        <pre><code>sudo nano /etc/baijia/baijia.env</code></pre>
+        <p>至少填入：</p>
+        <pre><code>ALLBET_URL=https://www.abgame88.net/?hallView=all&loginType=2&language=zh_TW&sessionId=你的sessionId
+TELEGRAM_ENABLED=true
+TELEGRAM_BOT_TOKEN=你的TelegramBotToken
+TELEGRAM_CHAT_ID=你的群組ID
+TELEGRAM_GROUP_NAME=結果群
+PUBLIC_API_BASE=http://你的Oracle公網IP:4173</code></pre>
+        <p>存檔方式：按 <code>Ctrl + O</code>，Enter，然後 <code>Ctrl + X</code> 離開。</p>
+        <p>重啟服務：</p>
+        <pre><code>sudo systemctl restart baijia-pro</code></pre>
+      </section>
+
+      <section class="section">
+        <h2>第七部分：確認 24H 服務正常</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>檢查項目</th>
+              <th>命令或網址</th>
+              <th>正常結果</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>systemd 狀態</td>
+              <td><code>sudo systemctl status baijia-pro --no-pager</code></td>
+              <td>看到 <code>active (running)</code></td>
+            </tr>
+            <tr>
+              <td>本機 API</td>
+              <td><code>curl http://127.0.0.1:4173/api/monitor</code></td>
+              <td>看到 JSON，且 monitor / scraper 有狀態</td>
+            </tr>
+            <tr>
+              <td>瀏覽器頁面</td>
+              <td><code>http://你的Oracle公網IP:4173/</code></td>
+              <td>能打開 Baijia Pro 首頁</td>
+            </tr>
+            <tr>
+              <td>即時日誌</td>
+              <td><code>sudo journalctl -u baijia-pro -f</code></td>
+              <td>沒有連續錯誤，資料持續更新</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="section">
+        <h2>常見問題排除</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>問題</th>
+              <th>原因</th>
+              <th>處理方式</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>註冊卡在付款驗證</td>
+              <td>卡片、地址、電話或地區資料不一致</td>
+              <td>改用真實資料與可線上刷卡的卡片；不要用 VPN 或不一致地區資料</td>
+            </tr>
+            <tr>
+              <td>A1 建立失敗，Out of host capacity</td>
+              <td>該區域暫時沒有 Always Free A1 容量</td>
+              <td>換 Availability Domain、降低到 1 OCPU / 6 GB，或晚點再試</td>
+            </tr>
+            <tr>
+              <td>網頁打不開</td>
+              <td>沒有開 4173，或 Public IP 錯誤</td>
+              <td>檢查 Oracle Ingress Rule：TCP 4173；確認網址是 <code>http://IP:4173</code></td>
+            </tr>
+            <tr>
+              <td>服務沒有資料</td>
+              <td><code>ALLBET_URL</code> 沒填，或 session 失效</td>
+              <td>重新取得 Allbet 遊戲網址，更新 <code>/etc/baijia/baijia.env</code> 後重啟</td>
+            </tr>
+            <tr>
+              <td>Telegram 沒收到</td>
+              <td>Token 或 Chat ID 錯誤</td>
+              <td>確認 bot 已加入「結果群」，群內有傳過訊息，並填入正確 <code>TELEGRAM_CHAT_ID</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="section">
+        <h2>官方參考連結</h2>
+        <ul>
+          <li><a href="https://www.oracle.com/cloud/free/" target="_blank" rel="noreferrer">Oracle Cloud Free Tier 官方頁</a></li>
+          <li><a href="https://docs.oracle.com/iaas/Content/GSG/Tasks/signingup_topic-Sign_Up_for_Free_Oracle_Cloud_Promotion.htm" target="_blank" rel="noreferrer">Oracle 官方註冊流程文件</a></li>
+          <li><a href="https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier.htm" target="_blank" rel="noreferrer">Oracle Free Tier 說明</a></li>
+          <li><a href="https://docs.oracle.com/en-us/iaas/Content/FreeTier/resourceref.htm" target="_blank" rel="noreferrer">Oracle Always Free 資源清單</a></li>
+        </ul>
+      </section>
+
+      <p class="footer">
+        完成以上流程後，Baijia Pro 會跑在 Oracle 雲端 VM。你可以關閉本機電腦與 Codex，
+        只要 Oracle VM、網路、Allbet session 仍有效，記錄服務就會繼續執行。
+      </p>
+    </main>
+  </body>
+</html>

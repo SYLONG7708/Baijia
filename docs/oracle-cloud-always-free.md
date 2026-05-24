@@ -2,6 +2,12 @@
 
 This deploys Baijia Pro to an Oracle Cloud Always Free Ubuntu VM so recording continues after the local PC and Codex are closed.
 
+For a browser-based zero-basics registration walkthrough, open:
+
+```text
+http://localhost:4173/oracle-register.html
+```
+
 ## Recommended Free VM
 
 - Provider: Oracle Cloud Infrastructure

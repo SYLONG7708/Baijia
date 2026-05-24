@@ -95,6 +95,7 @@ Full zero-basics guide:
 
 ```text
 docs/oracle-cloud-always-free.md
+http://localhost:4173/oracle-register.html
 ```
 
 ## Telegram Alerts
