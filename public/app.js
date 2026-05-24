@@ -242,7 +242,7 @@ function renderTableHeader() {
     ["閒率", pct(table.rates?.PLAYER)],
     ["和率", pct(table.rates?.TIE)],
     ["預測", predictionLabel],
-    ["平均分數", alertScoreText(alert)],
+    ["最高勝率", alertScoreText(alert)],
     ["模型", modelText],
     ["回測", backtestText],
     ["連勝", streakText(streak)],
@@ -255,6 +255,7 @@ function renderTableHeader() {
     ["剩餘牌", cardModel.available ? cardModel.remainingCards : "-"]
   ];
   metrics.splice(6, 0, ["路單", roadModel.available ? `${roadModel.noTiePercentages?.BANKER ?? 0}/${roadModel.noTiePercentages?.PLAYER ?? 0}` : "等待"]);
+  metrics.splice(7, 0, ["消牌率", cardModel.available ? pct((cardModel.observedCards || 0) / Math.max(1, cardModel.totalCards || 416)) : "等待"]);
   $("tableMetrics").innerHTML = metrics.map(([label, value]) => `<div class="metric-card">
     <span class="metric-label">${label}</span>
     <strong class="metric-value">${value}</strong>
@@ -271,7 +272,7 @@ function renderPredictionAlerts() {
       <span class="alert-code">${alert.category || ""}${alert.code}</span>
       <span class="chip ${outcomeClass[alert.outcome]}">${alert.outcomeLabel || labels[alert.outcome] || "-"}</span>
       <strong>${alertScoreText(alert)}</strong>
-      <span class="alert-road">路單 ${alert.roadScorePercent ?? 0}%</span>
+      <span class="alert-road">路單 ${alert.roadScorePercent ?? 0}% · 連勝 ${alert.trendPercent ?? 0}% · 消牌 ${alert.cardScorePercent ?? 0}%(${alert.cardDepletionPercent ?? 0}%) · 核心 ${alert.integratedCorePercent ?? 0}%</span>
       <small>模型 ${alert.predictionScorePercent ?? 0}% · 回測 ${alert.modelBacktestAccuracyNoTie ?? 0}% · 樣本 ${sample} · 續連 ${streakSample}</small>
     </button>`;
   }).join("");

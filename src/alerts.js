@@ -203,6 +203,22 @@ function weightedAverage(components) {
   return active.reduce((sum, component) => sum + component.rate * component.weight, 0) / totalWeight;
 }
 
+function integratedCoreSignal({ trend, road, card, model, performance, tableFrequency, recent }) {
+  const components = [
+    { key: "trend", rate: trend.rate, weight: 0.22 },
+    { key: "road", rate: road?.rate || 0.5, weight: road ? 0.24 : 0 },
+    { key: "card", rate: card?.rate || 0.5, weight: card ? 0.16 : 0 },
+    { key: "model", rate: model.rate, weight: 0.18 },
+    { key: "performance", rate: performance.rate, weight: 0.08 },
+    { key: "table", rate: tableFrequency.rate, weight: 0.06 },
+    { key: "recent", rate: recent.rate, weight: 0.06 }
+  ].filter((component) => component.weight > 0);
+  return {
+    rate: clamp(weightedAverage(components), 0, 1),
+    components
+  };
+}
+
 function scoreForTable(table, validation) {
   const streak = table.streak || {};
   const prediction = table.prediction || {};
@@ -232,7 +248,9 @@ function scoreForTable(table, validation) {
 
   const severity = tableSeverity(validation, table.code) || "OK";
   const qualityPenalty = severity === "WARN" ? 0.97 : 1;
-  const scoreRate = severity === "ERROR" ? 0 : clamp(weightedAverage(components) * qualityPenalty, 0, 1);
+  const core = integratedCoreSignal({ trend, road, card, model, performance, tableFrequency, recent });
+  const weightedScore = weightedAverage(components);
+  const scoreRate = severity === "ERROR" ? 0 : clamp(Math.max(weightedScore, core.rate) * qualityPenalty, 0, 1);
   const sampleSize = Math.max(
     Number(streak.opportunities || 0),
     Number(prediction.sampleSize || 0),
@@ -245,8 +263,11 @@ function scoreForTable(table, validation) {
     outcomeLabel: labels[outcome] || outcome || "-",
     scoreRate,
     scorePercent: pct(scoreRate),
+    highestWinRate: scoreRate,
+    highestWinPercent: pct(scoreRate),
+    integratedCorePercent: pct(core.rate),
     displayPercent: pct(scoreRate),
-    scoreLabel: "平均分數",
+    scoreLabel: "最高勝率",
     sampleSize,
     severity,
     trendRate: trend.rate,
@@ -275,6 +296,12 @@ function scoreForTable(table, validation) {
     roadScorePercent: road ? pct(road.rate) : 0,
     roadScoreSample: road?.sample || 0,
     rawRoadScorePercent: road ? pct(road.rawRate) : 0,
+    cardDepletionPercent: card ? pct((table?.prediction?.cardModel?.observedCards || 0) / Math.max(1, table?.prediction?.cardModel?.totalCards || 416)) : 0,
+    integratedSignalBreakdown: core.components.map((component) => ({
+      key: component.key,
+      weight: component.weight,
+      percent: pct(component.rate)
+    })),
     scoreBreakdown: components.map((component) => ({
       key: component.key,
       label: component.label,
@@ -307,6 +334,9 @@ function buildStreakAlerts(summary, validation, options = {}) {
         sampleSize: score.sampleSize,
         scoreRate: score.scoreRate,
         scorePercent: score.scorePercent,
+        highestWinRate: score.highestWinRate,
+        highestWinPercent: score.highestWinPercent,
+        integratedCorePercent: score.integratedCorePercent,
         displayPercent: score.displayPercent,
         scoreLabel: score.scoreLabel,
         trendRate: score.trendRate,
@@ -328,9 +358,11 @@ function buildStreakAlerts(summary, validation, options = {}) {
         tableScorePercent: score.tableScorePercent,
         recentScorePercent: score.recentScorePercent,
         cardScorePercent: score.cardScorePercent,
+        cardDepletionPercent: score.cardDepletionPercent,
         roadScorePercent: score.roadScorePercent,
         roadScoreSample: score.roadScoreSample,
         rawRoadScorePercent: score.rawRoadScorePercent,
+        integratedSignalBreakdown: score.integratedSignalBreakdown,
         scoreBreakdown: score.scoreBreakdown,
         total: table.total || 0,
         lastRoundNo: table.lastRoundNo || 0,
@@ -361,7 +393,7 @@ function buildStreakAlerts(summary, validation, options = {}) {
     minPercent: Math.round(minRate * 1000) / 10,
     minSample,
     topLimit: limit,
-    scoreLabel: "平均分數",
+    scoreLabel: "最高勝率",
     candidateCount: candidates.length,
     count: alerts.length,
     alerts

@@ -137,20 +137,35 @@ function cardShoePrediction(sourceRows, tableCode) {
   }, { cardModel, sampleSize: cardModel.currentShoeRounds || 0, cardWeight: Math.round(weight * 1000) / 1000 });
 }
 
-function attachRoadPattern(allRounds, tableCode, prediction) {
+function attachSupplementalModels(allRounds, tableCode, prediction) {
   const code = normalizeTableCode(tableCode);
-  if (!code || prediction?.roadModel) return prediction;
-  const roadModel = estimateRoadPatternModel(allRounds, code);
-  if (!roadModel.available) return { ...prediction, roadModel };
-  const roadWeight = Math.min(0.18, Number(roadModel.modelWeight || 0));
-  const baseWeight = 1 - roadWeight;
+  if (!code) return prediction;
+  const table = tableRows(allRounds, code);
+  const roadModel = prediction?.roadModel || estimateRoadPatternModel(allRounds, code);
+  const cardModel = prediction?.cardModel || estimateCardModel(table);
+  const alreadyUsesRoad = Boolean(prediction?.roadIntegrated)
+    || Number(prediction?.modelWeights?.roadPattern || 0) > 0;
+  const alreadyUsesCard = Boolean(prediction?.cardIntegrated)
+    || prediction?.modelId === "card_shoe"
+    || Number(prediction?.cardWeight || 0) > 0
+    || Number(prediction?.modelWeights?.cardShoe || 0) > 0;
+  const roadWeight = roadModel.available && !alreadyUsesRoad
+    ? Math.min(0.18, Number(roadModel.modelWeight || 0))
+    : 0;
+  const cardWeight = cardModel.available && !alreadyUsesCard
+    ? Math.min(0.16, 0.04 + (Number(cardModel.observedCards || 0) / 416) * 0.24)
+    : 0;
+  const baseWeight = Math.max(0, 1 - roadWeight - cardWeight);
   const blended = normalize({
     BANKER: Number(prediction.probabilities?.BANKER || BASE_OUTCOME.BANKER) * baseWeight
-      + Number(roadModel.probabilities?.BANKER || BASE_OUTCOME.BANKER) * roadWeight,
+      + Number(roadModel.probabilities?.BANKER || BASE_OUTCOME.BANKER) * roadWeight
+      + Number(cardModel.probabilities?.BANKER || BASE_OUTCOME.BANKER) * cardWeight,
     PLAYER: Number(prediction.probabilities?.PLAYER || BASE_OUTCOME.PLAYER) * baseWeight
-      + Number(roadModel.probabilities?.PLAYER || BASE_OUTCOME.PLAYER) * roadWeight,
+      + Number(roadModel.probabilities?.PLAYER || BASE_OUTCOME.PLAYER) * roadWeight
+      + Number(cardModel.probabilities?.PLAYER || BASE_OUTCOME.PLAYER) * cardWeight,
     TIE: Number(prediction.probabilities?.TIE || BASE_OUTCOME.TIE) * baseWeight
       + Number(roadModel.probabilities?.TIE || BASE_OUTCOME.TIE) * roadWeight
+      + Number(cardModel.probabilities?.TIE || BASE_OUTCOME.TIE) * cardWeight
   });
   const rawPick = Object.entries(blended).sort((left, right) => right[1] - left[1])[0][0];
   return {
@@ -170,11 +185,14 @@ function attachRoadPattern(allRounds, tableCode, prediction) {
       TIE: pct(blended.TIE)
     },
     roadModel,
-    roadIntegrated: true,
+    cardModel,
+    roadIntegrated: alreadyUsesRoad || roadWeight > 0,
+    cardIntegrated: alreadyUsesCard || cardWeight > 0,
     modelWeights: {
       ...(prediction.modelWeights || {}),
       baseModel: Math.round(baseWeight * 1000) / 1000,
-      roadPattern: Math.round(roadWeight * 1000) / 1000
+      roadPattern: Math.round(((Number(prediction?.modelWeights?.roadPattern || 0) || 0) + roadWeight) * 1000) / 1000,
+      cardShoe: Math.round(((Number(prediction?.modelWeights?.cardShoe || prediction?.cardWeight || 0) || 0) + cardWeight) * 1000) / 1000
     }
   };
 }
@@ -186,7 +204,7 @@ function predictByModel(allRounds, tableCode, modelId) {
   let prediction;
   if (modelId === "commercial_blend") {
     prediction = predictFromSequence(sourceRows, { tableCode: code });
-    return attachRoadPattern(sourceRows, code, { ...prediction, modelId });
+    return attachSupplementalModels(sourceRows, code, { ...prediction, modelId });
   }
   if (modelId === "banker_baseline") prediction = toPrediction(modelId, BASE_OUTCOME);
   if (modelId === "table_frequency") {
@@ -201,7 +219,7 @@ function predictByModel(allRounds, tableCode, modelId) {
   if (modelId === "markov_3") prediction = markovPrediction(sourceRows, code, 3);
   if (modelId === "streak_continuation") prediction = streakPrediction(sourceRows, code);
   if (modelId === "card_shoe") prediction = cardShoePrediction(sourceRows, code);
-  if (prediction) return attachRoadPattern(sourceRows, code, prediction);
+  if (prediction) return attachSupplementalModels(sourceRows, code, prediction);
   return predictByModel(allRounds, code, "commercial_blend");
 }
 

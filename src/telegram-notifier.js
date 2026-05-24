@@ -55,7 +55,7 @@ function updateStatus(patch) {
     chatId: maskChatId(resolvedChatId),
     thresholdPercent: 0,
     topLimit: 2,
-    scoreLabel: "平均分數",
+    scoreLabel: "最高勝率",
     minSample: 0,
     intervalSeconds: Math.round(TELEGRAM_POLL_INTERVAL_MS / 1000),
     lastSentAt,
@@ -150,8 +150,9 @@ function formatMessage(alert, predictionState) {
     `時間: ${new Date().toLocaleString("zh-TW", { hour12: false })}`,
     `${stars ? `${stars} ` : ""}${tableDisplayName(alert)}`,
     `預測: ${alert.outcomeLabel}`,
-    `平均分數: ${displayPercent}%`
+    `最高勝率: ${displayPercent}%`
   ];
+  lines.push(`路單/連勝/消牌: ${alert.roadScorePercent || 0}% / ${alert.trendPercent || 0}% / ${alert.cardScorePercent || 0}%(${alert.cardDepletionPercent || 0}%)`);
   if (alert.modelBacktestTested) {
     lines.push(`回測: ${alert.modelBacktestAccuracyNoTie}%`);
   }
