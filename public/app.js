@@ -13,7 +13,8 @@ const state = {
   lastReportGeneratedAt: "",
   refreshTimer: null,
   refreshInFlight: false,
-  refreshQueued: false
+  refreshQueued: false,
+  configLoadError: ""
 };
 
 const STREAK_ALERT_MIN_RATE = 0.6;
@@ -52,6 +53,24 @@ function $(id) {
 function apiUrl(path) {
   const base = state.apiBase.replace(/\/+$/, "");
   return base ? `${base}${path}` : path;
+}
+
+function cleanBaseUrl(value) {
+  return String(value || "").trim().replace(/\/+$/, "");
+}
+
+async function fetchLocalAppConfig() {
+  try {
+    const response = await fetch("/app-config.json", { cache: "no-store" });
+    if (!response.ok) return {};
+    return await response.json();
+  } catch {
+    return {};
+  }
+}
+
+function usableConfig(config) {
+  return config && Array.isArray(config.tables) && Array.isArray(config.tableGroups);
 }
 
 async function fetchJson(path, options = {}) {
@@ -421,14 +440,51 @@ function bindStream() {
 }
 
 async function initConfig() {
+  const localConfig = await fetchLocalAppConfig();
+  if (!state.apiBase && localConfig.publicApiBase) {
+    state.apiBase = cleanBaseUrl(localConfig.publicApiBase);
+    localStorage.setItem("baijia.apiBase", state.apiBase);
+  }
   $("apiBaseInput").value = state.apiBase;
   $("apiTokenInput").value = state.apiToken;
-  state.config = await fetchJson("/api/config");
-  if (!state.apiBase && state.config.publicApiBase) {
-    state.apiBase = state.config.publicApiBase;
+  try {
+    state.config = await fetchJson("/api/config");
+    state.configLoadError = "";
+  } catch (error) {
+    const fallbackBase = cleanBaseUrl(localConfig.publicApiBase);
+    if (fallbackBase && fallbackBase !== state.apiBase) {
+      state.apiBase = fallbackBase;
+      localStorage.setItem("baijia.apiBase", state.apiBase);
+      $("apiBaseInput").value = state.apiBase;
+      try {
+        state.config = await fetchJson("/api/config");
+        state.configLoadError = "";
+      } catch (fallbackError) {
+        if (!usableConfig(localConfig)) throw fallbackError;
+        state.config = localConfig;
+        state.configLoadError = fallbackError.message;
+      }
+    } else if (!usableConfig(localConfig)) {
+      throw error;
+    } else {
+      state.config = localConfig;
+      state.configLoadError = error.message;
+    }
   }
+  if (!state.apiBase && state.config.publicApiBase) {
+    state.apiBase = cleanBaseUrl(state.config.publicApiBase);
+    localStorage.setItem("baijia.apiBase", state.apiBase);
+  }
+  $("apiBaseInput").value = state.apiBase;
   if (!state.config.tables.some((table) => table.code === state.selectedTable)) {
     state.selectedTable = state.config.tables[0]?.code || "B601";
+  }
+  if (state.configLoadError) {
+    renderTableGroups();
+    renderTableHeader();
+    renderPredictionAlerts();
+    renderStatus();
+    $("connectionText").textContent = `API 未連線 · ${state.apiBase || "請輸入電腦 API 網址"}`;
   }
 }
 
@@ -492,11 +548,12 @@ function bindEvents() {
   });
 
   $("saveSettings").addEventListener("click", async () => {
-    state.apiBase = $("apiBaseInput").value.trim().replace(/\/+$/, "");
+    state.apiBase = cleanBaseUrl($("apiBaseInput").value);
     state.apiToken = $("apiTokenInput").value.trim();
     localStorage.setItem("baijia.apiBase", state.apiBase);
     localStorage.setItem("baijia.apiToken", state.apiToken);
     toast("已套用");
+    await initConfig();
     bindStream();
     await refresh();
   });

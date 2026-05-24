@@ -1,0 +1,62 @@
+{
+  "publicApiBase": "",
+  "tableGroups": [
+    {
+      "name": "百家樂",
+      "key": "baccarat",
+      "codes": ["B601", "B602", "B603", "B604", "B605", "B201", "B202", "B203"]
+    },
+    {
+      "name": "快速百家樂",
+      "key": "quick",
+      "codes": ["Q501", "Q502", "Q601", "Q701", "Q702", "Q201", "Q202", "Q204"]
+    },
+    {
+      "name": "經典百家樂",
+      "key": "classic",
+      "codes": ["B618", "B219", "B220"]
+    },
+    {
+      "name": "性感百家樂",
+      "key": "sexy",
+      "codes": ["B501", "B502", "B503", "B504", "B505", "B506", "B507"]
+    },
+    {
+      "name": "咪排百家樂",
+      "key": "see-card",
+      "codes": ["C501", "C701", "C201", "C202"]
+    }
+  ],
+  "tables": [
+    { "code": "B601", "category": "百家樂", "groupKey": "baccarat", "label": "百家樂 B601" },
+    { "code": "B602", "category": "百家樂", "groupKey": "baccarat", "label": "百家樂 B602" },
+    { "code": "B603", "category": "百家樂", "groupKey": "baccarat", "label": "百家樂 B603" },
+    { "code": "B604", "category": "百家樂", "groupKey": "baccarat", "label": "百家樂 B604" },
+    { "code": "B605", "category": "百家樂", "groupKey": "baccarat", "label": "百家樂 B605" },
+    { "code": "B201", "category": "百家樂", "groupKey": "baccarat", "label": "百家樂 B201" },
+    { "code": "B202", "category": "百家樂", "groupKey": "baccarat", "label": "百家樂 B202" },
+    { "code": "B203", "category": "百家樂", "groupKey": "baccarat", "label": "百家樂 B203" },
+    { "code": "Q501", "category": "快速百家樂", "groupKey": "quick", "label": "快速百家樂 Q501" },
+    { "code": "Q502", "category": "快速百家樂", "groupKey": "quick", "label": "快速百家樂 Q502" },
+    { "code": "Q601", "category": "快速百家樂", "groupKey": "quick", "label": "快速百家樂 Q601" },
+    { "code": "Q701", "category": "快速百家樂", "groupKey": "quick", "label": "快速百家樂 Q701" },
+    { "code": "Q702", "category": "快速百家樂", "groupKey": "quick", "label": "快速百家樂 Q702" },
+    { "code": "Q201", "category": "快速百家樂", "groupKey": "quick", "label": "快速百家樂 Q201" },
+    { "code": "Q202", "category": "快速百家樂", "groupKey": "quick", "label": "快速百家樂 Q202" },
+    { "code": "Q204", "category": "快速百家樂", "groupKey": "quick", "label": "快速百家樂 Q204" },
+    { "code": "B618", "category": "經典百家樂", "groupKey": "classic", "label": "經典百家樂 B618" },
+    { "code": "B219", "category": "經典百家樂", "groupKey": "classic", "label": "經典百家樂 B219" },
+    { "code": "B220", "category": "經典百家樂", "groupKey": "classic", "label": "經典百家樂 B220" },
+    { "code": "B501", "category": "性感百家樂", "groupKey": "sexy", "label": "性感百家樂 B501" },
+    { "code": "B502", "category": "性感百家樂", "groupKey": "sexy", "label": "性感百家樂 B502" },
+    { "code": "B503", "category": "性感百家樂", "groupKey": "sexy", "label": "性感百家樂 B503" },
+    { "code": "B504", "category": "性感百家樂", "groupKey": "sexy", "label": "性感百家樂 B504" },
+    { "code": "B505", "category": "性感百家樂", "groupKey": "sexy", "label": "性感百家樂 B505" },
+    { "code": "B506", "category": "性感百家樂", "groupKey": "sexy", "label": "性感百家樂 B506" },
+    { "code": "B507", "category": "性感百家樂", "groupKey": "sexy", "label": "性感百家樂 B507" },
+    { "code": "C501", "category": "咪排百家樂", "groupKey": "see-card", "label": "咪排百家樂 C501" },
+    { "code": "C701", "category": "咪排百家樂", "groupKey": "see-card", "label": "咪排百家樂 C701" },
+    { "code": "C201", "category": "咪排百家樂", "groupKey": "see-card", "label": "咪排百家樂 C201" },
+    { "code": "C202", "category": "咪排百家樂", "groupKey": "see-card", "label": "咪排百家樂 C202" }
+  ]
+}

@@ -529,6 +529,14 @@ async function handleApi(req, res) {
 }
 
 const server = http.createServer((req, res) => {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  if (req.method === "GET" && url.pathname === "/app-config.json") {
+    return void sendJson(res, 200, {
+      publicApiBase: PUBLIC_API_BASE,
+      tableGroups: TABLE_GROUPS,
+      tables: TARGET_TABLES
+    });
+  }
   if (req.url.startsWith("/api/")) return void handleApi(req, res);
   serveStatic(req, res);
 });
