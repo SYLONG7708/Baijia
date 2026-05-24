@@ -82,37 +82,76 @@ function tableDisplayName(alert) {
 
 function accuracyStars(percent) {
   const value = Number(percent || 0);
-  if (value <= 65) return "";
-  const count = Math.floor((value - 65) / 5) + 1;
+  if (value <= 60) return "";
+  const count = Math.floor((value - 60) / 5) + 1;
   return "⭐".repeat(Math.max(1, count));
 }
 
-function latestRoundText(round) {
-  if (!round) return "";
-  const code = String(round.tableCode || "").trim();
-  const meta = tableMeta(code);
-  return `最新：${meta.category}${meta.code} 第${round.roundNo}局 ${outcomeLabels[round.outcome] || round.outcome}`;
+function cleanPredictionState(input = {}) {
+  return {
+    pending: input.pending && typeof input.pending === "object" ? input.pending : {},
+    streaks: input.streaks && typeof input.streaks === "object" ? input.streaks : {}
+  };
 }
 
-function formatMessage(alerts, ingest) {
-  const lines = [
-    "結果群 即時勝率提醒",
-    `時間：${new Date().toLocaleString("zh-TW", { hour12: false })}`,
-    latestRoundText(ingest.latestRound),
-    ""
-  ].filter(Boolean);
+function loadPredictionState() {
+  return cleanPredictionState(getStatus().telegramPredictionState || {});
+}
 
-  alerts.slice(0, 10).forEach((alert, index) => {
-    const stars = accuracyStars(alert.continuationPercent);
-    const starPrefix = stars ? `${stars} ` : "";
-    lines.push(`${index + 1}. ${starPrefix}${tableDisplayName(alert)} ${alert.outcomeLabel}連${alert.length} 準確度${alert.continuationPercent}% 樣本${alert.continuations}/${alert.opportunities} 第${alert.lastRoundNo}局`);
-  });
-  if (alerts.length > 10) lines.push(`另外 ${alerts.length - 10} 桌符合條件`);
+function savePredictionState(state) {
+  setStatus("telegramPredictionState", cleanPredictionState(state));
+}
+
+function updatePredictionState(state, latestRound) {
+  if (!latestRound?.tableCode || !latestRound?.roundNo) return false;
+  const code = String(latestRound.tableCode);
+  const pending = state.pending[code];
+  if (!pending || Number(latestRound.roundNo || 0) <= Number(pending.lastRoundNo || 0)) return false;
+
+  const previous = state.streaks[code] || {};
+  const hit = latestRound.outcome === pending.outcome;
+  const successStreak = hit ? Number(previous.successStreak || 0) + 1 : 0;
+  state.streaks[code] = {
+    successStreak,
+    lastPrediction: pending.outcome,
+    lastOutcome: latestRound.outcome,
+    lastCheckedRoundNo: latestRound.roundNo,
+    updatedAt: new Date().toISOString()
+  };
+  delete state.pending[code];
+  return true;
+}
+
+function registerPendingPrediction(state, alert) {
+  if (!alert?.code || !alert?.outcome) return;
+  state.pending[alert.code] = {
+    outcome: alert.outcome,
+    lastRoundNo: alert.lastRoundNo || 0,
+    sentAt: new Date().toISOString()
+  };
+}
+
+function successStreakForAlert(state, alert) {
+  return Number(state.streaks?.[alert.code]?.successStreak || 0);
+}
+
+function formatMessage(alert, predictionState) {
+  const stars = accuracyStars(alert.continuationPercent);
+  const successStreak = successStreakForAlert(predictionState, alert);
+  const lines = [
+    `時間: ${new Date().toLocaleString("zh-TW", { hour12: false })}`,
+    `${stars ? `${stars} ` : ""}${tableDisplayName(alert)}`,
+    `預測: ${alert.outcomeLabel}`,
+    `準確度: ${alert.continuationPercent}%`
+  ];
+  if (successStreak > 0) {
+    lines.push(`🔥🔥🔥 連續命中 ${successStreak} 連勝 🔥🔥🔥`);
+  }
   return lines.join("\n").slice(0, 3900);
 }
 
-async function sendAlerts(alerts, ingest) {
-  const text = formatMessage(alerts, ingest);
+async function sendAlert(alert, predictionState) {
+  const text = formatMessage(alert, predictionState);
   await telegramApi("sendMessage", {
     chat_id: resolvedChatId,
     text,
@@ -161,18 +200,28 @@ async function tick() {
     }
 
     const ingest = getRoundIngestSummary();
+    const predictionState = loadPredictionState();
+    const predictionStateChanged = updatePredictionState(predictionState, ingest.latestRound);
     if (ingest.latestId && ingest.latestId === lastLatestId) {
+      if (predictionStateChanged) savePredictionState(predictionState);
       updateStatus({ configured: true, state: "WATCHING", lastCheckAt: new Date().toISOString() });
       return;
     }
     lastLatestId = ingest.latestId || lastLatestId;
 
     const { canonical, validation, alerts } = buildAlerts();
-    const signature = alertSignature(alerts);
-    if (alerts.length && signature && signature !== lastSignature) {
-      await sendAlerts(alerts, ingest);
+    const alert = alerts[0] || null;
+    const signature = alert ? alertSignature([alert]) : "";
+    let pushedAlert = null;
+    if (alert && signature && signature !== lastSignature) {
+      await sendAlert(alert, predictionState);
+      registerPendingPrediction(predictionState, alert);
+      savePredictionState(predictionState);
       lastSignature = signature;
-      logEvent("info", "telegram alerts sent", { count: alerts.length });
+      pushedAlert = alert;
+      logEvent("info", "telegram alert sent", { code: alert.code, percent: alert.continuationPercent });
+    } else if (predictionStateChanged) {
+      savePredictionState(predictionState);
     }
 
     updateStatus({
@@ -180,6 +229,8 @@ async function tick() {
       state: alerts.length ? "ALERT_READY" : "WATCHING",
       lastCheckAt: new Date().toISOString(),
       lastAlertCount: alerts.length,
+      lastPushedTable: pushedAlert?.code || "",
+      lastPushedPercent: pushedAlert?.continuationPercent || 0,
       latestId: ingest.latestId,
       latestRound: ingest.latestRound
         ? {

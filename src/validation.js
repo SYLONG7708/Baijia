@@ -71,6 +71,11 @@ function maxId(rounds) {
   return Math.max(0, ...rounds.map((round) => Number(round.id || 0) || 0));
 }
 
+function minRoundNo(rounds) {
+  const values = rounds.map(roundNoOf).filter(Boolean);
+  return values.length ? Math.min(...values) : 0;
+}
+
 function snapshotLooksLikeNewerShoe(snapshotRows, liveRows) {
   if (!snapshotRows.length || !liveRows.length) return false;
   const snapshotFirst = Math.min(...snapshotRows.map(roundNoOf).filter(Boolean));
@@ -95,6 +100,34 @@ function snapshotLooksStaleBehind(snapshotRows, liveRows) {
   if (!snapshotRows.length || !liveRows.length) return false;
   return maxId(snapshotRows) < maxId(liveRows)
     && maxRoundNo(snapshotRows) + 8 < maxRoundNo(liveRows);
+}
+
+function overlappingSnapshotConflictStats(snapshotRows, liveRows) {
+  const liveByRoundNo = new Map();
+  for (const live of liveRows) {
+    const roundNo = roundNoOf(live);
+    if (roundNo) liveByRoundNo.set(roundNo, live);
+  }
+
+  let overlap = 0;
+  let conflicts = 0;
+  for (const snapshot of snapshotRows) {
+    const live = liveByRoundNo.get(roundNoOf(snapshot));
+    if (!live) continue;
+    overlap += 1;
+    if (resultKey(snapshot) !== resultKey(live)) conflicts += 1;
+  }
+  return { overlap, conflicts };
+}
+
+function snapshotLooksLikeOlderConflictingShoe(snapshotRows, liveRows) {
+  if (!snapshotRows.length || !liveRows.length) return false;
+  if (maxId(snapshotRows) >= maxId(liveRows)) return false;
+  if (minRoundNo(snapshotRows) > 3 || minRoundNo(liveRows) > 3) return false;
+  if (maxRoundNo(liveRows) < 5) return false;
+  const stats = overlappingSnapshotConflictStats(snapshotRows, liveRows);
+  if (stats.overlap < 8) return false;
+  return stats.conflicts >= Math.max(5, Math.floor(stats.overlap * 0.35));
 }
 
 function liveRowsAlignedToSnapshot(reliableRows, snapshotRows) {
@@ -203,7 +236,8 @@ function tableValidation(rounds, table, canonicalView) {
   const currentSnapshots = currentShoeRounds(canonicalRows.filter((round) => round.sourceEvent === SNAPSHOT_EVENT));
   const selectedCurrent = liveRowsAlignedToSnapshot(reliableRows, currentSnapshots);
   const snapshotNewerShoe = snapshotLooksLikeNewerShoe(currentSnapshots, selectedCurrent);
-  const snapshotOlderShoe = snapshotLooksLikeOlderShoe(currentSnapshots, selectedCurrent);
+  const snapshotOlderConflictingShoe = snapshotLooksLikeOlderConflictingShoe(currentSnapshots, selectedCurrent);
+  const snapshotOlderShoe = snapshotLooksLikeOlderShoe(currentSnapshots, selectedCurrent) || snapshotOlderConflictingShoe;
   const snapshotStaleBehind = snapshotLooksStaleBehind(currentSnapshots, selectedCurrent);
   const segmentRows = currentSegmentRows(reliableRows, selectedCurrent);
   const firstCurrentId = selectedCurrent.length
@@ -261,6 +295,7 @@ function tableValidation(rounds, table, canonicalView) {
     snapshotLatest: snapshotCheck.snapshotLatest,
     snapshotNewerShoe,
     snapshotOlderShoe,
+    snapshotOlderConflictingShoe,
     snapshotStaleBehind,
     snapshotOnlyRoundNos: snapshotCheck.snapshotOnlyRoundNos,
     snapshotConflicts: snapshotCheck.snapshotConflicts,

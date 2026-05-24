@@ -61,6 +61,28 @@ function maxId(rounds) {
   return Math.max(0, ...rounds.map((round) => Number(round.id || 0) || 0));
 }
 
+function minRoundNo(rounds) {
+  const values = rounds.map(roundNoOf).filter(Boolean);
+  return values.length ? Math.min(...values) : 0;
+}
+
+function overlappingSnapshotConflictStats(liveRounds, snapshotRounds) {
+  const liveByRoundNo = new Map();
+  for (const live of liveRounds) {
+    const roundNo = roundNoOf(live);
+    if (roundNo) liveByRoundNo.set(roundNo, live);
+  }
+  let overlap = 0;
+  let conflicts = 0;
+  for (const snapshot of snapshotRounds) {
+    const live = liveByRoundNo.get(roundNoOf(snapshot));
+    if (!live) continue;
+    overlap += 1;
+    if (!sameRoadResult(live, snapshot)) conflicts += 1;
+  }
+  return { overlap, conflicts };
+}
+
 function snapshotLooksLikeNewerShoe(liveRounds, snapshotRounds) {
   if (!snapshotRounds.length || !liveRounds.length) return false;
   const snapshotFirst = Math.min(...snapshotRounds.map(roundNoOf).filter(Boolean));
@@ -78,9 +100,20 @@ function snapshotLooksLikeOlderShoe(liveRounds, snapshotRounds) {
     && maxId(liveRounds) > maxId(snapshotRounds);
 }
 
+function snapshotLooksLikeOlderConflictingShoe(liveRounds, snapshotRounds) {
+  if (!snapshotRounds.length || !liveRounds.length) return false;
+  if (maxId(snapshotRounds) >= maxId(liveRounds)) return false;
+  if (minRoundNo(liveRounds) > 3 || minRoundNo(snapshotRounds) > 3) return false;
+  if (maxRoundNo(liveRounds) < 5) return false;
+  const stats = overlappingSnapshotConflictStats(liveRounds, snapshotRounds);
+  if (stats.overlap < 8) return false;
+  return stats.conflicts >= Math.max(5, Math.floor(stats.overlap * 0.35));
+}
+
 function mergeSnapshotRoadRounds(liveRounds, snapshotRounds) {
   if (!snapshotRounds.length) return liveRounds;
   if (snapshotLooksLikeOlderShoe(liveRounds, snapshotRounds)) return liveRounds;
+  if (snapshotLooksLikeOlderConflictingShoe(liveRounds, snapshotRounds)) return liveRounds;
   if (snapshotLooksLikeNewerShoe(liveRounds, snapshotRounds)) return snapshotRounds;
   const liveByRoundNo = new Map();
   for (const round of liveRounds) {
@@ -354,7 +387,7 @@ async function handleApi(req, res) {
     const allRounds = rounds();
     const { canonical, reliable: summaryRounds } = canonicalFor(allRounds);
     const status = getStatus();
-    const validation = status.validation || buildValidation(allRounds);
+    const validation = buildValidation(allRounds);
     const summary = summaryWithActiveModel(summarizeAll(summaryRounds), summaryRounds, status);
     return sendJson(res, 200, {
       ok: true,
@@ -389,7 +422,7 @@ async function handleApi(req, res) {
   if (req.method === "GET" && url.pathname === "/api/alerts") {
     const allRounds = rounds();
     const { reliable } = canonicalFor(allRounds);
-    const validation = getStatus().validation || buildValidation(allRounds);
+    const validation = buildValidation(allRounds);
     const status = getStatus();
     const summary = summaryWithActiveModel(summarizeAll(reliable), reliable, status);
     return sendJson(res, 200, buildStreakAlerts(summary, validation, {
@@ -408,6 +441,7 @@ async function handleApi(req, res) {
       telegram: status.telegram || {},
       telegramProcess: status.telegramProcess || {},
       scraper: status.scraper || {},
+      validation: status.validation || {},
       ingest: getRoundIngestSummary()
     });
   }
@@ -468,10 +502,11 @@ async function handleApi(req, res) {
     const liveRounds = currentShoeRounds(reliable);
     const snapshotRounds = currentShoeRounds(canonical.canonical.snapshotRounds.filter((round) => round.sourceEvent === "roadSnapshot"));
     const tableRounds = mergeSnapshotRoadRounds(liveRounds, snapshotRounds);
+    const usesSnapshotFill = tableRounds.some((round) => round.sourceEvent === "roadSnapshot");
     return sendJson(res, 200, {
       tableCode,
       quality: canonical.canonical.summary,
-      source: snapshotRounds.length ? "canonical-live-with-snapshot-fill" : "canonical-live-current-shoe",
+      source: usesSnapshotFill ? "canonical-live-with-snapshot-fill" : "canonical-live-current-shoe",
       roads: buildRoads(tableRounds),
       rounds: tableRounds.slice(-500)
     });
