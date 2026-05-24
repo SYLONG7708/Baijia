@@ -1,5 +1,6 @@
 const { TARGET_TABLES, tableMeta, normalizeTableCode } = require("./tables");
 const { outcomeShort, normalizeOutcome, cardPointFromRank } = require("./baccarat-codec");
+const { estimateRoadPatternModel } = require("./road-pattern");
 
 const DEFAULT_BASELINE = {
   outcome: { BANKER: 0.4586, PLAYER: 0.4462, TIE: 0.0952 },
@@ -450,24 +451,31 @@ function predictFromSequence(allRounds, options = {}) {
     luckySix: smoothFeature(counts.luckySix, counts.total, baseline.luckySix)
   };
   const cardModel = tableCode ? estimateCardModel(tableRounds) : { available: false };
+  const roadModel = tableCode ? estimateRoadPatternModel(sourceRounds, tableCode) : { available: false, modelWeight: 0 };
   const cardWeight = cardModel.available
     ? Math.min(0.18, 0.05 + (cardModel.observedCards / CARDS_PER_SHOE) * 0.35)
     : 0;
   const patternWeight = Math.min(patternWeightFor(counts.total), 1 - cardWeight);
-  const baselineWeight = Math.max(0, 1 - cardWeight - patternWeight);
+  const roadWeight = roadModel.available
+    ? Math.min(Number(roadModel.modelWeight || 0), Math.max(0, 1 - cardWeight - patternWeight))
+    : 0;
+  const baselineWeight = Math.max(0, 1 - cardWeight - patternWeight - roadWeight);
   const blendedOutcome = normalizeOutcomeProbabilities({
     BANKER:
       baselineOutcome.BANKER * baselineWeight +
       patternOutcome.BANKER * patternWeight +
-      (cardModel.available ? cardModel.probabilities.BANKER * cardWeight : 0),
+      (cardModel.available ? cardModel.probabilities.BANKER * cardWeight : 0) +
+      (roadModel.available ? roadModel.probabilities.BANKER * roadWeight : 0),
     PLAYER:
       baselineOutcome.PLAYER * baselineWeight +
       patternOutcome.PLAYER * patternWeight +
-      (cardModel.available ? cardModel.probabilities.PLAYER * cardWeight : 0),
+      (cardModel.available ? cardModel.probabilities.PLAYER * cardWeight : 0) +
+      (roadModel.available ? roadModel.probabilities.PLAYER * roadWeight : 0),
     TIE:
       baselineOutcome.TIE * baselineWeight +
       patternOutcome.TIE * patternWeight +
-      (cardModel.available ? cardModel.probabilities.TIE * cardWeight : 0)
+      (cardModel.available ? cardModel.probabilities.TIE * cardWeight : 0) +
+      (roadModel.available ? roadModel.probabilities.TIE * roadWeight : 0)
   });
   const blendedFeatures = {
     bankerPair:
@@ -528,9 +536,11 @@ function predictFromSequence(allRounds, options = {}) {
       luckySix: pct(patternFeatures.luckySix)
     },
     cardModel,
+    roadModel,
     modelWeights: {
       baseline: Math.round(baselineWeight * 1000) / 1000,
       pattern: Math.round(patternWeight * 1000) / 1000,
+      roadPattern: Math.round(roadWeight * 1000) / 1000,
       cardShoe: Math.round(cardWeight * 1000) / 1000,
       playerPickThreshold: 0.07
     },

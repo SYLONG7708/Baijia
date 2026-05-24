@@ -146,6 +146,24 @@ function cardSignal(table, outcome) {
   };
 }
 
+function roadSignal(table, outcome) {
+  const roadModel = table?.prediction?.roadModel || table?.roadModel;
+  if (!roadModel?.available || !outcome) return null;
+  const banker = Number(roadModel.noTieProbabilities?.BANKER || roadModel.probabilities?.BANKER || 0);
+  const player = Number(roadModel.noTieProbabilities?.PLAYER || roadModel.probabilities?.PLAYER || 0);
+  const nonTie = banker + player;
+  if (!nonTie) return null;
+  const rawRate = outcome === "BANKER" ? banker / nonTie : player / nonTie;
+  const sample = Number(roadModel.effectiveSample || 0);
+  return {
+    rate: clamp(shrinkToBaseline(rawRate, sample, 0.5, 90), 0.4, 0.68),
+    rawRate,
+    sample,
+    modelWeight: Number(roadModel.modelWeight || 0),
+    features: roadModel.features || {}
+  };
+}
+
 function performanceSignal(table) {
   const model = table?.tableModel;
   const tested = Number(model?.tested || 0);
@@ -195,6 +213,7 @@ function scoreForTable(table, validation) {
   const tableFrequency = tableSignal(table, outcome);
   const recent = recentSignal(table, outcome);
   const card = cardSignal(table, outcome);
+  const road = roadSignal(table, outcome);
   const performance = performanceSignal(table);
   const rawModel = modelSignal(prediction, outcome);
   const model = calibrateModelSignal(rawModel, performance);
@@ -206,6 +225,10 @@ function scoreForTable(table, validation) {
     { key: "recent", label: "最近六局", rate: recent.rate, weight: card ? 0.07 : 0.12 }
   ];
   if (card) components.push({ key: "card", label: "牌靴", rate: card.rate, weight: 0.05 });
+
+  if (road) {
+    components.push({ key: "road", label: "路單規律", rate: road.rate, weight: 0.18 });
+  }
 
   const severity = tableSeverity(validation, table.code) || "OK";
   const qualityPenalty = severity === "WARN" ? 0.97 : 1;
@@ -248,6 +271,10 @@ function scoreForTable(table, validation) {
     recentScorePercent: pct(recent.rate),
     cardScoreRate: card?.rate || 0,
     cardScorePercent: card ? pct(card.rate) : 0,
+    roadScoreRate: road?.rate || 0,
+    roadScorePercent: road ? pct(road.rate) : 0,
+    roadScoreSample: road?.sample || 0,
+    rawRoadScorePercent: road ? pct(road.rawRate) : 0,
     scoreBreakdown: components.map((component) => ({
       key: component.key,
       label: component.label,
@@ -301,6 +328,9 @@ function buildStreakAlerts(summary, validation, options = {}) {
         tableScorePercent: score.tableScorePercent,
         recentScorePercent: score.recentScorePercent,
         cardScorePercent: score.cardScorePercent,
+        roadScorePercent: score.roadScorePercent,
+        roadScoreSample: score.roadScoreSample,
+        rawRoadScorePercent: score.rawRoadScorePercent,
         scoreBreakdown: score.scoreBreakdown,
         total: table.total || 0,
         lastRoundNo: table.lastRoundNo || 0,
@@ -319,6 +349,7 @@ function buildStreakAlerts(summary, validation, options = {}) {
       if (right.scoreRate !== left.scoreRate) return right.scoreRate - left.scoreRate;
       if (right.performanceScoreRate !== left.performanceScoreRate) return right.performanceScoreRate - left.performanceScoreRate;
       if (right.predictionScoreRate !== left.predictionScoreRate) return right.predictionScoreRate - left.predictionScoreRate;
+      if (right.roadScorePercent !== left.roadScorePercent) return right.roadScorePercent - left.roadScorePercent;
       if (right.sampleSize !== left.sampleSize) return right.sampleSize - left.sampleSize;
       return left.code.localeCompare(right.code);
     });
@@ -346,6 +377,7 @@ function alertSignature(alerts) {
     alert.predictionScorePercent,
     alert.performanceScorePercent,
     alert.modelId,
+    alert.roadScorePercent,
     alert.sampleSize,
     alert.lastRoundNo
   ].join(":")).join("|");

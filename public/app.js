@@ -220,6 +220,7 @@ function renderTableGroups() {
 function renderTableHeader() {
   const table = currentTable();
   const cardModel = table.prediction?.cardModel || {};
+  const roadModel = table.prediction?.roadModel || {};
   const counts = table.counts || {};
   const streak = table.streak || {};
   const validation = currentValidation();
@@ -235,7 +236,7 @@ function renderTableHeader() {
   $("tableTitle").textContent = `${table.code} ${table.category || ""}`.trim();
   $("latestSix").replaceChildren(...(table.latestSix || []).map(chip));
 
-  $("tableMetrics").innerHTML = [
+  const metrics = [
     ["累計局數", table.total || 0],
     ["莊率", pct(table.rates?.BANKER)],
     ["閒率", pct(table.rates?.PLAYER)],
@@ -252,7 +253,9 @@ function renderTableHeader() {
     ["閒對", counts.playerPair || 0],
     ["已見牌", cardModel.available ? `${cardModel.observedCards}/${cardModel.totalCards}` : "等待"],
     ["剩餘牌", cardModel.available ? cardModel.remainingCards : "-"]
-  ].map(([label, value]) => `<div class="metric-card">
+  ];
+  metrics.splice(6, 0, ["路單", roadModel.available ? `${roadModel.noTiePercentages?.BANKER ?? 0}/${roadModel.noTiePercentages?.PLAYER ?? 0}` : "等待"]);
+  $("tableMetrics").innerHTML = metrics.map(([label, value]) => `<div class="metric-card">
     <span class="metric-label">${label}</span>
     <strong class="metric-value">${value}</strong>
   </div>`).join("");
@@ -268,6 +271,7 @@ function renderPredictionAlerts() {
       <span class="alert-code">${alert.category || ""}${alert.code}</span>
       <span class="chip ${outcomeClass[alert.outcome]}">${alert.outcomeLabel || labels[alert.outcome] || "-"}</span>
       <strong>${alertScoreText(alert)}</strong>
+      <span class="alert-road">路單 ${alert.roadScorePercent ?? 0}%</span>
       <small>模型 ${alert.predictionScorePercent ?? 0}% · 回測 ${alert.modelBacktestAccuracyNoTie ?? 0}% · 樣本 ${sample} · 續連 ${streakSample}</small>
     </button>`;
   }).join("");
