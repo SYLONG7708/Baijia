@@ -430,7 +430,8 @@ async function handleApi(req, res) {
     const summary = summaryWithActiveModel(summarizeAll(reliable), reliable, status);
     return sendJson(res, 200, buildStreakAlerts(summary, validation, {
       minRate: url.searchParams.get("minRate") || undefined,
-      minSample: url.searchParams.get("minSample") || undefined
+      minSample: url.searchParams.get("minSample") || undefined,
+      limit: url.searchParams.get("limit") || undefined
     }));
   }
 

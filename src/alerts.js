@@ -1,10 +1,10 @@
-const { ALERT_MIN_RATE, ALERT_MIN_SAMPLE } = require("./env");
-
 const labels = {
   BANKER: "莊",
   PLAYER: "閒",
   TIE: "和"
 };
+
+const DEFAULT_ALERT_LIMIT = 2;
 
 const outcomeShort = {
   BANKER: "B",
@@ -215,9 +215,10 @@ function scoreForTable(table, validation) {
 }
 
 function buildStreakAlerts(summary, validation, options = {}) {
-  const minRate = Number(options.minRate ?? ALERT_MIN_RATE);
-  const minSample = Number(options.minSample ?? ALERT_MIN_SAMPLE);
-  const alerts = (summary?.tables || [])
+  const minRate = Number(options.minRate ?? 0);
+  const minSample = Number(options.minSample ?? 0);
+  const limit = Math.max(1, Number(options.limit ?? DEFAULT_ALERT_LIMIT) || DEFAULT_ALERT_LIMIT);
+  const candidates = (summary?.tables || [])
     .map((table) => {
       const streak = table.streak || {};
       const score = scoreForTable(table, validation);
@@ -270,13 +271,16 @@ function buildStreakAlerts(summary, validation, options = {}) {
       if (right.sampleSize !== left.sampleSize) return right.sampleSize - left.sampleSize;
       return left.code.localeCompare(right.code);
     });
+  const alerts = candidates.slice(0, limit);
 
   return {
     generatedAt: new Date().toISOString(),
     minRate,
     minPercent: Math.round(minRate * 1000) / 10,
     minSample,
+    topLimit: limit,
     scoreLabel: "平均分數",
+    candidateCount: candidates.length,
     count: alerts.length,
     alerts
   };

@@ -161,7 +161,7 @@ function alertForTable(code) {
 }
 
 function alertScoreText(alert) {
-  if (!alert) return "未達60";
+  if (!alert) return "未上榜";
   return `${alert.scorePercent ?? alert.displayPercent ?? alert.continuationPercent ?? 0}%`;
 }
 
@@ -264,7 +264,7 @@ function renderPredictionAlerts() {
     </button>`;
   }).join("");
   if (!alerts.length) {
-    $("predictionAlerts").innerHTML = `<div class="alert-empty">目前沒有符合 60% / 樣本30 / 無錯誤 的平均分數</div>`;
+    $("predictionAlerts").innerHTML = `<div class="alert-empty">目前沒有可上榜桌台</div>`;
   }
 }
 

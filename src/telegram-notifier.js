@@ -1,6 +1,4 @@
 const {
-  ALERT_MIN_RATE,
-  ALERT_MIN_SAMPLE,
   TELEGRAM_BOT_TOKEN,
   TELEGRAM_CHAT_ID,
   TELEGRAM_GROUP_NAME,
@@ -55,9 +53,10 @@ function updateStatus(patch) {
     groupName: TELEGRAM_GROUP_NAME,
     chatIdConfigured: Boolean(resolvedChatId),
     chatId: maskChatId(resolvedChatId),
-    thresholdPercent: Math.round(ALERT_MIN_RATE * 1000) / 10,
+    thresholdPercent: 0,
+    topLimit: 2,
     scoreLabel: "平均分數",
-    minSample: ALERT_MIN_SAMPLE,
+    minSample: 0,
     intervalSeconds: Math.round(TELEGRAM_POLL_INTERVAL_MS / 1000),
     lastSentAt,
     ...patch
