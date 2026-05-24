@@ -475,5 +475,8 @@ module.exports = {
   MODEL_IDS,
   buildModelSelection,
   predictByModel,
-  backtestModel
+  backtestModel,
+  createFastState,
+  updateFastState,
+  fastPredictionByModel
 };

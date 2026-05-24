@@ -9,6 +9,7 @@
     "scraper": "node src/scraper.js",
     "trainer": "node src/trainer.js",
     "daemon": "node src/daemon.js",
+    "backtest:top-alert-five": "node scripts/backtest-top-alert-five.js",
     "build:web": "node scripts/build-web.js",
     "cap:sync": "npm run build:web && npx cap sync",
     "android:debug": "npm run build:web && node scripts/ensure-android.js && npx cap sync android && cd android && gradlew.bat assembleDebug"
