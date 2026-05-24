@@ -70,8 +70,39 @@ The task starts `src/daemon.js`, which supervises:
 
 - `src/server.js`
 - `src/scraper.js`
+- `src/monitor.js`
+- `src/trainer.js`
+- `src/telegram-notifier.js`
 
 Logs are written to `logs\server.log`, `logs\server.err`, `logs\scraper.log`, and `logs\scraper.err`. Data is stored in `data\baijia.sqlite`.
+
+## Telegram Alerts
+
+Baijia can push the same homepage streak alerts to a Telegram group. The alert rule is:
+
+- streak continuation rate >= `ALERT_MIN_RATE` (default `0.6`)
+- sample opportunities >= `ALERT_MIN_SAMPLE` (default `30`)
+- table validation is not `ERROR`
+
+Setup:
+
+1. Create a Telegram bot with BotFather and copy the bot token.
+2. Create a Telegram group named `結果群`.
+3. Add the bot to that group and send one message in the group.
+4. Set `.env`:
+
+```text
+TELEGRAM_ENABLED=true
+TELEGRAM_BOT_TOKEN=YOUR_BOT_TOKEN
+TELEGRAM_GROUP_NAME=結果群
+```
+
+If automatic discovery does not find the group, set `TELEGRAM_CHAT_ID` manually. The status appears in the dashboard System panel and in:
+
+```http
+GET /api/monitor
+GET /api/alerts
+```
 
 Remove the scheduled task:
 

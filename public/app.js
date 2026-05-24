@@ -16,7 +16,7 @@ const state = {
   refreshQueued: false
 };
 
-const STREAK_ALERT_MIN_RATE = 0.7;
+const STREAK_ALERT_MIN_RATE = 0.6;
 const STREAK_ALERT_MIN_SAMPLE = 30;
 const REFRESH_INTERVAL_MS = 60000;
 const STREAM_REFRESH_DEBOUNCE_MS = 1200;
@@ -248,7 +248,7 @@ function renderPredictionAlerts() {
     </button>`;
   }).join("");
   if (!tables.length) {
-    $("predictionAlerts").innerHTML = `<div class="alert-empty">目前沒有符合 70% / 樣本30 / 無錯誤 的連勝率</div>`;
+    $("predictionAlerts").innerHTML = `<div class="alert-empty">目前沒有符合 60% / 樣本30 / 無錯誤 的連勝率</div>`;
   }
 }
 
@@ -309,6 +309,8 @@ function renderStatus() {
   const daemon = state.status?.daemon || {};
   const monitor = state.status?.monitor || {};
   const monitorProcess = state.status?.monitorProcess || {};
+  const telegram = state.status?.telegram || {};
+  const telegramProcess = state.status?.telegramProcess || {};
   const validation = state.status?.validation || {};
   const validationSummary = validation.summary || {};
   const modelSelection = state.status?.modelSelection || {};
@@ -330,6 +332,7 @@ function renderStatus() {
     ["隔離修正", canonical.quarantinedRounds !== undefined ? `${canonical.quarantinedRounds || 0}筆 / ${canonical.conflictSlots || 0}槽` : "等待"],
     ["每分鐘報告", report.generatedAt ? (report.hasIssues ? `${report.errorTables || 0}錯 / ${report.warnTables || 0}警` : "無錯漏") : "等待"],
     ["報告時間", report.generatedAt ? fmtTime(report.generatedAt) : ""],
+    ["Telegram", telegram.running || telegramProcess.running ? (telegram.configured ? `${telegram.state || "運行"} ${telegram.lastAlertCount || 0}筆` : telegram.state || "等待設定") : "待命"],
     ["自訓模型", modelSelection.activeModel || "等待"],
     ["健康", healthLabel(scraper.health)],
     ["新增", scraper.insertedTotal || 0],

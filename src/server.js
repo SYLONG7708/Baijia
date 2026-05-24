@@ -29,6 +29,7 @@ const { buildModelSelection, predictByModel } = require("./model-selection");
 const { buildValidation } = require("./validation");
 const { getTrainingSummary } = require("./training-store");
 const { buildCanonicalView } = require("./canonical");
+const { buildStreakAlerts } = require("./alerts");
 
 openDatabase();
 const MONITOR_REPORT_PATH = path.join(DATA_DIR, "monitor-reports.jsonl");
@@ -353,10 +354,13 @@ async function handleApi(req, res) {
     const allRounds = rounds();
     const { canonical, reliable: summaryRounds } = canonicalFor(allRounds);
     const status = getStatus();
+    const validation = status.validation || buildValidation(allRounds);
+    const summary = summaryWithActiveModel(summarizeAll(summaryRounds), summaryRounds, status);
     return sendJson(res, 200, {
       ok: true,
       now: new Date().toISOString(),
-      summary: summaryWithActiveModel(summarizeAll(summaryRounds), summaryRounds, status),
+      summary,
+      alerts: buildStreakAlerts(summary, validation),
       quality: canonical.summary,
       rawTotals: {
         allRounds: allRounds.length,
@@ -364,7 +368,7 @@ async function handleApi(req, res) {
         canonicalRounds: canonical.canonicalRounds.length,
         quarantinedRounds: canonical.quarantinedRounds.length
       },
-      scraper: { ...status, canonical: canonical.summary }
+      scraper: { ...status, validation, canonical: canonical.summary }
     });
   }
 
@@ -382,6 +386,18 @@ async function handleApi(req, res) {
     return sendJson(res, 200, buildValidation(rounds()));
   }
 
+  if (req.method === "GET" && url.pathname === "/api/alerts") {
+    const allRounds = rounds();
+    const { reliable } = canonicalFor(allRounds);
+    const validation = getStatus().validation || buildValidation(allRounds);
+    const status = getStatus();
+    const summary = summaryWithActiveModel(summarizeAll(reliable), reliable, status);
+    return sendJson(res, 200, buildStreakAlerts(summary, validation, {
+      minRate: url.searchParams.get("minRate") || undefined,
+      minSample: url.searchParams.get("minSample") || undefined
+    }));
+  }
+
   if (req.method === "GET" && url.pathname === "/api/monitor") {
     const status = getStatus();
     return sendJson(res, 200, {
@@ -389,6 +405,8 @@ async function handleApi(req, res) {
       monitorProcess: status.monitorProcess || {},
       trainer: status.trainer || {},
       trainerProcess: status.trainerProcess || {},
+      telegram: status.telegram || {},
+      telegramProcess: status.telegramProcess || {},
       scraper: status.scraper || {},
       ingest: getRoundIngestSummary()
     });

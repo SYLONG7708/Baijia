@@ -1,7 +1,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
-const { ROOT, LOG_DIR, SCRAPER_ENABLED, TRAINER_ENABLED } = require("./env");
+const { ROOT, LOG_DIR, SCRAPER_ENABLED, TELEGRAM_ENABLED, TRAINER_ENABLED } = require("./env");
 const { openDatabase, setStatus, logEvent } = require("./db");
 
 openDatabase();
@@ -90,12 +90,18 @@ function shutdown() {
 
 fs.writeFileSync(daemonPidPath, String(process.pid));
 setStatus("daemon", { running: true, pid: process.pid, startedAt: new Date().toISOString() });
-logEvent("info", "daemon started", { pid: process.pid, scraperEnabled: SCRAPER_ENABLED, trainerEnabled: TRAINER_ENABLED });
+logEvent("info", "daemon started", {
+  pid: process.pid,
+  scraperEnabled: SCRAPER_ENABLED,
+  trainerEnabled: TRAINER_ENABLED,
+  telegramEnabled: TELEGRAM_ENABLED
+});
 
 startProcess("server", ["src/server.js"]);
 if (SCRAPER_ENABLED) startProcess("scraper", ["src/scraper.js"]);
 startProcess("monitor", ["src/monitor.js"]);
 if (TRAINER_ENABLED) startProcess("trainer", ["src/trainer.js"]);
+if (TELEGRAM_ENABLED) startProcess("telegram", ["src/telegram-notifier.js"]);
 
 setInterval(heartbeat, 10000);
 heartbeat();

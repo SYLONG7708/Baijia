@@ -51,6 +51,13 @@ module.exports = {
   SCRAPER_ENABLED: boolEnv("SCRAPER_ENABLED", true),
   TRAINER_ENABLED: boolEnv("TRAINER_ENABLED", true),
   TRAINER_INTERVAL_MS: Math.max(60_000, intEnv("TRAINER_INTERVAL_MS", 5 * 60_000)),
+  ALERT_MIN_RATE: Number.isFinite(Number(process.env.ALERT_MIN_RATE)) ? Number(process.env.ALERT_MIN_RATE) : 0.6,
+  ALERT_MIN_SAMPLE: intEnv("ALERT_MIN_SAMPLE", 30),
+  TELEGRAM_ENABLED: boolEnv("TELEGRAM_ENABLED", true),
+  TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN || "",
+  TELEGRAM_CHAT_ID: process.env.TELEGRAM_CHAT_ID || "",
+  TELEGRAM_GROUP_NAME: process.env.TELEGRAM_GROUP_NAME || "結果群",
+  TELEGRAM_POLL_INTERVAL_MS: Math.max(2000, intEnv("TELEGRAM_POLL_INTERVAL_MS", 5000)),
   CLOUD_WEBHOOK_URL: process.env.CLOUD_WEBHOOK_URL || "",
   PUBLIC_API_BASE: process.env.PUBLIC_API_BASE || ""
 };
