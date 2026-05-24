@@ -156,11 +156,12 @@ function flatNet(session) {
   return payout - (session.hitAttempt - 1);
 }
 
-function summarizeSessions(sessions) {
+function summarizeSessions(sessions, maxBets = 5) {
   const complete = sessions.filter((item) => item.complete);
   const wins = complete.filter((item) => item.hit);
   const losses = complete.filter((item) => !item.hit);
-  const byAttempt = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  const byAttempt = {};
+  for (let index = 1; index <= maxBets; index += 1) byAttempt[index] = 0;
   const byPick = {
     BANKER: { total: 0, wins: 0 },
     PLAYER: { total: 0, wins: 0 }
@@ -196,8 +197,9 @@ function summarizeSessions(sessions) {
     incomplete: sessions.length - complete.length,
     wins: wins.length,
     losses: losses.length,
-    hitWithin5Percent: pct(wins.length / Math.max(1, complete.length)),
-    fiveLossPercent: pct(losses.length / Math.max(1, complete.length)),
+    hitWithinMaxPercent: pct(wins.length / Math.max(1, complete.length)),
+    [`hitWithin${maxBets}Percent`]: pct(wins.length / Math.max(1, complete.length)),
+    [`${maxBets}LossPercent`]: pct(losses.length / Math.max(1, complete.length)),
     firstBetHitPercent: pct(byAttempt[1] / Math.max(1, complete.length)),
     averageNetUnits: round3(totalNet / Math.max(1, complete.length)),
     totalNetUnits: round3(totalNet),
@@ -296,9 +298,10 @@ function runBacktest(options = {}) {
   }
 
   const complete = sessions.filter((item) => item.complete);
+  const method = `first-ranked-alert, same table and side, up to ${maxBets} non-tie bets; ties are pushes and do not consume a bet; stop after first hit`;
   const output = {
     generatedAt: new Date().toISOString(),
-    method: "first-ranked-alert, same table and side, up to 5 non-tie bets; ties are pushes and do not consume a bet; stop after first hit",
+    method,
     source: {
       reliableRounds: reliable.length,
       activeModel,
@@ -306,9 +309,9 @@ function runBacktest(options = {}) {
       minRoundsPerTable: minRounds,
       maxBets
     },
-    overall: summarizeSessions(sessions),
-    recent100: summarizeSessions(complete.slice(-100)),
-    recent50: summarizeSessions(complete.slice(-50)),
+    overall: summarizeSessions(sessions, maxBets),
+    recent100: summarizeSessions(complete.slice(-100), maxBets),
+    recent50: summarizeSessions(complete.slice(-50), maxBets),
     last10Sessions: complete.slice(-10)
   };
   if (options.includeSessions) output.sessions = sessions;
