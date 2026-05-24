@@ -11,12 +11,19 @@ const { summarizeAll, isPredictionUsable } = require("./analytics");
 const { buildCanonicalView } = require("./canonical");
 const { buildValidation } = require("./validation");
 const { buildStreakAlerts, alertSignature } = require("./alerts");
+const { tableMeta } = require("./tables");
 
 let resolvedChatId = TELEGRAM_CHAT_ID;
 let lastLatestId = 0;
 let lastSignature = "";
 let lastSentAt = "";
 let running = false;
+
+const outcomeLabels = {
+  BANKER: "莊",
+  PLAYER: "閒",
+  TIE: "和"
+};
 
 function maskChatId(chatId) {
   const text = String(chatId || "");
@@ -67,27 +74,45 @@ async function discoverChatId() {
   return "";
 }
 
-function formatMessage(alerts, ingest, validation) {
+function tableDisplayName(alert) {
+  const code = String(alert.code || "").trim();
+  const category = String(alert.category || tableMeta(code).category || "").trim();
+  return `${category}${code}` || code || "-";
+}
+
+function accuracyStars(percent) {
+  const value = Number(percent || 0);
+  if (value <= 65) return "";
+  const count = Math.floor((value - 65) / 5) + 1;
+  return "⭐".repeat(Math.max(1, count));
+}
+
+function latestRoundText(round) {
+  if (!round) return "";
+  const code = String(round.tableCode || "").trim();
+  const meta = tableMeta(code);
+  return `最新：${meta.category}${meta.code} 第${round.roundNo}局 ${outcomeLabels[round.outcome] || round.outcome}`;
+}
+
+function formatMessage(alerts, ingest) {
   const lines = [
     "結果群 即時勝率提醒",
-    `門檻：${Math.round(ALERT_MIN_RATE * 1000) / 10}%以上 / 樣本${ALERT_MIN_SAMPLE} / 無ERROR`,
     `時間：${new Date().toLocaleString("zh-TW", { hour12: false })}`,
-    ingest.latestRound ? `最新：${ingest.latestRound.tableCode} 第${ingest.latestRound.roundNo}局 ${ingest.latestRound.outcome}` : "",
-    `校驗：${validation.summary?.error || 0}錯 / ${validation.summary?.warn || 0}警`,
+    latestRoundText(ingest.latestRound),
     ""
   ].filter(Boolean);
 
   alerts.slice(0, 10).forEach((alert, index) => {
-    lines.push(`${index + 1}. ${alert.code} ${alert.outcomeLabel}連${alert.length} ${alert.continuationPercent}% 樣本 ${alert.continuations}/${alert.opportunities} 第${alert.lastRoundNo}局`);
+    const stars = accuracyStars(alert.continuationPercent);
+    const starPrefix = stars ? `${stars} ` : "";
+    lines.push(`${index + 1}. ${starPrefix}${tableDisplayName(alert)} ${alert.outcomeLabel}連${alert.length} 準確度${alert.continuationPercent}% 樣本${alert.continuations}/${alert.opportunities} 第${alert.lastRoundNo}局`);
   });
   if (alerts.length > 10) lines.push(`另外 ${alerts.length - 10} 桌符合條件`);
-  lines.push("");
-  lines.push("統計提醒，不保證下一局結果。");
   return lines.join("\n").slice(0, 3900);
 }
 
-async function sendAlerts(alerts, ingest, validation) {
-  const text = formatMessage(alerts, ingest, validation);
+async function sendAlerts(alerts, ingest) {
+  const text = formatMessage(alerts, ingest);
   await telegramApi("sendMessage", {
     chat_id: resolvedChatId,
     text,
@@ -145,7 +170,7 @@ async function tick() {
     const { canonical, validation, alerts } = buildAlerts();
     const signature = alertSignature(alerts);
     if (alerts.length && signature && signature !== lastSignature) {
-      await sendAlerts(alerts, ingest, validation);
+      await sendAlerts(alerts, ingest);
       lastSignature = signature;
       logEvent("info", "telegram alerts sent", { count: alerts.length });
     }
