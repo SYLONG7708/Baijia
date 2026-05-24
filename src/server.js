@@ -149,16 +149,19 @@ function mergeSnapshotRoadRounds(liveRounds, snapshotRounds) {
 }
 
 function summaryWithActiveModel(summary, rounds, status = {}) {
-  const activeModel = status.modelSelection?.activeModel || status.trainer?.activeModel || "";
+  const modelSelection = status.modelSelection || {};
+  const activeModel = modelSelection.activeModel || status.trainer?.activeModel || "";
   if (!activeModel) return summary;
+  const tableModelByCode = new Map((modelSelection.tableModels || []).map((item) => [item.tableCode, item]));
   return {
     ...summary,
     activeModel,
     prediction: predictByModel(rounds, "", activeModel),
     tables: (summary.tables || []).map((table) => ({
       ...table,
-      activeModel,
-      prediction: predictByModel(rounds, table.code, activeModel)
+      activeModel: tableModelByCode.get(table.code)?.modelId || activeModel,
+      tableModel: tableModelByCode.get(table.code) || null,
+      prediction: predictByModel(rounds, table.code, tableModelByCode.get(table.code)?.modelId || activeModel)
     }))
   };
 }
@@ -478,10 +481,21 @@ async function handleApi(req, res) {
   }
 
   if (req.method === "GET" && url.pathname === "/api/models") {
-    return sendJson(res, 200, buildModelSelection(canonicalFor(rounds()).reliable, {
-      limit: url.searchParams.get("limit"),
-      warmup: url.searchParams.get("warmup")
-    }));
+    const status = getStatus();
+    if (url.searchParams.get("recompute") !== "true" && status.modelSelection) {
+      return sendJson(res, 200, {
+        ...status.modelSelection,
+        cached: true,
+        note: `${status.modelSelection.note || ""} Use ?recompute=true to force a fresh walk-forward run.`
+      });
+    }
+    return sendJson(res, 200, {
+      ...buildModelSelection(canonicalFor(rounds()).reliable, {
+        limit: url.searchParams.get("limit"),
+        warmup: url.searchParams.get("warmup")
+      }),
+      cached: false
+    });
   }
 
   if (req.method === "GET" && url.pathname === "/api/rounds") {

@@ -146,6 +146,39 @@ function cardSignal(table, outcome) {
   };
 }
 
+function performanceSignal(table) {
+  const model = table?.tableModel;
+  const tested = Number(model?.tested || 0);
+  const accuracy = Number(model?.accuracyNoTie || 0) / 100;
+  if (!model || tested < 20 || !Number.isFinite(accuracy) || accuracy <= 0) {
+    return {
+      rate: 0.5,
+      rawRate: 0.5,
+      tested: 0,
+      modelId: table?.activeModel || table?.prediction?.modelId || ""
+    };
+  }
+  return {
+    rate: clamp(shrinkToBaseline(accuracy, tested, 0.5, 120), 0.42, 0.64),
+    rawRate: accuracy,
+    tested,
+    modelId: model.modelId || table?.activeModel || table?.prediction?.modelId || "",
+    averageLogLoss: Number(model.averageLogLoss || 0)
+  };
+}
+
+function calibrateModelSignal(model, performance) {
+  if (!performance?.tested) return model;
+  const trust = clamp(performance.tested / 500, 0.4, 1);
+  const edgeMultiplier = clamp(0.4 + (performance.rawRate - 0.5) * 8, 0.2, 1.2);
+  return {
+    ...model,
+    rawRate: model.rawRate,
+    uncalibratedRate: model.rate,
+    rate: clamp(0.5 + (model.rate - 0.5) * trust * edgeMultiplier, 0.42, 0.68)
+  };
+}
+
 function weightedAverage(components) {
   const active = components.filter((component) => component && component.weight > 0);
   const totalWeight = active.reduce((sum, component) => sum + component.weight, 0) || 1;
@@ -159,13 +192,16 @@ function scoreForTable(table, validation) {
   if (!outcome) return null;
 
   const trend = trendSignal(streak, outcome);
-  const model = modelSignal(prediction, outcome);
   const tableFrequency = tableSignal(table, outcome);
   const recent = recentSignal(table, outcome);
   const card = cardSignal(table, outcome);
+  const performance = performanceSignal(table);
+  const rawModel = modelSignal(prediction, outcome);
+  const model = calibrateModelSignal(rawModel, performance);
   const components = [
-    { key: "trend", label: "連勝訊號", rate: trend.rate, weight: 0.42 },
-    { key: "model", label: "預測模型", rate: model.rate, weight: 0.34 },
+    { key: "trend", label: "連勝訊號", rate: trend.rate, weight: 0.34 },
+    { key: "model", label: "預測模型", rate: model.rate, weight: 0.28 },
+    { key: "performance", label: "回測表現", rate: performance.rate, weight: 0.14 },
     { key: "table", label: "本桌比例", rate: tableFrequency.rate, weight: 0.12 },
     { key: "recent", label: "最近六局", rate: recent.rate, weight: card ? 0.07 : 0.12 }
   ];
@@ -196,6 +232,13 @@ function scoreForTable(table, validation) {
     trendMode: trend.mode,
     predictionScoreRate: model.rate,
     predictionScorePercent: pct(model.rate),
+    rawPredictionScorePercent: pct(model.uncalibratedRate || model.rate),
+    performanceScoreRate: performance.rate,
+    performanceScorePercent: pct(performance.rate),
+    modelId: performance.modelId || table.activeModel || prediction.modelId || "",
+    modelBacktestAccuracyNoTie: pct(performance.rawRate),
+    modelBacktestTested: performance.tested || 0,
+    modelBacktestLogLoss: performance.averageLogLoss || 0,
     modelOutcomeRate: model.rawRate,
     modelOutcomePercent: pct(model.rawRate),
     modelMarginPercent: pct(model.margin),
@@ -245,6 +288,13 @@ function buildStreakAlerts(summary, validation, options = {}) {
         trendMode: score.trendMode,
         predictionScoreRate: score.predictionScoreRate,
         predictionScorePercent: score.predictionScorePercent,
+        rawPredictionScorePercent: score.rawPredictionScorePercent,
+        performanceScoreRate: score.performanceScoreRate,
+        performanceScorePercent: score.performanceScorePercent,
+        modelId: score.modelId,
+        modelBacktestAccuracyNoTie: score.modelBacktestAccuracyNoTie,
+        modelBacktestTested: score.modelBacktestTested,
+        modelBacktestLogLoss: score.modelBacktestLogLoss,
         modelOutcomeRate: score.modelOutcomeRate,
         modelOutcomePercent: score.modelOutcomePercent,
         modelMarginPercent: score.modelMarginPercent,
@@ -267,6 +317,7 @@ function buildStreakAlerts(summary, validation, options = {}) {
     })
     .sort((left, right) => {
       if (right.scoreRate !== left.scoreRate) return right.scoreRate - left.scoreRate;
+      if (right.performanceScoreRate !== left.performanceScoreRate) return right.performanceScoreRate - left.performanceScoreRate;
       if (right.predictionScoreRate !== left.predictionScoreRate) return right.predictionScoreRate - left.predictionScoreRate;
       if (right.sampleSize !== left.sampleSize) return right.sampleSize - left.sampleSize;
       return left.code.localeCompare(right.code);
@@ -293,6 +344,8 @@ function alertSignature(alerts) {
     alert.length,
     alert.scorePercent,
     alert.predictionScorePercent,
+    alert.performanceScorePercent,
+    alert.modelId,
     alert.sampleSize,
     alert.lastRoundNo
   ].join(":")).join("|");

@@ -81,6 +81,7 @@ Logs are written to `logs\server.log`, `logs\server.err`, `logs\scraper.log`, an
 Baijia can push the same homepage average-score alerts to a Telegram group. The alert rule is:
 
 - score blends streak continuation/reversal, model prediction margin, table frequency, recent-six trend, card-shoe signal when available, and validation quality
+- the trainer now keeps a walk-forward best model per table, and alert scores shrink overconfident model signals when that table's recent backtest is weak
 - no percentage threshold is applied by default
 - only the top 2 valid tables by weighted average score are shown and pushed
 - table validation is not `ERROR`

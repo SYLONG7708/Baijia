@@ -225,6 +225,12 @@ function renderTableHeader() {
   const validation = currentValidation();
   const alert = alertForTable(table.code);
   const predictionLabel = labels[table.prediction?.pick] || "-";
+  const modelText = table.activeModel || alert?.modelId || "-";
+  const backtestText = table.tableModel?.tested
+    ? `${table.tableModel.accuracyNoTie}%`
+    : alert?.modelBacktestTested
+      ? `${alert.modelBacktestAccuracyNoTie}%`
+      : "等待";
   $("tableCategory").textContent = table.category || "";
   $("tableTitle").textContent = `${table.code} ${table.category || ""}`.trim();
   $("latestSix").replaceChildren(...(table.latestSix || []).map(chip));
@@ -236,6 +242,8 @@ function renderTableHeader() {
     ["和率", pct(table.rates?.TIE)],
     ["預測", predictionLabel],
     ["平均分數", alertScoreText(alert)],
+    ["模型", modelText],
+    ["回測", backtestText],
     ["連勝", streakText(streak)],
     ["連勝延續", streakRateText(streak)],
     ["連勝樣本", `${streak.continuations || 0}/${streak.opportunities || 0}`],
@@ -260,7 +268,7 @@ function renderPredictionAlerts() {
       <span class="alert-code">${alert.category || ""}${alert.code}</span>
       <span class="chip ${outcomeClass[alert.outcome]}">${alert.outcomeLabel || labels[alert.outcome] || "-"}</span>
       <strong>${alertScoreText(alert)}</strong>
-      <small>模型 ${alert.predictionScorePercent ?? 0}% · 連勝訊號 ${alert.trendPercent ?? 0}% · 樣本 ${sample} · 續連 ${streakSample}</small>
+      <small>模型 ${alert.predictionScorePercent ?? 0}% · 回測 ${alert.modelBacktestAccuracyNoTie ?? 0}% · 樣本 ${sample} · 續連 ${streakSample}</small>
     </button>`;
   }).join("");
   if (!alerts.length) {

@@ -152,6 +152,9 @@ function formatMessage(alert, predictionState) {
     `預測: ${alert.outcomeLabel}`,
     `平均分數: ${displayPercent}%`
   ];
+  if (alert.modelBacktestTested) {
+    lines.push(`回測: ${alert.modelBacktestAccuracyNoTie}%`);
+  }
   if (successStreak > 0) {
     lines.push(`🔥🔥🔥 連續命中 ${successStreak} 連勝 🔥🔥🔥`);
   }
@@ -169,16 +172,19 @@ async function sendAlert(alert, predictionState) {
 }
 
 function summaryWithActiveModel(summary, rounds, status = {}) {
-  const activeModel = status.modelSelection?.activeModel || status.trainer?.activeModel || "";
+  const modelSelection = status.modelSelection || {};
+  const activeModel = modelSelection.activeModel || status.trainer?.activeModel || "";
   if (!activeModel) return summary;
+  const tableModelByCode = new Map((modelSelection.tableModels || []).map((item) => [item.tableCode, item]));
   return {
     ...summary,
     activeModel,
     prediction: predictByModel(rounds, "", activeModel),
     tables: (summary.tables || []).map((table) => ({
       ...table,
-      activeModel,
-      prediction: predictByModel(rounds, table.code, activeModel)
+      activeModel: tableModelByCode.get(table.code)?.modelId || activeModel,
+      tableModel: tableModelByCode.get(table.code) || null,
+      prediction: predictByModel(rounds, table.code, tableModelByCode.get(table.code)?.modelId || activeModel)
     }))
   };
 }

@@ -174,6 +174,187 @@ function emptyStats(modelId) {
   };
 }
 
+function emptyOutcomeCounts() {
+  return { total: 0, BANKER: 0, PLAYER: 0, TIE: 0 };
+}
+
+function addToCounts(counts, outcome) {
+  counts.total += 1;
+  if (counts[outcome] !== undefined) counts[outcome] += 1;
+}
+
+function smoothCounts(counts, prior = BASE_OUTCOME, priorWeight = 18) {
+  const total = Number(counts.total || 0) + priorWeight;
+  return normalize({
+    BANKER: (Number(counts.BANKER || 0) + prior.BANKER * priorWeight) / total,
+    PLAYER: (Number(counts.PLAYER || 0) + prior.PLAYER * priorWeight) / total,
+    TIE: (Number(counts.TIE || 0) + prior.TIE * priorWeight) / total
+  });
+}
+
+function sequenceKey(sequence, order) {
+  if (!order || sequence.length < order) return "";
+  return sequence.slice(-order).join("");
+}
+
+function mapCounts(map, key) {
+  if (!key) return null;
+  let counts = map.get(key);
+  if (!counts) {
+    counts = emptyOutcomeCounts();
+    map.set(key, counts);
+  }
+  return counts;
+}
+
+function createFastState() {
+  return {
+    counts: emptyOutcomeCounts(),
+    shoeCounts: emptyOutcomeCounts(),
+    previousRoundNo: 0,
+    sequence: [],
+    markov: {
+      1: new Map(),
+      2: new Map(),
+      3: new Map()
+    },
+    streak: {
+      outcome: "",
+      length: 0,
+      exact: new Map()
+    }
+  };
+}
+
+function streakSampleKey(outcome, length) {
+  return `${outcome}:${length}`;
+}
+
+function updateStreakSamples(state, outcome) {
+  if (!["BANKER", "PLAYER"].includes(outcome)) return;
+  const previous = state.streak;
+  if (!previous.outcome || !previous.length) return;
+  const key = streakSampleKey(previous.outcome, previous.length);
+  let sample = previous.exact.get(key);
+  if (!sample) {
+    sample = { opportunities: 0, continuations: 0 };
+    previous.exact.set(key, sample);
+  }
+  sample.opportunities += 1;
+  if (outcome === previous.outcome) sample.continuations += 1;
+}
+
+function updateStreakState(state, outcome) {
+  updateStreakSamples(state, outcome);
+  if (outcome === "TIE") return;
+  if (outcome === state.streak.outcome) {
+    state.streak.length += 1;
+  } else {
+    state.streak.outcome = outcome;
+    state.streak.length = 1;
+  }
+}
+
+function updateFastState(state, round) {
+  const outcome = normalizeOutcome(round.outcome);
+  if (!outcome) return;
+  const roundNo = Number(round.roundNo || 0);
+  if (state.previousRoundNo > 0 && roundNo > 0 && roundNo < state.previousRoundNo) {
+    state.shoeCounts = emptyOutcomeCounts();
+  }
+  state.previousRoundNo = roundNo || state.previousRoundNo;
+
+  for (const order of [1, 2, 3]) {
+    const key = sequenceKey(state.sequence, order);
+    if (key) addToCounts(mapCounts(state.markov[order], key), outcome);
+  }
+  addToCounts(state.counts, outcome);
+  addToCounts(state.shoeCounts, outcome);
+  updateStreakState(state, outcome);
+  state.sequence.push(outcomeShort(outcome));
+  if (state.sequence.length > 8) state.sequence.shift();
+}
+
+function fastMarkovPrediction(state, order) {
+  const base = smoothCounts(state.counts);
+  const key = sequenceKey(state.sequence, order);
+  const counts = key ? state.markov[order].get(key) : null;
+  if (!counts || counts.total < 4) {
+    return toPrediction(`markov_${order}`, base, { sampleSize: counts?.total || 0 });
+  }
+  return toPrediction(`markov_${order}`, smoothCounts(counts, base, counts.total < 10 ? 12 : 4), {
+    sampleSize: counts.total
+  });
+}
+
+function fastStreakPrediction(state) {
+  const base = smoothCounts(state.counts);
+  const current = state.streak;
+  if (!current.outcome || !current.length) {
+    return toPrediction("streak_continuation", base, { sampleSize: 0 });
+  }
+  const sample = current.exact.get(streakSampleKey(current.outcome, current.length)) || {};
+  const same = sample.opportunities >= 5
+    ? Math.max(0.35, Math.min(0.65, sample.continuations / sample.opportunities))
+    : 0.5;
+  const tie = Math.max(0.04, Math.min(0.14, base.TIE));
+  const nonTie = 1 - tie;
+  const other = current.outcome === "BANKER" ? "PLAYER" : "BANKER";
+  return toPrediction("streak_continuation", {
+    [current.outcome]: nonTie * same,
+    [other]: nonTie * (1 - same),
+    TIE: tie
+  }, { sampleSize: sample.opportunities || 0 });
+}
+
+function blendProbabilities(items) {
+  const totalWeight = items.reduce((sum, item) => sum + item.weight, 0) || 1;
+  const raw = { BANKER: 0, PLAYER: 0, TIE: 0 };
+  for (const item of items) {
+    raw.BANKER += Number(item.probabilities.BANKER || 0) * item.weight;
+    raw.PLAYER += Number(item.probabilities.PLAYER || 0) * item.weight;
+    raw.TIE += Number(item.probabilities.TIE || 0) * item.weight;
+  }
+  return {
+    BANKER: raw.BANKER / totalWeight,
+    PLAYER: raw.PLAYER / totalWeight,
+    TIE: raw.TIE / totalWeight
+  };
+}
+
+function fastPredictionByModel(state, modelId) {
+  if (modelId === "banker_baseline") return toPrediction(modelId, BASE_OUTCOME);
+  if (modelId === "table_frequency") return toPrediction(modelId, smoothCounts(state.counts), { sampleSize: state.counts.total });
+  if (modelId === "current_shoe_frequency") {
+    const source = state.shoeCounts.total >= 8 ? state.shoeCounts : state.counts;
+    return toPrediction(modelId, smoothCounts(source), { sampleSize: source.total });
+  }
+  if (modelId === "markov_1") return fastMarkovPrediction(state, 1);
+  if (modelId === "markov_2") return fastMarkovPrediction(state, 2);
+  if (modelId === "markov_3") return fastMarkovPrediction(state, 3);
+  if (modelId === "streak_continuation") return fastStreakPrediction(state);
+  if (modelId === "card_shoe") {
+    const source = state.shoeCounts.total >= 8 ? state.shoeCounts : state.counts;
+    return toPrediction(modelId, blendProbabilities([
+      { probabilities: smoothCounts(state.counts), weight: 0.55 },
+      { probabilities: smoothCounts(source), weight: 0.45 }
+    ]), { sampleSize: source.total });
+  }
+  if (modelId === "commercial_blend") {
+    const markov = fastMarkovPrediction(state, 3);
+    const streak = fastStreakPrediction(state);
+    return toPrediction(modelId, blendProbabilities([
+      { probabilities: smoothCounts(state.counts), weight: 0.45 },
+      { probabilities: markov.probabilities, weight: markov.sampleSize >= 8 ? 0.25 : 0.1 },
+      { probabilities: streak.probabilities, weight: streak.sampleSize >= 5 ? 0.2 : 0.1 },
+      { probabilities: BASE_OUTCOME, weight: 0.1 }
+    ]), {
+      sampleSize: Math.max(markov.sampleSize || 0, streak.sampleSize || 0, state.counts.total || 0)
+    });
+  }
+  return fastPredictionByModel(state, "commercial_blend");
+}
+
 function observe(stats, prediction, actual) {
   const probabilities = prediction.probabilities || BASE_OUTCOME;
   const pick = prediction.pick || "BANKER";
@@ -213,14 +394,24 @@ function backtestModel(allRounds, modelId, options = {}) {
   for (const table of TARGET_TABLES) {
     const rows = tableRows(pool, table.code).slice(-limit);
     const before = stats.tested;
+    const tableStats = emptyStats(modelId);
+    const state = createFastState();
+    for (let index = 0; index < Math.min(warmup, rows.length); index += 1) {
+      updateFastState(state, rows[index]);
+    }
     for (let index = warmup; index < rows.length; index += 1) {
       const actual = rows[index];
-      const prior = pool.filter((round) => Number(round.id || 0) < Number(actual.id || 0));
-      const prediction = predictByModel(prior, table.code, modelId);
+      const prediction = fastPredictionByModel(state, modelId);
       observe(stats, prediction, actual.outcome);
+      observe(tableStats, prediction, actual.outcome);
+      updateFastState(state, actual);
     }
     if (stats.tested > before) {
-      perTable.push({ tableCode: table.code, tested: stats.tested - before, sourceRows: rows.length });
+      perTable.push({
+        tableCode: table.code,
+        sourceRows: rows.length,
+        ...finalize(tableStats)
+      });
     }
   }
 
@@ -228,6 +419,33 @@ function backtestModel(allRounds, modelId, options = {}) {
     ...finalize(stats),
     perTable
   };
+}
+
+function buildTableModels(candidates) {
+  const byTable = new Map();
+  for (const candidate of candidates) {
+    for (const stats of candidate.perTable || []) {
+      if (Number(stats.tested || 0) < 20) continue;
+      const item = {
+        tableCode: stats.tableCode,
+        modelId: candidate.modelId,
+        tested: stats.tested,
+        sourceRows: stats.sourceRows,
+        accuracy: stats.accuracy,
+        accuracyNoTie: stats.accuracyNoTie,
+        averageLogLoss: stats.averageLogLoss,
+        averageBrier: stats.averageBrier
+      };
+      const current = byTable.get(stats.tableCode);
+      if (!current
+        || item.averageLogLoss < current.averageLogLoss
+        || (item.averageLogLoss === current.averageLogLoss && item.accuracyNoTie > current.accuracyNoTie)
+        || (item.averageLogLoss === current.averageLogLoss && item.accuracyNoTie === current.accuracyNoTie && item.tested > current.tested)) {
+        byTable.set(stats.tableCode, item);
+      }
+    }
+  }
+  return [...byTable.values()].sort((left, right) => left.tableCode.localeCompare(right.tableCode));
 }
 
 function buildModelSelection(allRounds, options = {}) {
@@ -240,14 +458,16 @@ function buildModelSelection(allRounds, options = {}) {
     });
   const active = candidates[0] || null;
   const baseline = candidates.find((candidate) => candidate.modelId === "commercial_blend") || null;
+  const tableModels = buildTableModels(candidates);
   return {
     generatedAt: new Date().toISOString(),
     activeModel: active?.modelId || "commercial_blend",
     active,
     baseline,
+    tableModels,
     candidates,
     candidateIds: MODEL_IDS,
-    note: "Local walk-forward model selection. It improves statistical calibration only; baccarat outcomes remain random and not guaranteed."
+    note: "Local walk-forward model selection. Tables can use their own best recent model. It improves statistical calibration only; baccarat outcomes remain random and not guaranteed."
   };
 }
 
