@@ -14,6 +14,7 @@ function openTrainingDatabase() {
   db.exec(`
     PRAGMA journal_mode = WAL;
     PRAGMA synchronous = NORMAL;
+    PRAGMA busy_timeout = 10000;
 
     CREATE TABLE IF NOT EXISTS training_runs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -66,18 +67,42 @@ function openTrainingDatabase() {
   return db;
 }
 
+function sleepMs(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+function isLockedError(error) {
+  return String(error?.message || "").includes("database is locked")
+    || error?.errcode === 5
+    || (error?.code === "ERR_SQLITE_ERROR" && error?.errstr === "database is locked");
+}
+
+function runWithRetry(statement, args = [], attempts = 8) {
+  let lastError;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return statement.run(...args);
+    } catch (error) {
+      if (!isLockedError(error)) throw error;
+      lastError = error;
+      sleepMs(75 * (attempt + 1));
+    }
+  }
+  throw lastError;
+}
+
 function insertTrainingRun(input) {
   const database = openTrainingDatabase();
   const modelSelection = input.modelSelection || {};
   const validation = input.validation || {};
   const summary = validation.summary || {};
   const active = modelSelection.active || {};
-  const result = database.prepare(`
+  const result = runWithRetry(database.prepare(`
     INSERT INTO training_runs (
       round_count, reliable_round_count, active_model, active_accuracy_no_tie,
       active_log_loss, validation_warn, validation_error, payload_json
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
+  `), [
     Number(input.roundCount || 0),
     Number(input.reliableRoundCount || 0),
     String(modelSelection.activeModel || ""),
@@ -86,7 +111,7 @@ function insertTrainingRun(input) {
     Number(summary.warn || 0),
     Number(summary.error || 0),
     JSON.stringify(input)
-  );
+  ]);
 
   const runId = Number(result.lastInsertRowid);
   const insertCandidate = database.prepare(`
@@ -96,7 +121,7 @@ function insertTrainingRun(input) {
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
   for (const candidate of modelSelection.candidates || []) {
-    insertCandidate.run(
+    runWithRetry(insertCandidate, [
       runId,
       String(candidate.modelId || ""),
       Number(candidate.tested || 0),
@@ -105,18 +130,18 @@ function insertTrainingRun(input) {
       Number(candidate.averageLogLoss || 0),
       Number(candidate.averageBrier || 0),
       JSON.stringify(candidate)
-    );
+    ]);
   }
 
-  database.prepare(`
+  runWithRetry(database.prepare(`
     INSERT INTO data_audits(run_id, validation_summary_json, issue_tables_json, actions_json)
     VALUES (?, ?, ?, ?)
-  `).run(
+  `), [
     runId,
     JSON.stringify(summary),
     JSON.stringify((validation.issueTables || []).slice(0, 80)),
     JSON.stringify(input.actions || [])
-  );
+  ]);
 
   pruneTrainingRuns(database);
   return runId;
@@ -124,16 +149,16 @@ function insertTrainingRun(input) {
 
 function pruneTrainingRuns(database = openTrainingDatabase()) {
   const keep = Math.max(200, Number(process.env.TRAINING_KEEP_RUNS || 2000));
-  database.prepare(`
+  runWithRetry(database.prepare(`
     DELETE FROM training_runs
     WHERE id NOT IN (
       SELECT id FROM training_runs ORDER BY id DESC LIMIT ?
     )
-  `).run(keep);
+  `), [keep]);
 }
 
 function upsertKnowledgeItem(item) {
-  openTrainingDatabase().prepare(`
+  runWithRetry(openTrainingDatabase().prepare(`
     INSERT INTO knowledge_items(key, title, source_url, summary, updated_at)
     VALUES (?, ?, ?, ?, datetime('now'))
     ON CONFLICT(key) DO UPDATE SET
@@ -141,12 +166,12 @@ function upsertKnowledgeItem(item) {
       source_url = excluded.source_url,
       summary = excluded.summary,
       updated_at = excluded.updated_at
-  `).run(
+  `), [
     String(item.key || ""),
     String(item.title || ""),
     String(item.sourceUrl || ""),
     String(item.summary || "")
-  );
+  ]);
 }
 
 function getTrainingSummary(limit = 20) {

@@ -15,6 +15,7 @@ function openDatabase() {
   db.exec(`
     PRAGMA journal_mode = WAL;
     PRAGMA synchronous = NORMAL;
+    PRAGMA busy_timeout = 10000;
     PRAGMA foreign_keys = ON;
 
     CREATE TABLE IF NOT EXISTS rounds (
@@ -68,6 +69,30 @@ function columnNames(table) {
 function addColumnIfMissing(table, name, definition) {
   const columns = columnNames(table);
   if (!columns.has(name)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`);
+}
+
+function sleepMs(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+function isLockedError(error) {
+  return String(error?.message || "").includes("database is locked")
+    || error?.errcode === 5
+    || error?.code === "ERR_SQLITE_ERROR" && error?.errstr === "database is locked";
+}
+
+function runWithRetry(statement, args = [], attempts = 8) {
+  let lastError;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return statement.run(...args);
+    } catch (error) {
+      if (!isLockedError(error)) throw error;
+      lastError = error;
+      sleepMs(75 * (attempt + 1));
+    }
+  }
+  throw lastError;
 }
 
 function migrateDatabase(database) {
@@ -188,7 +213,7 @@ function insertRound(input) {
   if (!round.gameRoundId) round.gameRoundId = `${round.shoeId}:${round.roundNo}:${round.rawResult}`;
   const dedupeKey = makeDedupeKey(round);
 
-  const result = database.prepare(`
+  const result = runWithRetry(database.prepare(`
     INSERT OR IGNORE INTO rounds (
       dedupe_key, table_code, table_name, category, shoe_id, round_no, game_round_id,
       outcome, banker_pair, player_pair, lucky_six, banker_point, player_point,
@@ -196,7 +221,7 @@ function insertRound(input) {
       banker_card_ranks, player_card_ranks, card_count, card_observed_at,
       raw_result, source, source_event, observed_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
+  `), [
     dedupeKey,
     round.tableCode,
     round.tableName,
@@ -222,10 +247,10 @@ function insertRound(input) {
     round.source,
     round.sourceEvent,
     round.observedAt
-  );
+  ]);
 
   if (result.changes === 0 && round.cardCount > 0) {
-    database.prepare(`
+    runWithRetry(database.prepare(`
       UPDATE rounds
       SET banker_cards_raw = ?,
           player_cards_raw = ?,
@@ -236,7 +261,7 @@ function insertRound(input) {
           card_count = ?,
           card_observed_at = ?
       WHERE dedupe_key = ? AND card_count = 0
-    `).run(
+    `), [
       JSON.stringify(round.bankerCardsRaw),
       JSON.stringify(round.playerCardsRaw),
       JSON.stringify(round.bankerCardPoints),
@@ -246,7 +271,7 @@ function insertRound(input) {
       round.cardCount,
       round.cardObservedAt,
       dedupeKey
-    );
+    ]);
   }
 
   return {
@@ -265,7 +290,7 @@ function updateRoundCards(input) {
     return { updated: false, reason: "invalid-card-update" };
   }
 
-  const result = database.prepare(`
+  const result = runWithRetry(database.prepare(`
     UPDATE rounds
     SET banker_cards_raw = ?,
         player_cards_raw = ?,
@@ -281,7 +306,7 @@ function updateRoundCards(input) {
       ORDER BY id DESC
       LIMIT 1
     )
-  `).run(
+  `), [
     JSON.stringify(fields.bankerCardsRaw),
     JSON.stringify(fields.playerCardsRaw),
     JSON.stringify(fields.bankerCardPoints),
@@ -293,7 +318,7 @@ function updateRoundCards(input) {
     tableCode,
     roundNo,
     rawResult
-  );
+  ]);
   return { updated: result.changes > 0 };
 }
 
@@ -369,11 +394,11 @@ function getTableRounds(tableCode) {
 }
 
 function setStatus(key, value) {
-  openDatabase().prepare(`
+  runWithRetry(openDatabase().prepare(`
     INSERT INTO scraper_status(key, value, updated_at)
     VALUES (?, ?, datetime('now'))
     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
-  `).run(key, typeof value === "string" ? value : JSON.stringify(value));
+  `), [key, typeof value === "string" ? value : JSON.stringify(value)]);
 }
 
 function getStatus() {
@@ -391,10 +416,10 @@ function getStatus() {
 }
 
 function logEvent(level, message, detail = "") {
-  openDatabase().prepare(`
+  runWithRetry(openDatabase().prepare(`
     INSERT INTO event_log(level, message, detail)
     VALUES (?, ?, ?)
-  `).run(String(level), String(message), typeof detail === "string" ? detail : JSON.stringify(detail));
+  `), [String(level), String(message), typeof detail === "string" ? detail : JSON.stringify(detail)]);
 }
 
 function getEvents(limit = 100) {
