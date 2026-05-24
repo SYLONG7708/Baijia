@@ -296,7 +296,7 @@ function runBacktest(options = {}) {
   }
 
   const complete = sessions.filter((item) => item.complete);
-  return {
+  const output = {
     generatedAt: new Date().toISOString(),
     method: "first-ranked-alert, same table and side, up to 5 non-tie bets; ties are pushes and do not consume a bet; stop after first hit",
     source: {
@@ -311,12 +311,15 @@ function runBacktest(options = {}) {
     recent50: summarizeSessions(complete.slice(-50)),
     last10Sessions: complete.slice(-10)
   };
+  if (options.includeSessions) output.sessions = sessions;
+  return output;
 }
 
 if (require.main === module) {
   const result = runBacktest({
     minRounds: process.env.MIN_ROUNDS || 80,
-    maxBets: process.env.MAX_BETS || 5
+    maxBets: process.env.MAX_BETS || 5,
+    includeSessions: process.env.INCLUDE_SESSIONS === "true"
   });
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 }
