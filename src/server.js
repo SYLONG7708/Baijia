@@ -1,7 +1,7 @@
 const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
-const { PUBLIC_DIR, PORT, API_TOKEN, PUBLIC_API_BASE } = require("./env");
+const { DATA_DIR, PUBLIC_DIR, PORT, API_TOKEN, PUBLIC_API_BASE } = require("./env");
 const { TABLE_GROUPS, TARGET_TABLES, tableMeta, normalizeTableCode } = require("./tables");
 const { parseBaccaratResult, normalizeOutcome } = require("./baccarat-codec");
 const {
@@ -30,6 +30,7 @@ const { buildValidation } = require("./validation");
 const { getTrainingSummary } = require("./training-store");
 
 openDatabase();
+const MONITOR_REPORT_PATH = path.join(DATA_DIR, "monitor-reports.jsonl");
 
 function reliableRounds(allRounds) {
   const reliable = allRounds.filter(isPredictionUsable);
@@ -184,6 +185,24 @@ function serveStatic(req, res) {
   fs.createReadStream(filePath).pipe(res);
 }
 
+function readJsonlTail(filePath, limit = 120) {
+  const safeLimit = Math.max(1, Math.min(2000, Number(limit) || 120));
+  if (!fs.existsSync(filePath)) return [];
+  const text = fs.readFileSync(filePath, "utf8").trim();
+  if (!text) return [];
+  return text
+    .split(/\r?\n/)
+    .slice(-safeLimit)
+    .map((line) => {
+      try {
+        return JSON.parse(line);
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean);
+}
+
 function roundFromInput(input) {
   const tableCode = normalizeTableCode(input.tableCode || input.table_code || input.tableId);
   const meta = tableMeta(tableCode);
@@ -295,6 +314,16 @@ async function handleApi(req, res) {
       trainerProcess: status.trainerProcess || {},
       scraper: status.scraper || {},
       ingest: getRoundIngestSummary()
+    });
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/monitor/report") {
+    const reports = readJsonlTail(MONITOR_REPORT_PATH, url.searchParams.get("limit") || 120);
+    return sendJson(res, 200, {
+      reportPath: MONITOR_REPORT_PATH,
+      count: reports.length,
+      latest: reports.at(-1) || null,
+      reports
     });
   }
 

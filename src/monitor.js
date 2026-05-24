@@ -1,3 +1,6 @@
+const fs = require("node:fs");
+const path = require("node:path");
+const { DATA_DIR } = require("./env");
 const { openDatabase, getAllRounds, getRoundIngestSummary, getStatus, setStatus, logEvent } = require("./db");
 const { buildModelSelection } = require("./model-selection");
 const { buildValidation } = require("./validation");
@@ -5,6 +8,7 @@ const { buildValidation } = require("./validation");
 const INTERVAL_MS = Math.max(15_000, Number(process.env.MONITOR_INTERVAL_MS || 60_000));
 const STALE_WARN_MS = Math.max(INTERVAL_MS, Number(process.env.MONITOR_STALE_WARN_MS || 10 * 60_000));
 const STALE_CRITICAL_MS = Math.max(STALE_WARN_MS, Number(process.env.MONITOR_STALE_CRITICAL_MS || 30 * 60_000));
+const REPORT_PATH = path.join(DATA_DIR, "monitor-reports.jsonl");
 
 let lastTotalRounds = 0;
 let lastState = "";
@@ -74,6 +78,43 @@ function monitorState(summary, scraper, deltaSinceLastCheck) {
   };
 }
 
+function buildMonitorReport(monitor, validation) {
+  const issueTables = (validation.issueTables || []).map((table) => ({
+    code: table.code,
+    severity: table.severity,
+    currentRoundNo: table.currentRoundNo,
+    latestRoundNo: table.latestRound?.roundNo || 0,
+    missingCount: table.missingRoundNos?.length || 0,
+    snapshotOnlyCount: table.snapshotOnlyRoundNos?.length || 0,
+    snapshotConflictCount: table.snapshotConflicts?.length || 0,
+    shiftedCount: table.snapshotShiftedMatches?.length || 0,
+    conflictCount: table.conflicts?.length || 0
+  }));
+  const summary = validation.summary || {};
+  return {
+    generatedAt: monitor.lastCheckAt,
+    intervalSeconds: Math.round(INTERVAL_MS / 1000),
+    canReadNewInfo: Boolean(monitor.canReadNewInfo),
+    monitorState: monitor.state,
+    totalRounds: monitor.totalRounds,
+    deltaSinceLastCheck: monitor.deltaSinceLastCheck,
+    recent5m: monitor.recent?.last5m || 0,
+    recent15m: monitor.recent?.last15m || 0,
+    latestRound: monitor.latestRound,
+    validationSummary: summary,
+    hasIssues: Boolean((summary.warn || 0) + (summary.error || 0)),
+    warnTables: summary.warn || 0,
+    errorTables: summary.error || 0,
+    issueTables,
+    reportPath: REPORT_PATH
+  };
+}
+
+function writeMonitorReport(report) {
+  fs.mkdirSync(path.dirname(REPORT_PATH), { recursive: true });
+  fs.appendFileSync(REPORT_PATH, `${JSON.stringify(report)}\n`, "utf8");
+}
+
 function checkOnce() {
   const status = getStatus();
   const scraper = status.scraper || {};
@@ -112,6 +153,14 @@ function checkOnce() {
     scraperLastWebsocketAt: scraper.lastWebsocketAt || "",
     scraperLastRateLimitAt: scraper.lastRateLimitAt || ""
   };
+  const report = buildMonitorReport(monitor, validation);
+  monitor.report = report;
+  try {
+    writeMonitorReport(report);
+  } catch (error) {
+    report.writeError = error.message;
+    logEvent("warn", "monitor report write failed", error.message);
+  }
 
   setStatus("monitor", monitor);
   setStatus("validation", validation);

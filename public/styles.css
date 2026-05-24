@@ -362,6 +362,18 @@ h3 {
   font-weight: 800;
 }
 
+.alert-empty {
+  grid-column: 1 / -1;
+  min-height: 54px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  background: var(--panel-2);
+  font-size: 13px;
+}
+
 .sequence-tools {
   display: grid;
   justify-items: end;

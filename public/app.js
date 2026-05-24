@@ -9,6 +9,9 @@ const state = {
   apiToken: localStorage.getItem("baijia.apiToken") || ""
 };
 
+const STREAK_ALERT_MIN_RATE = 0.7;
+const REFRESH_INTERVAL_MS = 5000;
+
 const labels = {
   BANKER: "莊",
   PLAYER: "閒",
@@ -115,6 +118,10 @@ function streakRateText(streak) {
   return `${streak.continuationPercent}%`;
 }
 
+function streakMeetsAlertThreshold(streak) {
+  return Boolean(streak?.opportunities) && Number(streak.continuationRate || 0) >= STREAK_ALERT_MIN_RATE;
+}
+
 function currentValidation() {
   const tables = state.status?.validation?.tables || [];
   return tables.find((table) => table.code === state.selectedTable) || null;
@@ -156,7 +163,9 @@ function renderTableGroups() {
       const table = summaryByCode.get(code) || {};
       const active = code === state.selectedTable ? " active" : "";
       const streak = table.streak || {};
-      const streakInfo = streak.outcome ? ` · ${streakText(streak)} ${streakRateText(streak)}` : "";
+      const streakInfo = streak.outcome && streakMeetsAlertThreshold(streak)
+        ? ` · ${streakText(streak)} ${streakRateText(streak)}`
+        : "";
       return `<button class="table-button${active}" type="button" data-table="${code}">
         <span class="table-code">${code}</span>
         <span class="table-sub">${table.total || 0} 局 · ${table.lastOutcome ? labels[table.lastOutcome] : "無資料"}${streakInfo}</span>
@@ -200,7 +209,7 @@ function renderTableHeader() {
 
 function renderPredictionAlerts() {
   const tables = [...(state.summary?.tables || [])]
-    .filter((table) => table.total > 0)
+    .filter((table) => table.total > 0 && streakMeetsAlertThreshold(table.streak))
     .sort((left, right) => {
       const leftRate = left.streak?.opportunities ? left.streak.continuationRate : -1;
       const rightRate = right.streak?.opportunities ? right.streak.continuationRate : -1;
@@ -219,6 +228,9 @@ function renderPredictionAlerts() {
       <small>${streakText(streak)} · 續連樣本 ${sample} · 最長莊${streak.longest?.BANKER || 0}/閒${streak.longest?.PLAYER || 0}</small>
     </button>`;
   }).join("");
+  if (!tables.length) {
+    $("predictionAlerts").innerHTML = `<div class="alert-empty">目前沒有 70% 以上連勝率</div>`;
+  }
 }
 
 function roadDot(point, derived) {
@@ -281,6 +293,7 @@ function renderStatus() {
   const validation = state.status?.validation || {};
   const validationSummary = validation.summary || {};
   const modelSelection = state.status?.modelSelection || {};
+  const report = monitor.report || {};
   const validationValue = validationSummary.error || validationSummary.warn
     ? `${validationSummary.error || 0}衝突 / ${validationSummary.warn || 0}警告`
     : "正常";
@@ -294,6 +307,8 @@ function renderStatus() {
     ["最新資料", monitor.latestRound?.insertedAt ? fmtTime(monitor.latestRound.insertedAt) : ""],
     ["檢查", monitor.lastCheckAt ? fmtTime(monitor.lastCheckAt) : ""],
     ["資料校驗", validationValue],
+    ["每分鐘報告", report.generatedAt ? (report.hasIssues ? `${report.errorTables || 0}錯 / ${report.warnTables || 0}警` : "無錯漏") : "等待"],
+    ["報告時間", report.generatedAt ? fmtTime(report.generatedAt) : ""],
     ["自訓模型", modelSelection.activeModel || "等待"],
     ["健康", healthLabel(scraper.health)],
     ["新增", scraper.insertedTotal || 0],
@@ -417,7 +432,7 @@ bindEvents();
 initConfig()
   .then(async () => {
     await refresh();
-    setInterval(refresh, 15000);
+    setInterval(refresh, REFRESH_INTERVAL_MS);
   })
   .catch((error) => {
     $("connectionText").textContent = `初始化失敗 · ${error.message}`;
