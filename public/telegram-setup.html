@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0d0f13">
+    <title>Telegram 結果群設定教學 - Baijia Pro</title>
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <style>
+      :root {
+        --bg: #0d0f13;
+        --panel: #151922;
+        --panel-2: #1c212b;
+        --line: #2b313d;
+        --text: #f3f5f7;
+        --muted: #9da6b5;
+        --banker: #e04444;
+        --player: #2f7ee6;
+        --tie: #27a66a;
+        --amber: #d49d2b;
+        color-scheme: dark;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-width: 320px;
+        font-family: Inter, "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      a {
+        color: #7fb4ff;
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 14px 18px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(13, 15, 19, 0.96);
+        backdrop-filter: blur(12px);
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+      }
+
+      .brand-mark {
+        display: grid;
+        width: 36px;
+        height: 36px;
+        place-items: center;
+        border-radius: 8px;
+        background: linear-gradient(135deg, var(--banker), var(--player));
+        font-weight: 800;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: 18px;
+      }
+
+      .brand p {
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .nav-link {
+        display: inline-flex;
+        min-height: 36px;
+        align-items: center;
+        padding: 0 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel-2);
+        color: var(--text);
+        font-size: 13px;
+        white-space: nowrap;
+      }
+
+      main {
+        max-width: 1040px;
+        margin: 0 auto;
+        padding: 28px 18px 56px;
+      }
+
+      .intro {
+        display: grid;
+        gap: 12px;
+        padding-bottom: 22px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .intro h2 {
+        font-size: clamp(26px, 4vw, 42px);
+        line-height: 1.14;
+        letter-spacing: 0;
+      }
+
+      .intro p {
+        max-width: 760px;
+        color: var(--muted);
+        line-height: 1.8;
+      }
+
+      .notice {
+        margin-top: 8px;
+        padding: 12px 14px;
+        border: 1px solid rgba(212, 157, 43, 0.35);
+        border-radius: 8px;
+        background: rgba(212, 157, 43, 0.1);
+        color: #f1d38a;
+        line-height: 1.7;
+      }
+
+      .section {
+        padding: 26px 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .section h2 {
+        margin-bottom: 14px;
+        font-size: 22px;
+      }
+
+      .section h3 {
+        margin: 18px 0 8px;
+        font-size: 16px;
+      }
+
+      .section p,
+      .section li {
+        color: var(--muted);
+        line-height: 1.8;
+      }
+
+      .steps {
+        display: grid;
+        gap: 14px;
+        counter-reset: step;
+      }
+
+      .step {
+        display: grid;
+        grid-template-columns: 38px minmax(0, 1fr);
+        gap: 12px;
+        align-items: start;
+        padding: 14px 0;
+      }
+
+      .step::before {
+        counter-increment: step;
+        content: counter(step);
+        display: grid;
+        width: 32px;
+        height: 32px;
+        place-items: center;
+        border-radius: 50%;
+        background: var(--player);
+        color: white;
+        font-weight: 800;
+      }
+
+      .step strong {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--text);
+      }
+
+      code {
+        padding: 2px 5px;
+        border-radius: 5px;
+        background: #0f1218;
+        color: #d8e7ff;
+      }
+
+      pre {
+        overflow-x: auto;
+        margin: 12px 0 0;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #0a0d12;
+        color: #e9edf4;
+        line-height: 1.6;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .panel {
+        border-left: 3px solid var(--player);
+        padding: 4px 0 4px 14px;
+      }
+
+      .panel.warn {
+        border-left-color: var(--amber);
+      }
+
+      .panel.good {
+        border-left-color: var(--tie);
+      }
+
+      .status-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+        font-size: 14px;
+      }
+
+      .status-table th,
+      .status-table td {
+        padding: 10px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      .status-table th {
+        color: var(--text);
+      }
+
+      .status-table td {
+        color: var(--muted);
+      }
+
+      .footer {
+        padding-top: 24px;
+        color: var(--muted);
+        line-height: 1.8;
+      }
+
+      @media (max-width: 760px) {
+        .topbar {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .grid {
+          grid-template-columns: 1fr;
+        }
+
+        .step {
+          grid-template-columns: 1fr;
+        }
+
+        .step::before {
+          width: 30px;
+          height: 30px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">B</span>
+        <div>
+          <h1>Baijia Pro</h1>
+          <p>Telegram 結果群零基礎設定教學</p>
+        </div>
+      </div>
+      <a class="nav-link" href="/">返回首頁</a>
+    </header>
+
+    <main>
+      <section class="intro">
+        <h2>把 60% 以上勝率提醒推送到 Telegram「結果群」</h2>
+        <p>
+          這份教學從零開始，帶你建立 Telegram Bot、建立群組、把 Bot 加進群組，最後把
+          Bot Token 填進 Baijia Pro 的 <code>.env</code>。完成後，首頁顯示的 60% 以上提醒會自動傳到 Telegram。
+        </p>
+        <div class="notice">
+          Telegram Bot API 不能由程式直接幫你在手機建立私人群組。群組必須先由你在 Telegram 內建立，
+          Baijia Pro 會在 Bot 加入群組後自動偵測並推送提醒。
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>你需要準備什麼</h2>
+        <div class="grid">
+          <div class="panel good">
+            <h3>手機 Telegram</h3>
+            <p>確認你可以正常登入 Telegram，並可以建立群組與搜尋 BotFather。</p>
+          </div>
+          <div class="panel">
+            <h3>Baijia Pro 電腦</h3>
+            <p>目前專案位置是 <code>C:\Users\Administrator\Baijia</code>，本機首頁是 <code>http://localhost:4173/</code>。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>第一部分：用 BotFather 建立 Bot</h2>
+        <div class="steps">
+          <div class="step">
+            <div>
+              <strong>打開 Telegram 並搜尋 BotFather</strong>
+              <p>在 Telegram 搜尋列輸入 <code>BotFather</code>，選擇有 Telegram 官方驗證標記的 BotFather。</p>
+            </div>
+          </div>
+          <div class="step">
+            <div>
+              <strong>開始建立 Bot</strong>
+              <p>進入 BotFather 對話後，輸入 <code>/start</code>，再輸入 <code>/newbot</code>。</p>
+            </div>
+          </div>
+          <div class="step">
+            <div>
+              <strong>輸入 Bot 顯示名稱</strong>
+              <p>BotFather 會要求你輸入名稱。可以輸入 <code>Baijia 結果提醒</code>。</p>
+            </div>
+          </div>
+          <div class="step">
+            <div>
+              <strong>輸入 Bot 帳號名稱</strong>
+              <p>帳號名稱必須以 <code>bot</code> 結尾，例如 <code>baijia_result_7708_bot</code>。如果名稱被使用，換一個即可。</p>
+            </div>
+          </div>
+          <div class="step">
+            <div>
+              <strong>複製 Token</strong>
+              <p>成功後 BotFather 會給你一串 Token，格式通常像 <code>123456789:AA...</code>。這串就是 <code>TELEGRAM_BOT_TOKEN</code>。</p>
+              <div class="notice">Token 等同 Bot 密碼，不要貼到公開聊天、GitHub、截圖或直播畫面。</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>第二部分：建立 Telegram 群組「結果群」</h2>
+        <div class="steps">
+          <div class="step">
+            <div>
+              <strong>在 Telegram 建立新群組</strong>
+              <p>手機 Telegram 點選新增訊息，選擇「新增群組」。</p>
+            </div>
+          </div>
+          <div class="step">
+            <div>
+              <strong>群組名稱輸入結果群</strong>
+              <p>群組名稱請輸入 <code>結果群</code>。如果你改成其他名稱，也要同步修改 <code>TELEGRAM_GROUP_NAME</code>。</p>
+            </div>
+          </div>
+          <div class="step">
+            <div>
+              <strong>把剛建立的 Bot 加入群組</strong>
+              <p>進入群組資訊，選擇新增成員，搜尋你剛建立的 Bot 帳號，加入群組。</p>
+            </div>
+          </div>
+          <div class="step">
+            <div>
+              <strong>在群組傳一句話</strong>
+              <p>傳送 <code>測試</code> 或任意文字。這一步很重要，Baijia Pro 才能用 Bot API 找到這個群組。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>第三部分：把 Token 填進 .env</h2>
+        <p>在 Windows 開啟檔案：</p>
+        <pre><code>C:\Users\Administrator\Baijia\.env</code></pre>
+        <p>在檔案底部加入或修改以下內容：</p>
+        <pre><code>TELEGRAM_ENABLED=true
+TELEGRAM_BOT_TOKEN=把BotFather給你的Token貼在這裡
+TELEGRAM_GROUP_NAME=結果群
+ALERT_MIN_RATE=0.6
+ALERT_MIN_SAMPLE=30</code></pre>
+        <div class="notice">
+          <code>ALERT_MIN_RATE=0.6</code> 代表 60% 以上才推送。<code>ALERT_MIN_SAMPLE=30</code>
+          代表樣本數至少 30，避免小樣本造成假提醒。
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>第四部分：重啟 Baijia Pro</h2>
+        <p>修改 <code>.env</code> 後要重啟背景服務。打開 PowerShell，依序輸入：</p>
+        <pre><code>cd C:\Users\Administrator\Baijia
+if (Test-Path data\daemon.pid) { $pidNum = Get-Content data\daemon.pid; Stop-Process -Id $pidNum }
+powershell -ExecutionPolicy Bypass -File scripts\start-24h.ps1</code></pre>
+        <p>等待 10 到 20 秒後，打開首頁：</p>
+        <pre><code>http://localhost:4173/</code></pre>
+      </section>
+
+      <section class="section">
+        <h2>第五部分：確認是否成功</h2>
+        <table class="status-table">
+          <thead>
+            <tr>
+              <th>你看到的狀態</th>
+              <th>意思</th>
+              <th>處理方式</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>Telegram WATCHING</code></td>
+              <td>設定成功，正在等待符合 60% 條件的提醒。</td>
+              <td>不用操作。</td>
+            </tr>
+            <tr>
+              <td><code>Telegram ALERT_READY</code></td>
+              <td>目前有符合條件的提醒，系統會推送到 Telegram。</td>
+              <td>檢查「結果群」是否收到訊息。</td>
+            </tr>
+            <tr>
+              <td><code>WAITING_BOT_TOKEN</code></td>
+              <td><code>.env</code> 沒有填 Bot Token。</td>
+              <td>回到第三部分，把 <code>TELEGRAM_BOT_TOKEN</code> 補上。</td>
+            </tr>
+            <tr>
+              <td><code>WAITING_GROUP</code></td>
+              <td>Bot 尚未找到名稱為「結果群」的群組。</td>
+              <td>確認群組名稱、Bot 是否已加入群組，並在群組傳一句話。</td>
+            </tr>
+            <tr>
+              <td><code>Telegram ERROR</code></td>
+              <td>Token 錯誤、網路問題、或 Bot 沒有權限。</td>
+              <td>檢查 Token 是否完整，並確認 Bot 在群組內。</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="section">
+        <h2>如果自動找不到群組 ID</h2>
+        <p>通常只要 Bot 加入「結果群」並傳一句話，系統會自動找到群組。如果找不到，可以手動取得 <code>TELEGRAM_CHAT_ID</code>。</p>
+        <div class="steps">
+          <div class="step">
+            <div>
+              <strong>用瀏覽器打開 getUpdates</strong>
+              <p>把下面網址的 <code>你的BOT_TOKEN</code> 換成 BotFather 給你的 token：</p>
+              <pre><code>https://api.telegram.org/bot你的BOT_TOKEN/getUpdates</code></pre>
+            </div>
+          </div>
+          <div class="step">
+            <div>
+              <strong>找到 title 是結果群 的 chat id</strong>
+              <p>頁面裡會看到類似內容：</p>
+              <pre><code>"chat":{"id":-1001234567890,"title":"結果群"}</code></pre>
+            </div>
+          </div>
+          <div class="step">
+            <div>
+              <strong>把 id 填回 .env</strong>
+              <pre><code>TELEGRAM_CHAT_ID=-1001234567890</code></pre>
+              <p>儲存後重啟 Baijia Pro。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>推送規則</h2>
+        <div class="grid">
+          <div class="panel good">
+            <h3>會推送</h3>
+            <p>桌台連勝率 60% 以上、樣本數至少 30、該桌不是 ERROR，且提醒內容有變化。</p>
+          </div>
+          <div class="panel warn">
+            <h3>不會推送</h3>
+            <p>低於 60%、樣本不足、資料校驗 ERROR、或提醒內容跟上一則完全相同。</p>
+          </div>
+        </div>
+        <p style="margin-top: 14px;">
+          Telegram 訊息會包含桌號、莊/閒連勝方向、連勝率、樣本數、目前最新局。這是統計提醒，不保證下一局結果。
+        </p>
+      </section>
+
+      <section class="section">
+        <h2>快速檢查網址</h2>
+        <p>設定後可用這些網址確認狀態：</p>
+        <pre><code>http://localhost:4173/
+http://localhost:4173/api/alerts
+http://localhost:4173/api/monitor</code></pre>
+      </section>
+
+      <p class="footer">
+        完成以上設定後，Baijia Pro 會 24 小時監控資料。只要首頁出現符合 60% 條件的提醒，
+        Telegram「結果群」就會收到同步通知。
+      </p>
+    </main>
+  </body>
+</html>

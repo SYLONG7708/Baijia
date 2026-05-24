@@ -86,6 +86,12 @@ Baijia can push the same homepage streak alerts to a Telegram group. The alert r
 
 Setup:
 
+Zero-basics web guide:
+
+```text
+http://localhost:4173/telegram-setup.html
+```
+
 1. Create a Telegram bot with BotFather and copy the bot token.
 2. Create a Telegram group named `結果群`.
 3. Add the bot to that group and send one message in the group.
