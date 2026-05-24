@@ -91,7 +91,8 @@ function cleanPredictionState(input = {}) {
   return {
     pending: input.pending && typeof input.pending === "object" ? input.pending : {},
     streaks: input.streaks && typeof input.streaks === "object" ? input.streaks : {},
-    sentSignatures: input.sentSignatures && typeof input.sentSignatures === "object" ? input.sentSignatures : {}
+    sentSignatures: input.sentSignatures && typeof input.sentSignatures === "object" ? input.sentSignatures : {},
+    alertSetSignature: typeof input.alertSetSignature === "string" ? input.alertSetSignature : ""
   };
 }
 
@@ -212,15 +213,18 @@ async function tick() {
 
     const { canonical, validation, alerts } = buildAlerts();
     const pushedAlerts = [];
-    for (const alert of alerts) {
-      const signature = alertSignature([alert]);
-      if (!signature || predictionState.sentSignatures[alert.code] === signature) continue;
-      await sendAlert(alert, predictionState);
-      registerPendingPrediction(predictionState, alert);
-      predictionState.sentSignatures[alert.code] = signature;
-      lastSignature = signature;
-      pushedAlerts.push(alert);
-      logEvent("info", "telegram alert sent", { code: alert.code, percent: alert.continuationPercent });
+    const alertSetSignature = alertSignature(alerts);
+    if (alerts.length && alertSetSignature && predictionState.alertSetSignature !== alertSetSignature) {
+      for (const alert of alerts) {
+        const signature = alertSignature([alert]);
+        await sendAlert(alert, predictionState);
+        registerPendingPrediction(predictionState, alert);
+        predictionState.sentSignatures[alert.code] = signature;
+        pushedAlerts.push(alert);
+        logEvent("info", "telegram alert sent", { code: alert.code, percent: alert.continuationPercent });
+      }
+      predictionState.alertSetSignature = alertSetSignature;
+      lastSignature = alertSetSignature;
     }
 
     if (pushedAlerts.length || predictionStateChanged) {
