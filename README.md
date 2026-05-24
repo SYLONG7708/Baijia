@@ -76,6 +76,27 @@ The task starts `src/daemon.js`, which supervises:
 
 Logs are written to `logs\server.log`, `logs\server.err`, `logs\scraper.log`, and `logs\scraper.err`. Data is stored in `data\baijia.sqlite`.
 
+## Oracle Cloud Always Free
+
+For true 24-hour recording after the local PC is off, deploy Baijia Pro to an Oracle Cloud Always Free Ubuntu VM:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/SYLONG7708/Baijia/main/scripts/install-oracle-ubuntu.sh | bash
+```
+
+Then edit the VM-only environment file:
+
+```bash
+sudo nano /etc/baijia/baijia.env
+sudo systemctl restart baijia-pro
+```
+
+Full zero-basics guide:
+
+```text
+docs/oracle-cloud-always-free.md
+```
+
 ## Telegram Alerts
 
 Baijia can push the same homepage average-score alerts to a Telegram group. The alert rule is:

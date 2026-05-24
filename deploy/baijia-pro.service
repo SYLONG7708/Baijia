@@ -1,0 +1,25 @@
+[Unit]
+Description=Baijia Pro 24H recorder
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=baijia
+Group=baijia
+WorkingDirectory=/opt/baijia
+Environment=NODE_ENV=production
+EnvironmentFile=-/etc/baijia/baijia.env
+ExecStart=/usr/bin/node src/daemon.js
+Restart=always
+RestartSec=10
+KillSignal=SIGTERM
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ReadWritePaths=/opt/baijia /etc/baijia /var/log/baijia
+StandardOutput=append:/var/log/baijia/baijia.log
+StandardError=append:/var/log/baijia/baijia.err
+
+[Install]
+WantedBy=multi-user.target
