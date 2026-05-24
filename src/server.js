@@ -104,8 +104,11 @@ function snapshotLooksLikeOlderConflictingShoe(liveRounds, snapshotRounds) {
   if (!snapshotRounds.length || !liveRounds.length) return false;
   if (maxId(snapshotRounds) >= maxId(liveRounds)) return false;
   if (minRoundNo(liveRounds) > 3 || minRoundNo(snapshotRounds) > 3) return false;
-  if (maxRoundNo(liveRounds) < 5) return false;
   const stats = overlappingSnapshotConflictStats(liveRounds, snapshotRounds);
+  if (stats.overlap >= 1 && stats.conflicts === stats.overlap) {
+    return true;
+  }
+  if (maxRoundNo(liveRounds) < 5) return false;
   if (stats.overlap < 8) return false;
   return stats.conflicts >= Math.max(5, Math.floor(stats.overlap * 0.35));
 }
