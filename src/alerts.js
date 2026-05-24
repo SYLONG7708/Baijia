@@ -5,6 +5,8 @@ const labels = {
 };
 
 const DEFAULT_ALERT_LIMIT = 2;
+const ALERT_ALLOW_WARN_TABLES = ["1", "true", "yes", "on"]
+  .includes(String(process.env.ALERT_ALLOW_WARN_TABLES || "").toLowerCase());
 
 const outcomeShort = {
   BANKER: "B",
@@ -379,7 +381,7 @@ function buildStreakAlerts(summary, validation, options = {}) {
       return table.total > 0
         && Number(table.scoreRate || 0) >= minRate
         && Number(table.sampleSize || 0) >= minSample
-        && table.severity !== "ERROR";
+        && (ALERT_ALLOW_WARN_TABLES ? table.severity !== "ERROR" : table.severity === "OK");
     })
     .sort((left, right) => {
       if (right.scoreRate !== left.scoreRate) return right.scoreRate - left.scoreRate;

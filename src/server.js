@@ -445,6 +445,7 @@ async function handleApi(req, res) {
     return sendJson(res, 200, {
       monitor: status.monitor || {},
       monitorProcess: status.monitorProcess || {},
+      qualityWatchdog: status.qualityWatchdog || {},
       trainer: status.trainer || {},
       trainerProcess: status.trainerProcess || {},
       telegram: status.telegram || {},

@@ -85,8 +85,8 @@ function buildMonitorReport(monitor, validation, canonical) {
     severity: table.severity,
     currentRoundNo: table.currentRoundNo,
     latestRoundNo: table.latestRound?.roundNo || 0,
-    missingCount: table.missingRoundNos?.length || 0,
-    snapshotOnlyCount: table.snapshotOnlyRoundNos?.length || 0,
+    missingCount: table.unresolvedMissingRoundNos?.length ?? table.missingRoundNos?.length ?? 0,
+    snapshotOnlyCount: table.actionableSnapshotOnlyRoundNos?.length ?? table.snapshotOnlyRoundNos?.length ?? 0,
     snapshotConflictCount: table.snapshotConflicts?.length || 0,
     shiftedCount: table.snapshotShiftedMatches?.length || 0,
     conflictCount: table.conflicts?.length || 0

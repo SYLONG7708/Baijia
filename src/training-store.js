@@ -14,7 +14,7 @@ function openTrainingDatabase() {
   db.exec(`
     PRAGMA journal_mode = WAL;
     PRAGMA synchronous = NORMAL;
-    PRAGMA busy_timeout = 10000;
+    PRAGMA busy_timeout = 30000;
 
     CREATE TABLE IF NOT EXISTS training_runs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -77,7 +77,7 @@ function isLockedError(error) {
     || (error?.code === "ERR_SQLITE_ERROR" && error?.errstr === "database is locked");
 }
 
-function runWithRetry(statement, args = [], attempts = 8) {
+function runWithRetry(statement, args = [], attempts = 40) {
   let lastError;
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
@@ -85,7 +85,7 @@ function runWithRetry(statement, args = [], attempts = 8) {
     } catch (error) {
       if (!isLockedError(error)) throw error;
       lastError = error;
-      sleepMs(75 * (attempt + 1));
+      sleepMs(Math.min(1000, 100 * (attempt + 1)));
     }
   }
   throw lastError;

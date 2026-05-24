@@ -11,6 +11,17 @@ const children = new Map();
 const stopping = new Set();
 const daemonPidPath = path.join(ROOT, "data", "daemon.pid");
 const MONITOR_WATCHDOG_MS = Math.max(120_000, Number(process.env.MONITOR_WATCHDOG_MS || 3 * 60_000));
+const QUALITY_WATCHDOG_MS = Math.max(60_000, Number(process.env.QUALITY_WATCHDOG_MS || 2 * 60_000));
+const QUALITY_WATCHDOG_WARN_TABLES = Math.max(1, Number(process.env.QUALITY_WATCHDOG_WARN_TABLES || 6));
+const QUALITY_WATCHDOG_COOLDOWN_MS = Math.max(
+  QUALITY_WATCHDOG_MS,
+  Number(process.env.QUALITY_WATCHDOG_COOLDOWN_MS || 5 * 60_000)
+);
+
+let qualityIssueStartedAt = 0;
+let streamIssueStartedAt = 0;
+let lastScraperWatchdogRestartAt = 0;
+let lastScraperWatchdogReason = "";
 
 function logStream(name, ext) {
   return fs.createWriteStream(path.join(LOG_DIR, `${name}.${ext}`), { flags: "a" });
@@ -95,9 +106,77 @@ function watchdog() {
   }
 }
 
+function scraperQualityWatchdog() {
+  const scraperChild = children.get("scraper");
+  if (!scraperChild || stopping.has("scraper")) return;
+
+  const status = getStatus();
+  const monitor = status.monitor || {};
+  const validation = status.validation || {};
+  const scraper = status.scraper || {};
+  const warnTables = Number(validation.summary?.warn ?? monitor.report?.warnTables ?? 0);
+  const errorTables = Number(validation.summary?.error ?? monitor.report?.errorTables ?? 0);
+  const rateLimited = monitor.state === "RATE_LIMITED" || scraper.health === "RATE_LIMITED";
+  const streamTrouble = !rateLimited && (
+    monitor.state === "NO_WEBSOCKET"
+    || monitor.state === "STALE_CRITICAL"
+    || scraper.health === "NO_WEBSOCKET"
+  );
+  const qualityTrouble = !rateLimited && (errorTables > 0 || warnTables >= QUALITY_WATCHDOG_WARN_TABLES);
+  const now = Date.now();
+
+  if (streamTrouble) {
+    if (!streamIssueStartedAt) streamIssueStartedAt = now;
+  } else {
+    streamIssueStartedAt = 0;
+  }
+
+  if (qualityTrouble) {
+    if (!qualityIssueStartedAt) qualityIssueStartedAt = now;
+  } else {
+    qualityIssueStartedAt = 0;
+  }
+
+  const streamIssueMs = streamIssueStartedAt ? now - streamIssueStartedAt : 0;
+  const qualityIssueMs = qualityIssueStartedAt ? now - qualityIssueStartedAt : 0;
+  let restartReason = "";
+  if (streamIssueMs >= QUALITY_WATCHDOG_MS) {
+    restartReason = `stream state ${monitor.state || scraper.health || "unknown"} persisted for ${Math.round(streamIssueMs / 1000)} seconds`;
+  } else if (qualityIssueMs >= QUALITY_WATCHDOG_MS) {
+    restartReason = `validation ${errorTables} error / ${warnTables} warn tables persisted for ${Math.round(qualityIssueMs / 1000)} seconds`;
+  }
+
+  if (restartReason && now - lastScraperWatchdogRestartAt >= QUALITY_WATCHDOG_COOLDOWN_MS) {
+    lastScraperWatchdogRestartAt = now;
+    lastScraperWatchdogReason = restartReason;
+    qualityIssueStartedAt = 0;
+    streamIssueStartedAt = 0;
+    restartChild("scraper", restartReason);
+  }
+
+  setStatus("qualityWatchdog", {
+    running: true,
+    warnTableThreshold: QUALITY_WATCHDOG_WARN_TABLES,
+    triggerSeconds: Math.round(QUALITY_WATCHDOG_MS / 1000),
+    cooldownSeconds: Math.round(QUALITY_WATCHDOG_COOLDOWN_MS / 1000),
+    rateLimited,
+    warnTables,
+    errorTables,
+    streamState: monitor.state || scraper.health || "",
+    qualityIssueSeconds: Math.round(qualityIssueMs / 1000),
+    streamIssueSeconds: Math.round(streamIssueMs / 1000),
+    lastScraperRestartAt: lastScraperWatchdogRestartAt
+      ? new Date(lastScraperWatchdogRestartAt).toISOString()
+      : "",
+    lastScraperRestartReason: lastScraperWatchdogReason,
+    updatedAt: new Date().toISOString()
+  });
+}
+
 function heartbeat() {
   try {
     watchdog();
+    scraperQualityWatchdog();
   } catch (error) {
     logEvent("warn", "daemon watchdog check failed", error.stack || error.message);
   }

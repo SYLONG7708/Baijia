@@ -326,6 +326,7 @@ function renderStatus() {
   const daemon = state.status?.daemon || {};
   const monitor = state.status?.monitor || {};
   const monitorProcess = state.status?.monitorProcess || {};
+  const qualityWatchdog = state.status?.qualityWatchdog || {};
   const telegram = state.status?.telegram || {};
   const telegramProcess = state.status?.telegramProcess || {};
   const validation = state.status?.validation || {};
@@ -348,6 +349,8 @@ function renderStatus() {
     ["資料校驗", validationValue],
     ["隔離修正", canonical.quarantinedRounds !== undefined ? `${canonical.quarantinedRounds || 0}筆 / ${canonical.conflictSlots || 0}槽` : "等待"],
     ["每分鐘報告", report.generatedAt ? (report.hasIssues ? `${report.errorTables || 0}錯 / ${report.warnTables || 0}警` : "無錯漏") : "等待"],
+    ["自動修復", qualityWatchdog.running ? `${qualityWatchdog.warnTables || 0}警 / ${qualityWatchdog.errorTables || 0}錯` : "等待"],
+    ["修復重啟", qualityWatchdog.lastScraperRestartAt ? fmtTime(qualityWatchdog.lastScraperRestartAt) : "無"],
     ["報告時間", report.generatedAt ? fmtTime(report.generatedAt) : ""],
     ["Telegram", telegram.running || telegramProcess.running ? (telegram.configured ? `${telegram.state || "運行"} ${telegram.lastAlertCount || 0}筆` : telegram.state || "等待設定") : "待命"],
     ["自訓模型", modelSelection.activeModel || "等待"],

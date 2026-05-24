@@ -237,6 +237,17 @@ function snapshotComparison(snapshotRows, liveRows) {
   };
 }
 
+function actionableSnapshotOnlyRoundNos(snapshotOnlyRoundNos, liveRows) {
+  if (!liveRows.length) return snapshotOnlyRoundNos;
+  const liveFirst = minRoundNo(liveRows);
+  const liveMax = maxRoundNo(liveRows);
+  return snapshotOnlyRoundNos.filter((roundNo) => {
+    const beforeLiveHistory = roundNo < liveFirst;
+    const slightlyAhead = roundNo > liveMax && roundNo <= liveMax + 2;
+    return !beforeLiveHistory && !slightlyAhead;
+  });
+}
+
 function tableValidation(rounds, table, canonicalView) {
   const canonicalRows = canonicalView.canonicalRounds.filter((round) => round.tableCode === table.code);
   const quarantinedRows = canonicalView.quarantinedRounds.filter((round) => round.tableCode === table.code);
@@ -264,6 +275,11 @@ function tableValidation(rounds, table, canonicalView) {
   const missing = missingRoundNos(selectedCurrent);
   const comparableSnapshots = snapshotOlderShoe || snapshotStaleBehind ? [] : currentSnapshots;
   const snapshotCheck = snapshotComparison(comparableSnapshots, snapshotNewerShoe ? [] : selectedCurrent);
+  const snapshotOnlySet = new Set(snapshotCheck.snapshotOnlyRoundNos);
+  const snapshotFillRoundNos = missing.filter((roundNo) => snapshotOnlySet.has(roundNo));
+  const unresolvedMissing = missing.filter((roundNo) => !snapshotOnlySet.has(roundNo));
+  const actionableSnapshotOnly = actionableSnapshotOnlyRoundNos(snapshotCheck.snapshotOnlyRoundNos, selectedCurrent)
+    .filter((roundNo) => !snapshotFillRoundNos.includes(roundNo));
   const nonLive = selectedCurrent
     .filter((round) => !LIVE_EVENTS.has(round.sourceEvent))
     .map((round) => ({
@@ -275,8 +291,8 @@ function tableValidation(rounds, table, canonicalView) {
   const latest = selectedCurrent.at(-1) || reliableRows.at(-1) || null;
 
   const severity = conflicts.length || snapshotCheck.snapshotConflicts.length ? "ERROR"
-    : missing.length
-      || snapshotCheck.snapshotOnlyRoundNos.length
+    : unresolvedMissing.length
+      || actionableSnapshotOnly.length
       || snapshotCheck.snapshotShiftedMatches.length
       || nonLive.length
       || currentQuarantinedRows.length ? "WARN"
@@ -300,6 +316,8 @@ function tableValidation(rounds, table, canonicalView) {
       }
       : null,
     missingRoundNos: missing,
+    unresolvedMissingRoundNos: unresolvedMissing,
+    snapshotFillRoundNos,
     snapshotRounds: snapshotCheck.snapshotRounds,
     snapshotCurrentRoundNo: snapshotCheck.snapshotCurrentRoundNo,
     snapshotLatest: snapshotCheck.snapshotLatest,
@@ -308,6 +326,8 @@ function tableValidation(rounds, table, canonicalView) {
     snapshotOlderConflictingShoe,
     snapshotStaleBehind,
     snapshotOnlyRoundNos: snapshotCheck.snapshotOnlyRoundNos,
+    actionableSnapshotOnlyRoundNos: actionableSnapshotOnly,
+    ignoredSnapshotOnlyRoundNos: snapshotCheck.snapshotOnlyRoundNos.filter((roundNo) => !actionableSnapshotOnly.includes(roundNo)),
     snapshotConflicts: snapshotCheck.snapshotConflicts,
     snapshotShiftedMatches: snapshotCheck.snapshotShiftedMatches,
     nonLiveRoundNos: nonLive,
