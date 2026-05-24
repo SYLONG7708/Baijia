@@ -6,6 +6,7 @@ For a browser-based zero-basics registration walkthrough, open:
 
 ```text
 http://localhost:4173/oracle-register.html
+http://localhost:4173/oracle-vm-info.html
 ```
 
 ## Recommended Free VM
