@@ -19,7 +19,7 @@ function loadDotEnv(filePath = path.join(ROOT, ".env")) {
     ) {
       value = value.slice(1, -1);
     }
-    if (!process.env[key]) process.env[key] = value;
+    process.env[key] = value;
   }
 }
 
@@ -57,7 +57,7 @@ module.exports = {
   TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN || "",
   TELEGRAM_CHAT_ID: process.env.TELEGRAM_CHAT_ID || "",
   TELEGRAM_GROUP_NAME: process.env.TELEGRAM_GROUP_NAME || "結果群",
-  TELEGRAM_POLL_INTERVAL_MS: Math.max(2000, intEnv("TELEGRAM_POLL_INTERVAL_MS", 5000)),
+  TELEGRAM_POLL_INTERVAL_MS: Math.max(2000, intEnv("TELEGRAM_POLL_INTERVAL_MS", 2000)),
   CLOUD_WEBHOOK_URL: process.env.CLOUD_WEBHOOK_URL || "",
   PUBLIC_API_BASE: process.env.PUBLIC_API_BASE || ""
 };

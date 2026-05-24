@@ -1,6 +1,7 @@
 const state = {
   config: null,
   summary: null,
+  alerts: null,
   selectedTable: "B601",
   selectedRoad: "bead",
   roads: null,
@@ -246,27 +247,18 @@ function renderTableHeader() {
 }
 
 function renderPredictionAlerts() {
-  const tables = [...(state.summary?.tables || [])]
-    .filter((table) => table.total > 0 && streakMeetsAlertThreshold(table))
-    .sort((left, right) => {
-      const leftRate = left.streak?.opportunities ? left.streak.continuationRate : -1;
-      const rightRate = right.streak?.opportunities ? right.streak.continuationRate : -1;
-      if (rightRate !== leftRate) return rightRate - leftRate;
-      return (right.streak?.length || 0) - (left.streak?.length || 0);
-    });
+  const alerts = [...(state.alerts?.alerts || [])];
 
-  $("predictionAlerts").innerHTML = tables.map((table) => {
-    const streak = table.streak || {};
-    const outcome = streak.outcome || "";
-    const sample = streak.opportunities ? `${streak.continuations}/${streak.opportunities}` : "樣本0";
-    return `<button class="alert-item" type="button" data-table="${table.code}">
-      <span class="alert-code">${table.code}</span>
-      <span class="chip ${outcomeClass[outcome]}">${labels[outcome] || "-"}</span>
-      <strong>${streakRateText(streak)}</strong>
-      <small>${streakText(streak)} · 續連樣本 ${sample} · 最長莊${streak.longest?.BANKER || 0}/閒${streak.longest?.PLAYER || 0}</small>
+  $("predictionAlerts").innerHTML = alerts.map((alert) => {
+    const sample = alert.opportunities ? `${alert.continuations}/${alert.opportunities}` : "樣本0";
+    return `<button class="alert-item" type="button" data-table="${alert.code}">
+      <span class="alert-code">${alert.category || ""}${alert.code}</span>
+      <span class="chip ${outcomeClass[alert.outcome]}">${alert.outcomeLabel || labels[alert.outcome] || "-"}</span>
+      <strong>${alert.continuationPercent}%</strong>
+      <small>${alert.outcomeLabel || ""}連${alert.length || 0} · 續連樣本 ${sample}</small>
     </button>`;
   }).join("");
-  if (!tables.length) {
+  if (!alerts.length) {
     $("predictionAlerts").innerHTML = `<div class="alert-empty">目前沒有符合 60% / 樣本30 / 無錯誤 的連勝率</div>`;
   }
 }
@@ -371,6 +363,7 @@ async function refresh() {
     const status = await fetchJson("/api/status");
     state.status = status.scraper || {};
     state.summary = status.summary;
+    state.alerts = status.alerts || null;
     renderTopMetrics();
     renderTableGroups();
     renderTableHeader();

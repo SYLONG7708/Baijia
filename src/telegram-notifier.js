@@ -90,7 +90,8 @@ function accuracyStars(percent) {
 function cleanPredictionState(input = {}) {
   return {
     pending: input.pending && typeof input.pending === "object" ? input.pending : {},
-    streaks: input.streaks && typeof input.streaks === "object" ? input.streaks : {}
+    streaks: input.streaks && typeof input.streaks === "object" ? input.streaks : {},
+    sentSignatures: input.sentSignatures && typeof input.sentSignatures === "object" ? input.sentSignatures : {}
   };
 }
 
@@ -210,27 +211,32 @@ async function tick() {
     lastLatestId = ingest.latestId || lastLatestId;
 
     const { canonical, validation, alerts } = buildAlerts();
-    const alert = alerts[0] || null;
-    const signature = alert ? alertSignature([alert]) : "";
-    let pushedAlert = null;
-    if (alert && signature && signature !== lastSignature) {
+    const pushedAlerts = [];
+    for (const alert of alerts) {
+      const signature = alertSignature([alert]);
+      if (!signature || predictionState.sentSignatures[alert.code] === signature) continue;
       await sendAlert(alert, predictionState);
       registerPendingPrediction(predictionState, alert);
-      savePredictionState(predictionState);
+      predictionState.sentSignatures[alert.code] = signature;
       lastSignature = signature;
-      pushedAlert = alert;
+      pushedAlerts.push(alert);
       logEvent("info", "telegram alert sent", { code: alert.code, percent: alert.continuationPercent });
-    } else if (predictionStateChanged) {
+    }
+
+    if (pushedAlerts.length || predictionStateChanged) {
       savePredictionState(predictionState);
     }
+    const lastPushedAlert = pushedAlerts.at(-1) || null;
 
     updateStatus({
       configured: true,
       state: alerts.length ? "ALERT_READY" : "WATCHING",
       lastCheckAt: new Date().toISOString(),
       lastAlertCount: alerts.length,
-      lastPushedTable: pushedAlert?.code || "",
-      lastPushedPercent: pushedAlert?.continuationPercent || 0,
+      lastPushedTable: lastPushedAlert?.code || "",
+      lastPushedTables: pushedAlerts.map((alert) => alert.code),
+      lastPushedCount: pushedAlerts.length,
+      lastPushedPercent: lastPushedAlert?.continuationPercent || 0,
       latestId: ingest.latestId,
       latestRound: ingest.latestRound
         ? {

@@ -433,6 +433,8 @@ async function handleApi(req, res) {
 
   if (req.method === "GET" && url.pathname === "/api/monitor") {
     const status = getStatus();
+    const allRounds = rounds();
+    const validation = buildValidation(allRounds);
     return sendJson(res, 200, {
       monitor: status.monitor || {},
       monitorProcess: status.monitorProcess || {},
@@ -441,7 +443,7 @@ async function handleApi(req, res) {
       telegram: status.telegram || {},
       telegramProcess: status.telegramProcess || {},
       scraper: status.scraper || {},
-      validation: status.validation || {},
+      validation,
       ingest: getRoundIngestSummary()
     });
   }
