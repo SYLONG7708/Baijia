@@ -78,10 +78,11 @@ Logs are written to `logs\server.log`, `logs\server.err`, `logs\scraper.log`, an
 
 ## Telegram Alerts
 
-Baijia can push the same homepage streak alerts to a Telegram group. The alert rule is:
+Baijia can push the same homepage average-score alerts to a Telegram group. The alert rule is:
 
-- streak continuation rate >= `ALERT_MIN_RATE` (default `0.6`)
-- sample opportunities >= `ALERT_MIN_SAMPLE` (default `30`)
+- weighted average score >= `ALERT_MIN_RATE` (default `0.6`)
+- score blends streak continuation/reversal, model prediction margin, table frequency, recent-six trend, card-shoe signal when available, and validation quality
+- signal sample size >= `ALERT_MIN_SAMPLE` (default `30`)
 - table validation is not `ERROR`
 
 Setup:

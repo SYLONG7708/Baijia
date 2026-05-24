@@ -18,8 +18,6 @@ const state = {
   configLoadError: ""
 };
 
-const STREAK_ALERT_MIN_RATE = 0.6;
-const STREAK_ALERT_MIN_SAMPLE = 30;
 const REFRESH_INTERVAL_MS = 60000;
 const STREAM_REFRESH_DEBOUNCE_MS = 1200;
 
@@ -157,13 +155,14 @@ function validationForTable(code) {
   return tables.find((table) => table.code === code) || null;
 }
 
-function streakMeetsAlertThreshold(table) {
-  const streak = table?.streak || {};
-  const validation = validationForTable(table?.code);
-  return Boolean(streak?.opportunities)
-    && Number(streak.continuationRate || 0) >= STREAK_ALERT_MIN_RATE
-    && Number(streak.opportunities || 0) >= STREAK_ALERT_MIN_SAMPLE
-    && validation?.severity !== "ERROR";
+function alertForTable(code) {
+  const alerts = state.alerts?.alerts || [];
+  return alerts.find((alert) => alert.code === code) || null;
+}
+
+function alertScoreText(alert) {
+  if (!alert) return "未達60";
+  return `${alert.scorePercent ?? alert.displayPercent ?? alert.continuationPercent ?? 0}%`;
 }
 
 function validationText(validation) {
@@ -197,17 +196,18 @@ function renderTopMetrics() {
 
 function renderTableGroups() {
   const summaryByCode = new Map((state.summary?.tables || []).map((table) => [table.code, table]));
+  const alertsByCode = new Map((state.alerts?.alerts || []).map((alert) => [alert.code, alert]));
   $("tableGroups").innerHTML = (state.config?.tableGroups || []).map((group) => {
     const buttons = group.codes.map((code) => {
       const table = summaryByCode.get(code) || {};
       const active = code === state.selectedTable ? " active" : "";
-      const streak = table.streak || {};
-      const streakInfo = streak.outcome && streakMeetsAlertThreshold({ ...table, code })
-        ? ` · ${streakText(streak)} ${streakRateText(streak)}`
+      const alert = alertsByCode.get(code);
+      const alertInfo = alert
+        ? ` · ${alert.outcomeLabel || labels[alert.outcome] || ""} ${alertScoreText(alert)}`
         : "";
       return `<button class="table-button${active}" type="button" data-table="${code}">
         <span class="table-code">${code}</span>
-        <span class="table-sub">${table.total || 0} 局 · ${table.lastOutcome ? labels[table.lastOutcome] : "無資料"}${streakInfo}</span>
+        <span class="table-sub">${table.total || 0} 局 · ${table.lastOutcome ? labels[table.lastOutcome] : "無資料"}${alertInfo}</span>
       </button>`;
     }).join("");
     return `<div>
@@ -223,6 +223,8 @@ function renderTableHeader() {
   const counts = table.counts || {};
   const streak = table.streak || {};
   const validation = currentValidation();
+  const alert = alertForTable(table.code);
+  const predictionLabel = labels[table.prediction?.pick] || "-";
   $("tableCategory").textContent = table.category || "";
   $("tableTitle").textContent = `${table.code} ${table.category || ""}`.trim();
   $("latestSix").replaceChildren(...(table.latestSix || []).map(chip));
@@ -232,8 +234,10 @@ function renderTableHeader() {
     ["莊率", pct(table.rates?.BANKER)],
     ["閒率", pct(table.rates?.PLAYER)],
     ["和率", pct(table.rates?.TIE)],
+    ["預測", predictionLabel],
+    ["平均分數", alertScoreText(alert)],
     ["連勝", streakText(streak)],
-    ["連勝率", streakRateText(streak)],
+    ["連勝延續", streakRateText(streak)],
     ["連勝樣本", `${streak.continuations || 0}/${streak.opportunities || 0}`],
     ["校驗", validationText(validation)],
     ["莊對", counts.bankerPair || 0],
@@ -250,16 +254,17 @@ function renderPredictionAlerts() {
   const alerts = [...(state.alerts?.alerts || [])];
 
   $("predictionAlerts").innerHTML = alerts.map((alert) => {
-    const sample = alert.opportunities ? `${alert.continuations}/${alert.opportunities}` : "樣本0";
+    const sample = alert.sampleSize || alert.opportunities || 0;
+    const streakSample = alert.opportunities ? `${alert.continuations}/${alert.opportunities}` : "0/0";
     return `<button class="alert-item" type="button" data-table="${alert.code}">
       <span class="alert-code">${alert.category || ""}${alert.code}</span>
       <span class="chip ${outcomeClass[alert.outcome]}">${alert.outcomeLabel || labels[alert.outcome] || "-"}</span>
-      <strong>${alert.continuationPercent}%</strong>
-      <small>${alert.outcomeLabel || ""}連${alert.length || 0} · 續連樣本 ${sample}</small>
+      <strong>${alertScoreText(alert)}</strong>
+      <small>模型 ${alert.predictionScorePercent ?? 0}% · 連勝訊號 ${alert.trendPercent ?? 0}% · 樣本 ${sample} · 續連 ${streakSample}</small>
     </button>`;
   }).join("");
   if (!alerts.length) {
-    $("predictionAlerts").innerHTML = `<div class="alert-empty">目前沒有符合 60% / 樣本30 / 無錯誤 的連勝率</div>`;
+    $("predictionAlerts").innerHTML = `<div class="alert-empty">目前沒有符合 60% / 樣本30 / 無錯誤 的平均分數</div>`;
   }
 }
 

@@ -12,6 +12,7 @@ const { buildCanonicalView } = require("./canonical");
 const { buildValidation } = require("./validation");
 const { buildStreakAlerts, alertSignature } = require("./alerts");
 const { tableMeta } = require("./tables");
+const { predictByModel } = require("./model-selection");
 
 let resolvedChatId = TELEGRAM_CHAT_ID;
 let lastLatestId = 0;
@@ -55,6 +56,7 @@ function updateStatus(patch) {
     chatIdConfigured: Boolean(resolvedChatId),
     chatId: maskChatId(resolvedChatId),
     thresholdPercent: Math.round(ALERT_MIN_RATE * 1000) / 10,
+    scoreLabel: "平均分數",
     minSample: ALERT_MIN_SAMPLE,
     intervalSeconds: Math.round(TELEGRAM_POLL_INTERVAL_MS / 1000),
     lastSentAt,
@@ -137,14 +139,19 @@ function successStreakForAlert(state, alert) {
   return Number(state.streaks?.[alert.code]?.successStreak || 0);
 }
 
+function alertDisplayPercent(alert) {
+  return Number(alert.scorePercent ?? alert.displayPercent ?? alert.continuationPercent ?? 0);
+}
+
 function formatMessage(alert, predictionState) {
-  const stars = accuracyStars(alert.continuationPercent);
+  const displayPercent = alertDisplayPercent(alert);
+  const stars = accuracyStars(displayPercent);
   const successStreak = successStreakForAlert(predictionState, alert);
   const lines = [
     `時間: ${new Date().toLocaleString("zh-TW", { hour12: false })}`,
     `${stars ? `${stars} ` : ""}${tableDisplayName(alert)}`,
     `預測: ${alert.outcomeLabel}`,
-    `準確度: ${alert.continuationPercent}%`
+    `平均分數: ${displayPercent}%`
   ];
   if (successStreak > 0) {
     lines.push(`🔥🔥🔥 連續命中 ${successStreak} 連勝 🔥🔥🔥`);
@@ -162,12 +169,28 @@ async function sendAlert(alert, predictionState) {
   lastSentAt = new Date().toISOString();
 }
 
+function summaryWithActiveModel(summary, rounds, status = {}) {
+  const activeModel = status.modelSelection?.activeModel || status.trainer?.activeModel || "";
+  if (!activeModel) return summary;
+  return {
+    ...summary,
+    activeModel,
+    prediction: predictByModel(rounds, "", activeModel),
+    tables: (summary.tables || []).map((table) => ({
+      ...table,
+      activeModel,
+      prediction: predictByModel(rounds, table.code, activeModel)
+    }))
+  };
+}
+
 function buildAlerts() {
   const allRounds = getAllRounds();
   const canonical = buildCanonicalView(allRounds);
   const reliable = canonical.predictionRounds.filter(isPredictionUsable);
   const validation = buildValidation(allRounds);
-  const summary = summarizeAll(reliable);
+  const status = getStatus();
+  const summary = summaryWithActiveModel(summarizeAll(reliable), reliable, status);
   return {
     canonical,
     validation,
@@ -221,7 +244,7 @@ async function tick() {
         registerPendingPrediction(predictionState, alert);
         predictionState.sentSignatures[alert.code] = signature;
         pushedAlerts.push(alert);
-        logEvent("info", "telegram alert sent", { code: alert.code, percent: alert.continuationPercent });
+        logEvent("info", "telegram alert sent", { code: alert.code, scorePercent: alertDisplayPercent(alert) });
       }
       predictionState.alertSetSignature = alertSetSignature;
       lastSignature = alertSetSignature;
@@ -240,7 +263,7 @@ async function tick() {
       lastPushedTable: lastPushedAlert?.code || "",
       lastPushedTables: pushedAlerts.map((alert) => alert.code),
       lastPushedCount: pushedAlerts.length,
-      lastPushedPercent: lastPushedAlert?.continuationPercent || 0,
+      lastPushedPercent: lastPushedAlert ? alertDisplayPercent(lastPushedAlert) : 0,
       latestId: ingest.latestId,
       latestRound: ingest.latestRound
         ? {
