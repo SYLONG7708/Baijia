@@ -73,6 +73,31 @@ Restart after editing:
 sudo systemctl restart baijia-pro
 ```
 
+## Move Current Local Records to Oracle
+
+On the Windows PC, create a consistent cloud backup:
+
+```powershell
+cd C:\Users\Administrator\Baijia
+node scripts\export-cloud-data.js
+Compress-Archive -Path dist\cloud-backups\baijia-data-YYYYMMDD-HHMMSS -DestinationPath dist\cloud-backups\baijia-data.zip
+```
+
+Upload it to the Oracle VM:
+
+```powershell
+scp dist\cloud-backups\baijia-data.zip ubuntu@YOUR_ORACLE_PUBLIC_IP:/tmp/baijia-data.zip
+```
+
+Restore it on the Oracle VM:
+
+```bash
+cd /opt/baijia
+sudo bash scripts/restore-cloud-data.sh /tmp/baijia-data.zip
+```
+
+The restore script stops `baijia-pro`, backs up the existing cloud data folder, restores SQLite files, then starts the service again.
+
 ## Check Status
 
 ```bash
