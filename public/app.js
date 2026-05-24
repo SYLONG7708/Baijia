@@ -6,11 +6,20 @@ const state = {
   roads: null,
   manualOutcome: "BANKER",
   apiBase: localStorage.getItem("baijia.apiBase") || "",
-  apiToken: localStorage.getItem("baijia.apiToken") || ""
+  apiToken: localStorage.getItem("baijia.apiToken") || "",
+  stream: null,
+  streamRetryTimer: null,
+  lastStreamLatestId: 0,
+  lastReportGeneratedAt: "",
+  refreshTimer: null,
+  refreshInFlight: false,
+  refreshQueued: false
 };
 
 const STREAK_ALERT_MIN_RATE = 0.7;
-const REFRESH_INTERVAL_MS = 5000;
+const STREAK_ALERT_MIN_SAMPLE = 30;
+const REFRESH_INTERVAL_MS = 60000;
+const STREAM_REFRESH_DEBOUNCE_MS = 1200;
 
 const labels = {
   BANKER: "莊",
@@ -118,13 +127,23 @@ function streakRateText(streak) {
   return `${streak.continuationPercent}%`;
 }
 
-function streakMeetsAlertThreshold(streak) {
-  return Boolean(streak?.opportunities) && Number(streak.continuationRate || 0) >= STREAK_ALERT_MIN_RATE;
-}
-
 function currentValidation() {
   const tables = state.status?.validation?.tables || [];
   return tables.find((table) => table.code === state.selectedTable) || null;
+}
+
+function validationForTable(code) {
+  const tables = state.status?.validation?.tables || [];
+  return tables.find((table) => table.code === code) || null;
+}
+
+function streakMeetsAlertThreshold(table) {
+  const streak = table?.streak || {};
+  const validation = validationForTable(table?.code);
+  return Boolean(streak?.opportunities)
+    && Number(streak.continuationRate || 0) >= STREAK_ALERT_MIN_RATE
+    && Number(streak.opportunities || 0) >= STREAK_ALERT_MIN_SAMPLE
+    && validation?.severity !== "ERROR";
 }
 
 function validationText(validation) {
@@ -163,7 +182,7 @@ function renderTableGroups() {
       const table = summaryByCode.get(code) || {};
       const active = code === state.selectedTable ? " active" : "";
       const streak = table.streak || {};
-      const streakInfo = streak.outcome && streakMeetsAlertThreshold(streak)
+      const streakInfo = streak.outcome && streakMeetsAlertThreshold({ ...table, code })
         ? ` · ${streakText(streak)} ${streakRateText(streak)}`
         : "";
       return `<button class="table-button${active}" type="button" data-table="${code}">
@@ -209,7 +228,7 @@ function renderTableHeader() {
 
 function renderPredictionAlerts() {
   const tables = [...(state.summary?.tables || [])]
-    .filter((table) => table.total > 0 && streakMeetsAlertThreshold(table.streak))
+    .filter((table) => table.total > 0 && streakMeetsAlertThreshold(table))
     .sort((left, right) => {
       const leftRate = left.streak?.opportunities ? left.streak.continuationRate : -1;
       const rightRate = right.streak?.opportunities ? right.streak.continuationRate : -1;
@@ -229,7 +248,7 @@ function renderPredictionAlerts() {
     </button>`;
   }).join("");
   if (!tables.length) {
-    $("predictionAlerts").innerHTML = `<div class="alert-empty">目前沒有 70% 以上連勝率</div>`;
+    $("predictionAlerts").innerHTML = `<div class="alert-empty">目前沒有符合 70% / 樣本30 / 無錯誤 的連勝率</div>`;
   }
 }
 
@@ -293,6 +312,7 @@ function renderStatus() {
   const validation = state.status?.validation || {};
   const validationSummary = validation.summary || {};
   const modelSelection = state.status?.modelSelection || {};
+  const canonical = state.status?.canonical || validation.canonical || {};
   const report = monitor.report || {};
   const validationValue = validationSummary.error || validationSummary.warn
     ? `${validationSummary.error || 0}衝突 / ${validationSummary.warn || 0}警告`
@@ -307,6 +327,7 @@ function renderStatus() {
     ["最新資料", monitor.latestRound?.insertedAt ? fmtTime(monitor.latestRound.insertedAt) : ""],
     ["檢查", monitor.lastCheckAt ? fmtTime(monitor.lastCheckAt) : ""],
     ["資料校驗", validationValue],
+    ["隔離修正", canonical.quarantinedRounds !== undefined ? `${canonical.quarantinedRounds || 0}筆 / ${canonical.conflictSlots || 0}槽` : "等待"],
     ["每分鐘報告", report.generatedAt ? (report.hasIssues ? `${report.errorTables || 0}錯 / ${report.warnTables || 0}警` : "無錯漏") : "等待"],
     ["報告時間", report.generatedAt ? fmtTime(report.generatedAt) : ""],
     ["自訓模型", modelSelection.activeModel || "等待"],
@@ -337,6 +358,63 @@ async function refresh() {
   } catch (error) {
     $("connectionText").textContent = `離線 · ${error.message}`;
   }
+}
+
+function scheduleRefresh(delay = STREAM_REFRESH_DEBOUNCE_MS) {
+  if (state.refreshTimer) clearTimeout(state.refreshTimer);
+  state.refreshTimer = setTimeout(async () => {
+    state.refreshTimer = null;
+    if (state.refreshInFlight) {
+      state.refreshQueued = true;
+      return;
+    }
+    state.refreshInFlight = true;
+    try {
+      await refresh();
+    } finally {
+      state.refreshInFlight = false;
+      if (state.refreshQueued) {
+        state.refreshQueued = false;
+        scheduleRefresh();
+      }
+    }
+  }, delay);
+}
+
+function closeStream() {
+  if (state.stream) {
+    state.stream.close();
+    state.stream = null;
+  }
+  if (state.streamRetryTimer) {
+    clearTimeout(state.streamRetryTimer);
+    state.streamRetryTimer = null;
+  }
+}
+
+function bindStream() {
+  if (!("EventSource" in window)) return;
+  closeStream();
+  const stream = new EventSource(apiUrl("/api/stream"));
+  state.stream = stream;
+  stream.addEventListener("status", (event) => {
+    let payload = {};
+    try {
+      payload = JSON.parse(event.data || "{}");
+    } catch {
+      return;
+    }
+    const latestChanged = payload.latestId && payload.latestId !== state.lastStreamLatestId;
+    const reportChanged = payload.monitor?.reportGeneratedAt
+      && payload.monitor.reportGeneratedAt !== state.lastReportGeneratedAt;
+    state.lastStreamLatestId = payload.latestId || state.lastStreamLatestId;
+    state.lastReportGeneratedAt = payload.monitor?.reportGeneratedAt || state.lastReportGeneratedAt;
+    if (latestChanged || reportChanged) scheduleRefresh();
+  });
+  stream.onerror = () => {
+    closeStream();
+    state.streamRetryTimer = setTimeout(bindStream, 10000);
+  };
 }
 
 async function initConfig() {
@@ -416,6 +494,7 @@ function bindEvents() {
     localStorage.setItem("baijia.apiBase", state.apiBase);
     localStorage.setItem("baijia.apiToken", state.apiToken);
     toast("已套用");
+    bindStream();
     await refresh();
   });
 
@@ -432,7 +511,8 @@ bindEvents();
 initConfig()
   .then(async () => {
     await refresh();
-    setInterval(refresh, REFRESH_INTERVAL_MS);
+    bindStream();
+    setInterval(() => scheduleRefresh(0), REFRESH_INTERVAL_MS);
   })
   .catch((error) => {
     $("connectionText").textContent = `初始化失敗 · ${error.message}`;

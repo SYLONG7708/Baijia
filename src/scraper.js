@@ -1,5 +1,8 @@
+const fs = require("node:fs");
+const path = require("node:path");
+const crypto = require("node:crypto");
 const { chromium } = require("playwright");
-const { ALLBET_URL, ALLBET_HEADLESS, ROOT } = require("./env");
+const { ALLBET_URL, ALLBET_HEADLESS, DATA_DIR, RAW_PAYLOAD_LOGGING, RAW_PAYLOAD_MAX_BYTES, ROOT } = require("./env");
 const { insertRound, updateRoundCards, setStatus, logEvent } = require("./db");
 const {
   extractRoundsFromPayload,
@@ -23,6 +26,32 @@ const cardSnapshotsByGame = new Map();
 const shoeStateByTable = new Map();
 let lastWebsocketAtMs = 0;
 let lastRecoveryAtMs = 0;
+
+function archivePayload(text, source, counts = {}) {
+  try {
+    if (!RAW_PAYLOAD_LOGGING) return;
+    const hasUsefulData = Object.values(counts).some((value) => Number(value || 0) > 0);
+    if (!hasUsefulData) return;
+    const dir = path.join(DATA_DIR, "raw-payloads");
+    fs.mkdirSync(dir, { recursive: true });
+    const maxBytes = Math.max(10_000, Number(RAW_PAYLOAD_MAX_BYTES || 500_000));
+    const buffer = Buffer.from(text, "utf8");
+    const truncated = buffer.length > maxBytes;
+    const payload = truncated ? buffer.subarray(0, maxBytes).toString("utf8") : text;
+    const row = {
+      at: new Date().toISOString(),
+      source,
+      sha1: crypto.createHash("sha1").update(text).digest("hex"),
+      bytes: buffer.length,
+      truncated,
+      counts,
+      payload
+    };
+    fs.appendFileSync(path.join(dir, `${new Date().toISOString().slice(0, 10)}.jsonl`), `${JSON.stringify(row)}\n`, "utf8");
+  } catch (error) {
+    logEvent("warn", "raw payload archive failed", error.message);
+  }
+}
 
 function isLikelyNewShoe(previousRoundNo, roundNo) {
   return previousRoundNo > 0
@@ -182,6 +211,13 @@ function handlePayload(payload, source) {
       });
     }
   }
+
+  archivePayload(text, source, {
+    liveRounds: rounds.filter((round) => round.sourceEvent !== "roadSnapshot").length,
+    roadSnapshotRounds: rounds.filter((round) => round.sourceEvent === "roadSnapshot").length,
+    cardSnapshots: cardSnapshots.length,
+    tableRefs: refs.length
+  });
 
   let inserted = 0;
   for (const rawRound of rounds) {

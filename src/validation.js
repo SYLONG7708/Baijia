@@ -1,5 +1,6 @@
 const { TARGET_TABLES } = require("./tables");
 const { currentShoeRounds, isPredictionUsable } = require("./analytics");
+const { buildCanonicalView } = require("./canonical");
 
 const LIVE_EVENTS = new Set(["pushGameStatus", "pushGameTableResults", "manual"]);
 const SNAPSHOT_EVENT = "roadSnapshot";
@@ -86,9 +87,25 @@ function snapshotLooksLikeOlderShoe(snapshotRows, liveRows) {
   const snapshotMax = maxRoundNo(snapshotRows);
   const liveMax = maxRoundNo(liveRows);
   return liveFirst <= 3
-    && liveMax <= 12
-    && snapshotMax >= liveMax + 20
+    && snapshotMax >= liveMax + 10
     && maxId(liveRows) > maxId(snapshotRows);
+}
+
+function snapshotLooksStaleBehind(snapshotRows, liveRows) {
+  if (!snapshotRows.length || !liveRows.length) return false;
+  return maxId(snapshotRows) < maxId(liveRows)
+    && maxRoundNo(snapshotRows) + 8 < maxRoundNo(liveRows);
+}
+
+function liveRowsAlignedToSnapshot(reliableRows, snapshotRows) {
+  const current = currentShoeRounds(reliableRows);
+  if (!snapshotRows.length) return current;
+  const firstSnapshot = snapshotRows[0];
+  if (roundNoOf(firstSnapshot) > 3) return current;
+  const snapshotStartId = Number(firstSnapshot.id || 0);
+  if (!snapshotStartId) return current;
+  const aligned = currentShoeRounds(reliableRows.filter((round) => Number(round.id || 0) >= snapshotStartId));
+  return aligned.length ? aligned : current;
 }
 
 function snapshotComparison(snapshotRows, liveRows) {
@@ -177,21 +194,31 @@ function snapshotComparison(snapshotRows, liveRows) {
   };
 }
 
-function tableValidation(rounds, table) {
-  const tableRows = rounds.filter((round) => round.tableCode === table.code);
-  const reliableRows = tableRows.filter(isPredictionUsable);
-  const currentSnapshots = currentShoeRounds(tableRows.filter((round) => round.sourceEvent === SNAPSHOT_EVENT));
-  const selectedCurrent = currentShoeRounds(reliableRows);
+function tableValidation(rounds, table, canonicalView) {
+  const canonicalRows = canonicalView.canonicalRounds.filter((round) => round.tableCode === table.code);
+  const quarantinedRows = canonicalView.quarantinedRounds.filter((round) => round.tableCode === table.code);
+  const reliableRows = canonicalView.predictionRounds
+    .filter((round) => round.tableCode === table.code)
+    .filter(isPredictionUsable);
+  const currentSnapshots = currentShoeRounds(canonicalRows.filter((round) => round.sourceEvent === SNAPSHOT_EVENT));
+  const selectedCurrent = liveRowsAlignedToSnapshot(reliableRows, currentSnapshots);
   const snapshotNewerShoe = snapshotLooksLikeNewerShoe(currentSnapshots, selectedCurrent);
   const snapshotOlderShoe = snapshotLooksLikeOlderShoe(currentSnapshots, selectedCurrent);
+  const snapshotStaleBehind = snapshotLooksStaleBehind(currentSnapshots, selectedCurrent);
   const segmentRows = currentSegmentRows(reliableRows, selectedCurrent);
+  const firstCurrentId = selectedCurrent.length
+    ? Math.min(...selectedCurrent.map((round) => Number(round.id || 0)).filter(Boolean))
+    : 0;
+  const currentQuarantinedRows = firstCurrentId
+    ? quarantinedRows.filter((round) => Number(round.id || 0) >= firstCurrentId)
+    : [];
   const sourceCounts = {};
   for (const round of segmentRows) {
     sourceCounts[round.sourceEvent || "unknown"] = (sourceCounts[round.sourceEvent || "unknown"] || 0) + 1;
   }
 
   const missing = missingRoundNos(selectedCurrent);
-  const comparableSnapshots = snapshotOlderShoe ? [] : currentSnapshots;
+  const comparableSnapshots = snapshotOlderShoe || snapshotStaleBehind ? [] : currentSnapshots;
   const snapshotCheck = snapshotComparison(comparableSnapshots, snapshotNewerShoe ? [] : selectedCurrent);
   const nonLive = selectedCurrent
     .filter((round) => !LIVE_EVENTS.has(round.sourceEvent))
@@ -207,7 +234,8 @@ function tableValidation(rounds, table) {
     : missing.length
       || snapshotCheck.snapshotOnlyRoundNos.length
       || snapshotCheck.snapshotShiftedMatches.length
-      || nonLive.length ? "WARN"
+      || nonLive.length
+      || currentQuarantinedRows.length ? "WARN"
       : "OK";
 
   return {
@@ -233,21 +261,35 @@ function tableValidation(rounds, table) {
     snapshotLatest: snapshotCheck.snapshotLatest,
     snapshotNewerShoe,
     snapshotOlderShoe,
+    snapshotStaleBehind,
     snapshotOnlyRoundNos: snapshotCheck.snapshotOnlyRoundNos,
     snapshotConflicts: snapshotCheck.snapshotConflicts,
     snapshotShiftedMatches: snapshotCheck.snapshotShiftedMatches,
     nonLiveRoundNos: nonLive,
+    quarantinedRows: currentQuarantinedRows.slice(0, 40).map((round) => ({
+      id: round.id,
+      roundNo: roundNoOf(round),
+      outcome: round.outcome,
+      rawResult: round.rawResult,
+      sourceEvent: round.sourceEvent,
+      qualityReason: round.qualityReason,
+      canonicalWinnerId: round.canonicalWinnerId || 0
+    })),
+    quarantinedCount: quarantinedRows.length,
+    currentQuarantinedCount: currentQuarantinedRows.length,
     conflicts,
     sourceCounts
   };
 }
 
 function buildValidation(rounds) {
-  const tables = TARGET_TABLES.map((table) => tableValidation(rounds, table));
+  const canonicalView = buildCanonicalView(rounds);
+  const tables = TARGET_TABLES.map((table) => tableValidation(rounds, table, canonicalView));
   const warnTables = tables.filter((table) => table.severity === "WARN");
   const errorTables = tables.filter((table) => table.severity === "ERROR");
   return {
     generatedAt: new Date().toISOString(),
+    canonical: canonicalView.summary,
     ok: errorTables.length === 0 && warnTables.length === 0,
     summary: {
       tables: tables.length,

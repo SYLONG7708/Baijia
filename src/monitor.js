@@ -4,6 +4,7 @@ const { DATA_DIR } = require("./env");
 const { openDatabase, getAllRounds, getRoundIngestSummary, getStatus, setStatus, logEvent } = require("./db");
 const { buildModelSelection } = require("./model-selection");
 const { buildValidation } = require("./validation");
+const { buildCanonicalView } = require("./canonical");
 
 const INTERVAL_MS = Math.max(15_000, Number(process.env.MONITOR_INTERVAL_MS || 60_000));
 const STALE_WARN_MS = Math.max(INTERVAL_MS, Number(process.env.MONITOR_STALE_WARN_MS || 10 * 60_000));
@@ -78,7 +79,7 @@ function monitorState(summary, scraper, deltaSinceLastCheck) {
   };
 }
 
-function buildMonitorReport(monitor, validation) {
+function buildMonitorReport(monitor, validation, canonical) {
   const issueTables = (validation.issueTables || []).map((table) => ({
     code: table.code,
     severity: table.severity,
@@ -102,6 +103,7 @@ function buildMonitorReport(monitor, validation) {
     recent15m: monitor.recent?.last15m || 0,
     latestRound: monitor.latestRound,
     validationSummary: summary,
+    canonicalSummary: canonical.summary,
     hasIssues: Boolean((summary.warn || 0) + (summary.error || 0)),
     warnTables: summary.warn || 0,
     errorTables: summary.error || 0,
@@ -120,8 +122,9 @@ function checkOnce() {
   const scraper = status.scraper || {};
   const summary = getRoundIngestSummary();
   const allRounds = getAllRounds();
+  const canonical = buildCanonicalView(allRounds);
   const validation = buildValidation(allRounds);
-  const modelSelection = buildModelSelection(allRounds, { limit: 1200, warmup: 45 });
+  const modelSelection = buildModelSelection(canonical.predictionRounds, { limit: 1200, warmup: 45 });
   const deltaSinceLastCheck = lastTotalRounds > 0
     ? Math.max(0, summary.totalRounds - lastTotalRounds)
     : 0;
@@ -153,7 +156,7 @@ function checkOnce() {
     scraperLastWebsocketAt: scraper.lastWebsocketAt || "",
     scraperLastRateLimitAt: scraper.lastRateLimitAt || ""
   };
-  const report = buildMonitorReport(monitor, validation);
+  const report = buildMonitorReport(monitor, validation, canonical);
   monitor.report = report;
   try {
     writeMonitorReport(report);
@@ -164,6 +167,7 @@ function checkOnce() {
 
   setStatus("monitor", monitor);
   setStatus("validation", validation);
+  setStatus("canonical", canonical.summary);
   setStatus("modelSelection", modelSelection);
   if (monitor.state !== lastState) {
     const level = monitor.canReadNewInfo ? "info" : "warn";

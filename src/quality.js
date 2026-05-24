@@ -1,5 +1,6 @@
 const { TARGET_TABLES, normalizeTableCode } = require("./tables");
 const { currentShoeRounds, isPredictionUsable } = require("./analytics");
+const { buildCanonicalView } = require("./canonical");
 
 function pct(value) {
   return Math.round(Number(value || 0) * 1000) / 10;
@@ -85,7 +86,9 @@ function tableQuality(rounds) {
 }
 
 function buildDataQuality(rounds, status = {}) {
+  const canonical = buildCanonicalView(rounds);
   const reliable = rounds.filter(isPredictionUsable);
+  const canonicalReliable = canonical.predictionRounds.filter(isPredictionUsable);
   const cardRows = reliable.filter((round) => round.cardCount > 0);
   const invalidRoundNo = rounds.filter((round) => Number(round.roundNo || 0) <= 0).length;
   const noRawResult = rounds.filter((round) => !round.rawResult).length;
@@ -95,12 +98,15 @@ function buildDataQuality(rounds, status = {}) {
     totals: {
       rounds: rounds.length,
       reliableRounds: reliable.length,
+      canonicalReliableRounds: canonicalReliable.length,
+      quarantinedRounds: canonical.summary.quarantinedRounds,
       cardRows: cardRows.length,
       cardCoverage: pct(cardRows.length / Math.max(1, reliable.length)),
       invalidRoundNo,
       noRawResult
     },
     scraper: status.scraper || {},
+    canonical: canonical.summary,
     sources: sourceCounts(rounds),
     duplicateSlots: duplicateSlots(reliable),
     suspiciousAliases: suspiciousAliases(rounds),

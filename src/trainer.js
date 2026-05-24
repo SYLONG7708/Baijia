@@ -2,6 +2,7 @@ const { openDatabase, getAllRounds, getStatus, setStatus, logEvent } = require("
 const { isPredictionUsable } = require("./analytics");
 const { buildModelSelection } = require("./model-selection");
 const { buildValidation } = require("./validation");
+const { buildCanonicalView } = require("./canonical");
 const {
   TRAINING_DB_PATH,
   insertTrainingRun,
@@ -98,9 +99,10 @@ function trainingActions(validation, modelSelection) {
 
 function checkOnce() {
   const allRounds = getAllRounds();
-  const reliableRounds = allRounds.filter(isPredictionUsable);
+  const canonical = buildCanonicalView(allRounds);
+  const reliableRounds = canonical.predictionRounds.filter(isPredictionUsable);
   const validation = buildValidation(allRounds);
-  const modelSelection = buildModelSelection(allRounds, { limit: 1800, warmup: 45 });
+  const modelSelection = buildModelSelection(reliableRounds, { limit: 1800, warmup: 45 });
   const actions = trainingActions(validation, modelSelection);
   const blocked = Number(validation.summary?.error || 0) > 0;
   const runId = insertTrainingRun({
@@ -127,6 +129,7 @@ function checkOnce() {
     activeLogLoss: active.averageLogLoss || 0,
     candidateCount: modelSelection.candidates?.length || 0,
     validationSummary: validation.summary || {},
+    canonicalSummary: canonical.summary,
     promotionBlocked: blocked,
     actions: actions.slice(0, 12),
     autoCodeChanges: false,

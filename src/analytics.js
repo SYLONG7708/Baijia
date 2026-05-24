@@ -43,6 +43,7 @@ function countRounds(rounds) {
 
 function isPredictionUsable(round) {
   if (!round || !normalizeOutcome(round.outcome)) return false;
+  if (round.qualityStatus === "quarantined") return false;
   if (!round.tableCode || Number(round.roundNo || 0) <= 0) return false;
   if (OLD_SNAPSHOT_EVENTS.has(round.sourceEvent)) return false;
   const tableName = String(round.tableName || "").toUpperCase();

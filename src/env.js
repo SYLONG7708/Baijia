@@ -46,6 +46,8 @@ module.exports = {
   API_TOKEN: process.env.API_TOKEN || "change-me",
   ALLBET_URL: process.env.ALLBET_URL || "",
   ALLBET_HEADLESS: boolEnv("ALLBET_HEADLESS", true),
+  RAW_PAYLOAD_LOGGING: boolEnv("RAW_PAYLOAD_LOGGING", true),
+  RAW_PAYLOAD_MAX_BYTES: intEnv("RAW_PAYLOAD_MAX_BYTES", 500_000),
   SCRAPER_ENABLED: boolEnv("SCRAPER_ENABLED", true),
   TRAINER_ENABLED: boolEnv("TRAINER_ENABLED", true),
   TRAINER_INTERVAL_MS: Math.max(60_000, intEnv("TRAINER_INTERVAL_MS", 5 * 60_000)),

@@ -28,13 +28,19 @@ const { buildDataQuality } = require("./quality");
 const { buildModelSelection, predictByModel } = require("./model-selection");
 const { buildValidation } = require("./validation");
 const { getTrainingSummary } = require("./training-store");
+const { buildCanonicalView } = require("./canonical");
 
 openDatabase();
 const MONITOR_REPORT_PATH = path.join(DATA_DIR, "monitor-reports.jsonl");
+const streamClients = new Set();
 
-function reliableRounds(allRounds) {
-  const reliable = allRounds.filter(isPredictionUsable);
-  return reliable.length ? reliable : allRounds;
+function canonicalFor(allRounds) {
+  const canonical = buildCanonicalView(allRounds);
+  const reliable = canonical.predictionRounds.filter(isPredictionUsable);
+  return {
+    canonical,
+    reliable: reliable.length ? reliable : allRounds.filter(isPredictionUsable)
+  };
 }
 
 function sameRoadResult(left, right) {
@@ -203,6 +209,70 @@ function readJsonlTail(filePath, limit = 120) {
     .filter(Boolean);
 }
 
+function streamPayload() {
+  const status = getStatus();
+  const ingest = getRoundIngestSummary();
+  const monitor = status.monitor || {};
+  return {
+    now: new Date().toISOString(),
+    latestId: ingest.latestId,
+    totalRounds: ingest.totalRounds,
+    recent: ingest.recent,
+    latestRound: ingest.latestRound
+      ? {
+        tableCode: ingest.latestRound.tableCode,
+        roundNo: ingest.latestRound.roundNo,
+        outcome: ingest.latestRound.outcome,
+        insertedAt: ingest.latestRound.insertedAt
+      }
+      : null,
+    monitor: {
+      state: monitor.state || "",
+      canReadNewInfo: Boolean(monitor.canReadNewInfo),
+      lastCheckAt: monitor.lastCheckAt || "",
+      reportGeneratedAt: monitor.report?.generatedAt || "",
+      errorTables: monitor.report?.errorTables || 0,
+      warnTables: monitor.report?.warnTables || 0
+    },
+    scraper: {
+      running: Boolean(status.scraper?.running),
+      health: status.scraper?.health || "",
+      heartbeatAt: status.scraper?.heartbeatAt || ""
+    }
+  };
+}
+
+function sendSse(res, event, data) {
+  res.write(`event: ${event}\n`);
+  res.write(`data: ${JSON.stringify(data)}\n\n`);
+}
+
+function handleStream(req, res) {
+  res.writeHead(200, {
+    "content-type": "text/event-stream; charset=utf-8",
+    "cache-control": "no-store, no-transform",
+    "connection": "keep-alive",
+    "access-control-allow-origin": "*"
+  });
+  res.write(": connected\n\n");
+  streamClients.add(res);
+  sendSse(res, "status", streamPayload());
+  req.on("close", () => {
+    streamClients.delete(res);
+  });
+}
+
+setInterval(() => {
+  if (!streamClients.size) return;
+  let payload;
+  try {
+    payload = streamPayload();
+  } catch (error) {
+    payload = { now: new Date().toISOString(), error: error.message };
+  }
+  for (const client of streamClients) sendSse(client, "status", payload);
+}, 2000);
+
 function roundFromInput(input) {
   const tableCode = normalizeTableCode(input.tableCode || input.table_code || input.tableId);
   const meta = tableMeta(tableCode);
@@ -267,6 +337,10 @@ async function handleApi(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const rounds = () => getAllRounds();
 
+  if (req.method === "GET" && url.pathname === "/api/stream") {
+    return handleStream(req, res);
+  }
+
   if (req.method === "GET" && url.pathname === "/api/config") {
     return sendJson(res, 200, {
       tableGroups: TABLE_GROUPS,
@@ -277,23 +351,26 @@ async function handleApi(req, res) {
 
   if (req.method === "GET" && url.pathname === "/api/status") {
     const allRounds = rounds();
-    const summaryRounds = reliableRounds(allRounds);
+    const { canonical, reliable: summaryRounds } = canonicalFor(allRounds);
     const status = getStatus();
     return sendJson(res, 200, {
       ok: true,
       now: new Date().toISOString(),
       summary: summaryWithActiveModel(summarizeAll(summaryRounds), summaryRounds, status),
+      quality: canonical.summary,
       rawTotals: {
         allRounds: allRounds.length,
-        reliableRounds: summaryRounds.length
+        reliableRounds: summaryRounds.length,
+        canonicalRounds: canonical.canonicalRounds.length,
+        quarantinedRounds: canonical.quarantinedRounds.length
       },
-      scraper: status
+      scraper: { ...status, canonical: canonical.summary }
     });
   }
 
   if (req.method === "GET" && url.pathname === "/api/tables") {
     const status = getStatus();
-    const summaryRounds = reliableRounds(rounds());
+    const summaryRounds = canonicalFor(rounds()).reliable;
     return sendJson(res, 200, summaryWithActiveModel(summarizeAll(summaryRounds), summaryRounds, status));
   }
 
@@ -335,7 +412,7 @@ async function handleApi(req, res) {
   }
 
   if (req.method === "GET" && url.pathname === "/api/backtest") {
-    return sendJson(res, 200, backtestPredictions(rounds(), {
+    return sendJson(res, 200, backtestPredictions(canonicalFor(rounds()).reliable, {
       tableCode: url.searchParams.get("tableCode"),
       limit: url.searchParams.get("limit"),
       warmup: url.searchParams.get("warmup")
@@ -343,7 +420,7 @@ async function handleApi(req, res) {
   }
 
   if (req.method === "GET" && url.pathname === "/api/models") {
-    return sendJson(res, 200, buildModelSelection(rounds(), {
+    return sendJson(res, 200, buildModelSelection(canonicalFor(rounds()).reliable, {
       limit: url.searchParams.get("limit"),
       warmup: url.searchParams.get("warmup")
     }));
@@ -352,12 +429,15 @@ async function handleApi(req, res) {
   if (req.method === "GET" && url.pathname === "/api/rounds") {
     const includeSnapshots = url.searchParams.get("includeSnapshots") === "true";
     const tableCode = normalizeTableCode(url.searchParams.get("tableCode"));
+    const source = getRounds({ tableCode, limit: url.searchParams.get("limit") || 2000 });
+    const canonical = canonicalFor(source);
     const sourceRounds = includeSnapshots
-      ? getRounds({ tableCode, limit: url.searchParams.get("limit") || 2000 })
-      : reliableRounds(getRounds({ tableCode, limit: url.searchParams.get("limit") || 2000 }));
+      ? source
+      : canonical.reliable;
     return sendJson(res, 200, {
       rounds: sourceRounds,
-      source: includeSnapshots ? "all" : "reliable-live"
+      quality: canonical.canonical.summary,
+      source: includeSnapshots ? "all" : "canonical-live"
     });
   }
 
@@ -365,13 +445,15 @@ async function handleApi(req, res) {
     const tableCode = normalizeTableCode(url.searchParams.get("tableCode"));
     if (!tableCode) return sendJson(res, 400, { error: "tableCode is required" });
     const allTableRounds = getTableRounds(tableCode);
-    const reliable = reliableRounds(allTableRounds);
+    const canonical = canonicalFor(allTableRounds);
+    const reliable = canonical.reliable;
     const liveRounds = currentShoeRounds(reliable);
-    const snapshotRounds = currentShoeRounds(allTableRounds.filter((round) => round.sourceEvent === "roadSnapshot"));
+    const snapshotRounds = currentShoeRounds(canonical.canonical.snapshotRounds.filter((round) => round.sourceEvent === "roadSnapshot"));
     const tableRounds = mergeSnapshotRoadRounds(liveRounds, snapshotRounds);
     return sendJson(res, 200, {
       tableCode,
-      source: snapshotRounds.length ? "snapshot-verified-current-shoe" : "reliable-live-current-shoe",
+      quality: canonical.canonical.summary,
+      source: snapshotRounds.length ? "canonical-live-with-snapshot-fill" : "canonical-live-current-shoe",
       roads: buildRoads(tableRounds),
       rounds: tableRounds.slice(-500)
     });
@@ -382,7 +464,7 @@ async function handleApi(req, res) {
     if (!tableCode) return sendJson(res, 400, { error: "tableCode is required" });
     return sendJson(res, 200, {
       tableCode,
-      cardModel: estimateCardModel(getTableRounds(tableCode))
+      cardModel: estimateCardModel(canonicalFor(getTableRounds(tableCode)).reliable)
     });
   }
 
@@ -403,10 +485,11 @@ async function handleApi(req, res) {
     try {
       const body = await parseBody(req);
       const modelId = body.modelId || body.model || "";
+      const predictionRounds = canonicalFor(rounds()).reliable;
       if (modelId) {
-        return sendJson(res, 200, predictByModel(rounds(), body.tableCode, modelId));
+        return sendJson(res, 200, predictByModel(predictionRounds, body.tableCode, modelId));
       }
-      return sendJson(res, 200, predictFromSequence(rounds(), body));
+      return sendJson(res, 200, predictFromSequence(predictionRounds, body));
     } catch (error) {
       return sendJson(res, 400, { error: error.message });
     }
@@ -416,7 +499,7 @@ async function handleApi(req, res) {
     return sendJson(res, 200, {
       exportedAt: new Date().toISOString(),
       tables: TARGET_TABLES,
-      rounds: reliableRounds(rounds())
+      rounds: canonicalFor(rounds()).reliable
     });
   }
 
