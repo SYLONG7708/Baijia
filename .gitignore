@@ -20,3 +20,4 @@ Thumbs.db
 android/app/build/
 android/.gradle/
 ios/App/build/
+dist/cloud-backups/
