@@ -2,7 +2,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
 const { ROOT, LOG_DIR, SCRAPER_ENABLED, TELEGRAM_ENABLED, TRAINER_ENABLED } = require("./env");
-const { openDatabase, setStatus, logEvent } = require("./db");
+const { openDatabase, getStatus, setStatus, logEvent } = require("./db");
 
 openDatabase();
 fs.mkdirSync(LOG_DIR, { recursive: true });
@@ -10,6 +10,7 @@ fs.mkdirSync(LOG_DIR, { recursive: true });
 const children = new Map();
 const stopping = new Set();
 const daemonPidPath = path.join(ROOT, "data", "daemon.pid");
+const MONITOR_WATCHDOG_MS = Math.max(120_000, Number(process.env.MONITOR_WATCHDOG_MS || 3 * 60_000));
 
 function logStream(name, ext) {
   return fs.createWriteStream(path.join(LOG_DIR, `${name}.${ext}`), { flags: "a" });
@@ -58,7 +59,48 @@ function startProcess(name, args, options = {}) {
   return child;
 }
 
+function parseStatusTime(value) {
+  if (!value) return 0;
+  const text = String(value).includes("T") ? String(value) : `${String(value).replace(" ", "T")}Z`;
+  const parsed = Date.parse(text);
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function restartChild(name, reason) {
+  const child = children.get(name);
+  if (!child || stopping.has(name)) return;
+  logEvent("warn", `${name} watchdog restart`, {
+    pid: child.pid,
+    reason,
+    watchdogMs: MONITOR_WATCHDOG_MS
+  });
+  child.kill("SIGTERM");
+  setTimeout(() => {
+    if (children.get(name) === child) child.kill("SIGKILL");
+  }, 5000).unref();
+}
+
+function watchdog() {
+  const monitorChild = children.get("monitor");
+  if (!monitorChild) return;
+  const started = parseStatusTime(getStatus().monitorProcess?.startedAt);
+  if (started && Date.now() - started < MONITOR_WATCHDOG_MS) return;
+
+  const monitor = getStatus().monitor || {};
+  const lastCheckAt = parseStatusTime(monitor.lastCheckAt);
+  if (!lastCheckAt) return;
+  const staleMs = Date.now() - lastCheckAt;
+  if (staleMs > MONITOR_WATCHDOG_MS) {
+    restartChild("monitor", `lastCheckAt stale for ${Math.round(staleMs / 1000)} seconds`);
+  }
+}
+
 function heartbeat() {
+  try {
+    watchdog();
+  } catch (error) {
+    logEvent("warn", "daemon watchdog check failed", error.stack || error.message);
+  }
   setStatus("daemon", {
     running: true,
     pid: process.pid,

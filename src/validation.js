@@ -141,6 +141,13 @@ function liveRowsAlignedToSnapshot(reliableRows, snapshotRows) {
   const snapshotStartId = Number(firstSnapshot.id || 0);
   if (!snapshotStartId) return current;
   const aligned = currentShoeRounds(reliableRows.filter((round) => Number(round.id || 0) >= snapshotStartId));
+  const currentLooksSameShoe = current.length
+    && minRoundNo(current) <= 3
+    && maxRoundNo(current) >= maxRoundNo(snapshotRows)
+    && !snapshotLooksLikeNewerShoe(snapshotRows, current);
+  if (currentLooksSameShoe && aligned.length < Math.max(3, Math.floor(snapshotRows.length / 2))) {
+    return current;
+  }
   return aligned.length ? aligned : current;
 }
 
