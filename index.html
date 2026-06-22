@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#101418" />
+    <title>百家樂監控數據</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Baijia Monitor</p>
+          <h1>百家樂監控數據</h1>
+        </div>
+        <div class="top-actions">
+          <button id="exportJsonBtn" class="ghost-btn" type="button">匯出 JSON</button>
+          <button id="exportCsvBtn" class="ghost-btn" type="button">匯出 CSV</button>
+          <label class="file-btn">
+            匯入
+            <input id="importFile" type="file" accept=".json,.csv,.txt" />
+          </label>
+        </div>
+      </header>
+
+      <section class="control-band" aria-label="資料控制">
+        <div class="field-group">
+          <label for="tableSelect">桌台</label>
+          <select id="tableSelect"></select>
+        </div>
+        <div class="field-group">
+          <label for="tableNameInput">新增桌台</label>
+          <input id="tableNameInput" type="text" placeholder="例如 A01" maxlength="16" />
+        </div>
+        <div class="field-group">
+          <label for="shoeInput">靴號</label>
+          <input id="shoeInput" type="text" placeholder="例如 20260622-1" maxlength="24" />
+        </div>
+        <button id="addTableBtn" class="primary-btn" type="button">新增桌台</button>
+        <button id="clearTableBtn" class="danger-btn" type="button">清空本桌</button>
+      </section>
+
+      <section class="entry-band" aria-label="快速輸入">
+        <div class="result-actions">
+          <button class="result-btn banker" data-result="banker" type="button">莊</button>
+          <button class="result-btn player" data-result="player" type="button">閒</button>
+          <button class="result-btn tie" data-result="tie" type="button">和</button>
+        </div>
+        <div class="toggles">
+          <label><input id="bankerPairInput" type="checkbox" /> 莊對</label>
+          <label><input id="playerPairInput" type="checkbox" /> 閒對</label>
+          <label><input id="luckySixInput" type="checkbox" /> 幸運六</label>
+        </div>
+        <input id="noteInput" class="note-input" type="text" placeholder="備註，可空白" maxlength="80" />
+        <button id="undoBtn" class="ghost-btn" type="button">復原一手</button>
+      </section>
+
+      <section class="metrics-grid" aria-label="統計摘要">
+        <article>
+          <span>總手數</span>
+          <strong id="totalHands">0</strong>
+        </article>
+        <article>
+          <span>莊 / 閒 / 和</span>
+          <strong id="resultSplit">0 / 0 / 0</strong>
+        </article>
+        <article>
+          <span>近期偏向</span>
+          <strong id="recentBias">-</strong>
+        </article>
+        <article>
+          <span>目前連段</span>
+          <strong id="currentStreak">-</strong>
+        </article>
+        <article>
+          <span>最長連段</span>
+          <strong id="maxStreak">-</strong>
+        </article>
+        <article>
+          <span>對子 / 幸運六</span>
+          <strong id="sideStats">0 / 0</strong>
+        </article>
+      </section>
+
+      <section class="workspace">
+        <div class="panel road-panel">
+          <div class="panel-head">
+            <h2>珠盤路</h2>
+            <span id="beadCount">0 hand</span>
+          </div>
+          <div id="beadRoad" class="bead-road" aria-label="珠盤路"></div>
+        </div>
+
+        <div class="panel road-panel">
+          <div class="panel-head">
+            <h2>大路</h2>
+            <span id="bigRoadCount">0 column</span>
+          </div>
+          <div id="bigRoad" class="big-road" aria-label="大路"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h2>觀察提醒</h2>
+            <span id="qualityState">等待資料</span>
+          </div>
+          <ul id="alertsList" class="alerts-list"></ul>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h2>手數紀錄</h2>
+            <span id="lastUpdated">尚未輸入</span>
+          </div>
+          <div id="roundLog" class="round-log"></div>
+        </div>
+      </section>
+
+      <section class="import-band" aria-label="批次匯入">
+        <div>
+          <h2>批次輸入</h2>
+          <p>可貼上 B/P/T、莊/閒/和，或 CSV 欄位 result, bankerPair, playerPair, luckySix, note。</p>
+        </div>
+        <textarea id="bulkInput" placeholder="例：莊 閒 莊 和 B P B"></textarea>
+        <button id="bulkImportBtn" class="primary-btn" type="button">匯入到目前桌台</button>
+      </section>
+
+      <footer class="footer-note">
+        本工具只做資料記錄、整理與視覺化，不提供下注建議，不保證任何結果。
+      </footer>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="百家樂監控數據">
+  <rect width="128" height="128" rx="24" fill="#101418"/>
+  <path d="M22 90h84" stroke="#33434d" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="40" cy="46" r="18" fill="#e06666"/>
+  <circle cx="74" cy="46" r="18" fill="#5ba8ff"/>
+  <circle cx="57" cy="75" r="14" fill="#72d17c"/>
+  <path d="M27 101h74" stroke="#43d7c2" stroke-width="7" stroke-linecap="round"/>
+  <path d="M24 25h80" stroke="#e6b756" stroke-width="6" stroke-linecap="round"/>
+</svg>

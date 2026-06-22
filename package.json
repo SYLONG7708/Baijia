@@ -1,27 +1,17 @@
 {
-  "name": "baijia",
-  "version": "1.0.0",
-  "description": "Allbet baccarat recorder, roadmaps, statistics dashboard, PWA, and mobile wrapper.",
-  "main": "src/server.js",
+  "name": "baijia-monitor-fresh",
+  "version": "2.0.0",
   "private": true,
+  "description": "Fresh static baccarat monitoring dashboard for GitHub Pages.",
   "scripts": {
-    "start": "node src/server.js",
-    "scraper": "node src/scraper.js",
-    "trainer": "node src/trainer.js",
-    "daemon": "node src/daemon.js",
-    "backtest:top-alert-five": "node scripts/backtest-top-alert-five.js",
-    "build:web": "node scripts/build-web.js",
-    "cap:sync": "npm run build:web && npx cap sync",
-    "android:debug": "npm run build:web && node scripts/ensure-android.js && npx cap sync android && cd android && gradlew.bat assembleDebug"
+    "start": "npx http-server . -p 4173 -c-1",
+    "test": "node scripts/validate.mjs"
   },
-  "dependencies": {
-    "@capacitor/android": "^7.4.3",
-    "@capacitor/cli": "^7.4.3",
-    "@capacitor/core": "^7.4.3",
-    "playwright": "^1.56.1"
+  "devDependencies": {
+    "http-server": "^14.1.1",
+    "playwright": "^1.61.0"
   },
-  "devDependencies": {},
   "engines": {
-    "node": ">=24"
+    "node": ">=20"
   }
 }
