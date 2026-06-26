@@ -1,0 +1,3797 @@
+{
+  "generatedAt": "2026-06-26T15:55:47.661Z",
+  "window": 160,
+  "shortWindow": 48,
+  "disclaimer": "Baccarat outcomes are uncertain. This report is historical pattern analysis plus symbolic five-elements/bagua weighting for observation only, not a guaranteed betting method.",
+  "completeness": {
+    "targetTables": 36,
+    "analyzedTables": 36,
+    "zeroRoundTables": [],
+    "totalRounds": 54700
+  },
+  "groups": [
+    {
+      "group": "B",
+      "tables": 18,
+      "rounds": 2880,
+      "banker": 1290,
+      "player": 1310,
+      "tie": 280,
+      "trendScore": 1314.4399999999998,
+      "alternationRate": 8.6798,
+      "bankerRate": 0.4962,
+      "playerRate": 0.5038,
+      "tieRate": 0.0972,
+      "averageTrendScore": 73.02,
+      "averageAlternationRate": 0.4822
+    },
+    {
+      "group": "IB",
+      "tables": 2,
+      "rounds": 320,
+      "banker": 148,
+      "player": 141,
+      "tie": 31,
+      "trendScore": 138.23,
+      "alternationRate": 0.9546,
+      "bankerRate": 0.5121,
+      "playerRate": 0.4879,
+      "tieRate": 0.0969,
+      "averageTrendScore": 69.11,
+      "averageAlternationRate": 0.4773
+    },
+    {
+      "group": "Q",
+      "tables": 8,
+      "rounds": 1280,
+      "banker": 614,
+      "player": 551,
+      "tie": 115,
+      "trendScore": 523.12,
+      "alternationRate": 4.083,
+      "bankerRate": 0.527,
+      "playerRate": 0.473,
+      "tieRate": 0.0898,
+      "averageTrendScore": 65.39,
+      "averageAlternationRate": 0.5104
+    },
+    {
+      "group": "C",
+      "tables": 4,
+      "rounds": 640,
+      "banker": 313,
+      "player": 269,
+      "tie": 58,
+      "trendScore": 210.31,
+      "alternationRate": 2.1033,
+      "bankerRate": 0.5378,
+      "playerRate": 0.4622,
+      "tieRate": 0.0906,
+      "averageTrendScore": 52.58,
+      "averageAlternationRate": 0.5258
+    },
+    {
+      "group": "V",
+      "tables": 4,
+      "rounds": 640,
+      "banker": 303,
+      "player": 298,
+      "tie": 39,
+      "trendScore": 208.22,
+      "alternationRate": 2.0763,
+      "bankerRate": 0.5042,
+      "playerRate": 0.4958,
+      "tieRate": 0.0609,
+      "averageTrendScore": 52.06,
+      "averageAlternationRate": 0.5191
+    }
+  ],
+  "topTrend": [
+    {
+      "code": "B501",
+      "group": "B",
+      "targetIndex": 5,
+      "rounds": 1748,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:52.645Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 81,
+        "player": 66,
+        "tie": 13,
+        "bankerPair": 11,
+        "playerPair": 12,
+        "luckySix": 16
+      },
+      "shortCounts": {
+        "banker": 30,
+        "player": 14,
+        "tie": 4,
+        "bankerPair": 3,
+        "playerPair": 2,
+        "luckySix": 2
+      },
+      "bankerRate": 0.551,
+      "playerRate": 0.449,
+      "tieRate": 0.0813,
+      "bankerPairRate": 0.0688,
+      "playerPairRate": 0.075,
+      "luckySixRate": 0.1,
+      "longBias": 0.102,
+      "shortBias": 0.3636,
+      "biasShift": 0.2616,
+      "alternationRate": 0.5548,
+      "shortAlternationRate": 0.5116,
+      "currentStreak": {
+        "side": "banker",
+        "length": 6
+      },
+      "frontBack": {
+        "frontBias": -0.0278,
+        "backBias": 0.2267,
+        "shift": 0.2545
+      },
+      "pattern": "莊長龍",
+      "observeMode": "長連後觀察斷點",
+      "lastSignal": "莊6連",
+      "trendScore": 100.7,
+      "fiveElements": {
+        "scores": {
+          "wood": 21,
+          "fire": 81,
+          "earth": 19.5,
+          "metal": 19.2,
+          "water": 66
+        },
+        "dominant": "fire",
+        "read": "火旺：莊勢訊號偏強，宜看順勢是否延續"
+      },
+      "bagua": {
+        "bits": "111111",
+        "lower": "乾",
+        "upper": "乾",
+        "hexagram": "乾上乾下"
+      },
+      "recentSequence": "PBPBBPPBPBBPBBBBBPBBBBBB"
+    },
+    {
+      "code": "B506",
+      "group": "B",
+      "targetIndex": 10,
+      "rounds": 1810,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:54.311Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 76,
+        "player": 73,
+        "tie": 11,
+        "bankerPair": 16,
+        "playerPair": 7,
+        "luckySix": 11
+      },
+      "shortCounts": {
+        "banker": 18,
+        "player": 27,
+        "tie": 3,
+        "bankerPair": 6,
+        "playerPair": 2,
+        "luckySix": 1
+      },
+      "bankerRate": 0.5101,
+      "playerRate": 0.4899,
+      "tieRate": 0.0688,
+      "bankerPairRate": 0.1,
+      "playerPairRate": 0.0438,
+      "luckySixRate": 0.0688,
+      "longBias": 0.0201,
+      "shortBias": -0.2,
+      "biasShift": -0.2201,
+      "alternationRate": 0.4122,
+      "shortAlternationRate": 0.3409,
+      "currentStreak": {
+        "side": "player",
+        "length": 2
+      },
+      "frontBack": {
+        "frontBias": 0.04,
+        "backBias": 0,
+        "shift": -0.04
+      },
+      "pattern": "短線偏閒",
+      "observeMode": "偏閒觀察",
+      "lastSignal": "閒2連",
+      "trendScore": 93.55,
+      "fiveElements": {
+        "scores": {
+          "wood": 22,
+          "fire": 76,
+          "earth": 16.5,
+          "metal": 13.2,
+          "water": 73
+        },
+        "dominant": "fire",
+        "read": "火旺：莊勢訊號偏強，宜看順勢是否延續"
+      },
+      "bagua": {
+        "bits": "010100",
+        "lower": "坎",
+        "upper": "艮",
+        "hexagram": "艮上坎下"
+      },
+      "recentSequence": "PPPPPPPPPPBBBBPPBPPBPBPP"
+    },
+    {
+      "code": "B219",
+      "group": "B",
+      "targetIndex": 3,
+      "rounds": 1509,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:57.686Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 68,
+        "player": 71,
+        "tie": 21,
+        "bankerPair": 13,
+        "playerPair": 20,
+        "luckySix": 7
+      },
+      "shortCounts": {
+        "banker": 26,
+        "player": 15,
+        "tie": 7,
+        "bankerPair": 6,
+        "playerPair": 3,
+        "luckySix": 3
+      },
+      "bankerRate": 0.4892,
+      "playerRate": 0.5108,
+      "tieRate": 0.1313,
+      "bankerPairRate": 0.0813,
+      "playerPairRate": 0.125,
+      "luckySixRate": 0.0438,
+      "longBias": -0.0216,
+      "shortBias": 0.2683,
+      "biasShift": 0.2899,
+      "alternationRate": 0.4928,
+      "shortAlternationRate": 0.45,
+      "currentStreak": {
+        "side": "banker",
+        "length": 3
+      },
+      "frontBack": {
+        "frontBias": -0.1429,
+        "backBias": 0.1014,
+        "shift": 0.2443
+      },
+      "pattern": "短線偏莊",
+      "observeMode": "順勢觀察",
+      "lastSignal": "莊3連",
+      "trendScore": 93,
+      "fiveElements": {
+        "scores": {
+          "wood": 31,
+          "fire": 68,
+          "earth": 31.5,
+          "metal": 8.4,
+          "water": 71
+        },
+        "dominant": "water",
+        "read": "水旺：閒勢訊號偏強，宜看反向壓力"
+      },
+      "bagua": {
+        "bits": "100111",
+        "lower": "艮",
+        "upper": "乾",
+        "hexagram": "乾上艮下"
+      },
+      "recentSequence": "BBBPPBBPBPPPBBBPBPBPPBBB"
+    },
+    {
+      "code": "B605",
+      "group": "B",
+      "targetIndex": 16,
+      "rounds": 1858,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:46.856Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 70,
+        "player": 73,
+        "tie": 17,
+        "bankerPair": 17,
+        "playerPair": 15,
+        "luckySix": 10
+      },
+      "shortCounts": {
+        "banker": 22,
+        "player": 15,
+        "tie": 11,
+        "bankerPair": 4,
+        "playerPair": 6,
+        "luckySix": 2
+      },
+      "bankerRate": 0.4895,
+      "playerRate": 0.5105,
+      "tieRate": 0.1063,
+      "bankerPairRate": 0.1063,
+      "playerPairRate": 0.0938,
+      "luckySixRate": 0.0625,
+      "longBias": -0.021,
+      "shortBias": 0.1892,
+      "biasShift": 0.2102,
+      "alternationRate": 0.4014,
+      "shortAlternationRate": 0.3611,
+      "currentStreak": {
+        "side": "player",
+        "length": 1
+      },
+      "frontBack": {
+        "frontBias": 0,
+        "backBias": -0.0462,
+        "shift": -0.0462
+      },
+      "pattern": "短線偏莊",
+      "observeMode": "偏莊觀察",
+      "lastSignal": "閒1連",
+      "trendScore": 86.04,
+      "fiveElements": {
+        "scores": {
+          "wood": 31,
+          "fire": 70,
+          "earth": 25.5,
+          "metal": 12,
+          "water": 73
+        },
+        "dominant": "water",
+        "read": "水旺：閒勢訊號偏強，宜看反向壓力"
+      },
+      "bagua": {
+        "bits": "110010",
+        "lower": "巽",
+        "upper": "坎",
+        "hexagram": "坎上巽下"
+      },
+      "recentSequence": "PPBPPBPBBPBBBBBPPBBBPPBP"
+    },
+    {
+      "code": "B601",
+      "group": "B",
+      "targetIndex": 12,
+      "rounds": 1827,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:42.580Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 75,
+        "player": 66,
+        "tie": 19,
+        "bankerPair": 10,
+        "playerPair": 16,
+        "luckySix": 11
+      },
+      "shortCounts": {
+        "banker": 27,
+        "player": 15,
+        "tie": 6,
+        "bankerPair": 3,
+        "playerPair": 3,
+        "luckySix": 4
+      },
+      "bankerRate": 0.5319,
+      "playerRate": 0.4681,
+      "tieRate": 0.1188,
+      "bankerPairRate": 0.0625,
+      "playerPairRate": 0.1,
+      "luckySixRate": 0.0688,
+      "longBias": 0.0638,
+      "shortBias": 0.2857,
+      "biasShift": 0.2219,
+      "alternationRate": 0.5214,
+      "shortAlternationRate": 0.439,
+      "currentStreak": {
+        "side": "player",
+        "length": 1
+      },
+      "frontBack": {
+        "frontBias": -0.0286,
+        "backBias": 0.1549,
+        "shift": 0.1835
+      },
+      "pattern": "短線偏莊",
+      "observeMode": "偏莊觀察",
+      "lastSignal": "閒1連",
+      "trendScore": 83.66,
+      "fiveElements": {
+        "scores": {
+          "wood": 23,
+          "fire": 75,
+          "earth": 28.5,
+          "metal": 13.2,
+          "water": 66
+        },
+        "dominant": "fire",
+        "read": "火旺：莊勢訊號偏強，宜看順勢是否延續"
+      },
+      "bagua": {
+        "bits": "011010",
+        "lower": "兌",
+        "upper": "坎",
+        "hexagram": "坎上兌下"
+      },
+      "recentSequence": "BPBBBBBBBBBPPBBPBPPBBPBP"
+    },
+    {
+      "code": "Q601",
+      "group": "Q",
+      "targetIndex": 29,
+      "rounds": 2115,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:47.143Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 84,
+        "player": 62,
+        "tie": 14,
+        "bankerPair": 12,
+        "playerPair": 12,
+        "luckySix": 14
+      },
+      "shortCounts": {
+        "banker": 28,
+        "player": 15,
+        "tie": 5,
+        "bankerPair": 5,
+        "playerPair": 3,
+        "luckySix": 5
+      },
+      "bankerRate": 0.5753,
+      "playerRate": 0.4247,
+      "tieRate": 0.0875,
+      "bankerPairRate": 0.075,
+      "playerPairRate": 0.075,
+      "luckySixRate": 0.0875,
+      "longBias": 0.1507,
+      "shortBias": 0.3023,
+      "biasShift": 0.1516,
+      "alternationRate": 0.4966,
+      "shortAlternationRate": 0.4286,
+      "currentStreak": {
+        "side": "banker",
+        "length": 1
+      },
+      "frontBack": {
+        "frontBias": 0.1233,
+        "backBias": 0.1781,
+        "shift": 0.0548
+      },
+      "pattern": "短線偏莊",
+      "observeMode": "偏莊觀察",
+      "lastSignal": "莊1連",
+      "trendScore": 81.41,
+      "fiveElements": {
+        "scores": {
+          "wood": 23,
+          "fire": 84,
+          "earth": 21,
+          "metal": 16.8,
+          "water": 62
+        },
+        "dominant": "fire",
+        "read": "火旺：莊勢訊號偏強，宜看順勢是否延續"
+      },
+      "bagua": {
+        "bits": "011101",
+        "lower": "兌",
+        "upper": "離",
+        "hexagram": "離上兌下"
+      },
+      "recentSequence": "PPBBBBBPPPBBBPPBBBPBBBPB"
+    },
+    {
+      "code": "B604",
+      "group": "B",
+      "targetIndex": 15,
+      "rounds": 1863,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:45.863Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 71,
+        "player": 74,
+        "tie": 15,
+        "bankerPair": 16,
+        "playerPair": 5,
+        "luckySix": 3
+      },
+      "shortCounts": {
+        "banker": 17,
+        "player": 28,
+        "tie": 3,
+        "bankerPair": 7,
+        "playerPair": 0,
+        "luckySix": 0
+      },
+      "bankerRate": 0.4897,
+      "playerRate": 0.5103,
+      "tieRate": 0.0938,
+      "bankerPairRate": 0.1,
+      "playerPairRate": 0.0313,
+      "luckySixRate": 0.0188,
+      "longBias": -0.0207,
+      "shortBias": -0.2444,
+      "biasShift": -0.2237,
+      "alternationRate": 0.4375,
+      "shortAlternationRate": 0.4773,
+      "currentStreak": {
+        "side": "player",
+        "length": 1
+      },
+      "frontBack": {
+        "frontBias": 0.1781,
+        "backBias": -0.2222,
+        "shift": -0.4003
+      },
+      "pattern": "短線偏閒",
+      "observeMode": "偏閒觀察",
+      "lastSignal": "閒1連",
+      "trendScore": 81.36,
+      "fiveElements": {
+        "scores": {
+          "wood": 21,
+          "fire": 71,
+          "earth": 22.5,
+          "metal": 3.6,
+          "water": 74
+        },
+        "dominant": "water",
+        "read": "水旺：閒勢訊號偏強，宜看反向壓力"
+      },
+      "bagua": {
+        "bits": "000110",
+        "lower": "坤",
+        "upper": "巽",
+        "hexagram": "巽上坤下"
+      },
+      "recentSequence": "BPBBPPPPPPPPBPBBBPPPPBBP"
+    },
+    {
+      "code": "IB202",
+      "group": "IB",
+      "targetIndex": 23,
+      "rounds": 1605,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:57.362Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 66,
+        "player": 79,
+        "tie": 15,
+        "bankerPair": 16,
+        "playerPair": 15,
+        "luckySix": 9
+      },
+      "shortCounts": {
+        "banker": 16,
+        "player": 29,
+        "tie": 3,
+        "bankerPair": 4,
+        "playerPair": 3,
+        "luckySix": 1
+      },
+      "bankerRate": 0.4552,
+      "playerRate": 0.5448,
+      "tieRate": 0.0938,
+      "bankerPairRate": 0.1,
+      "playerPairRate": 0.0938,
+      "luckySixRate": 0.0563,
+      "longBias": -0.0897,
+      "shortBias": -0.2889,
+      "biasShift": -0.1992,
+      "alternationRate": 0.4931,
+      "shortAlternationRate": 0.4773,
+      "currentStreak": {
+        "side": "player",
+        "length": 1
+      },
+      "frontBack": {
+        "frontBias": -0.0571,
+        "backBias": -0.12,
+        "shift": -0.0629
+      },
+      "pattern": "短線偏閒",
+      "observeMode": "偏閒觀察",
+      "lastSignal": "閒1連",
+      "trendScore": 81.36,
+      "fiveElements": {
+        "scores": {
+          "wood": 28,
+          "fire": 66,
+          "earth": 22.5,
+          "metal": 10.8,
+          "water": 79
+        },
+        "dominant": "water",
+        "read": "水旺：閒勢訊號偏強，宜看反向壓力"
+      },
+      "bagua": {
+        "bits": "010010",
+        "lower": "坎",
+        "upper": "坎",
+        "hexagram": "坎上坎下"
+      },
+      "recentSequence": "PBPBBBPPBPPPBPBBPPPBPPBP"
+    },
+    {
+      "code": "Q701",
+      "group": "Q",
+      "targetIndex": 30,
+      "rounds": 2270,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:51.037Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 76,
+        "player": 66,
+        "tie": 18,
+        "bankerPair": 15,
+        "playerPair": 12,
+        "luckySix": 8
+      },
+      "shortCounts": {
+        "banker": 18,
+        "player": 24,
+        "tie": 6,
+        "bankerPair": 4,
+        "playerPair": 6,
+        "luckySix": 4
+      },
+      "bankerRate": 0.5352,
+      "playerRate": 0.4648,
+      "tieRate": 0.1125,
+      "bankerPairRate": 0.0938,
+      "playerPairRate": 0.075,
+      "luckySixRate": 0.05,
+      "longBias": 0.0704,
+      "shortBias": -0.1429,
+      "biasShift": -0.2133,
+      "alternationRate": 0.4965,
+      "shortAlternationRate": 0.5366,
+      "currentStreak": {
+        "side": "player",
+        "length": 2
+      },
+      "frontBack": {
+        "frontBias": 0.2857,
+        "backBias": -0.1389,
+        "shift": -0.4246
+      },
+      "pattern": "短線偏閒",
+      "observeMode": "均衡觀察",
+      "lastSignal": "閒2連",
+      "trendScore": 79.34,
+      "fiveElements": {
+        "scores": {
+          "wood": 26,
+          "fire": 76,
+          "earth": 27,
+          "metal": 9.6,
+          "water": 66
+        },
+        "dominant": "fire",
+        "read": "火旺：莊勢訊號偏強，宜看順勢是否延續"
+      },
+      "bagua": {
+        "bits": "010100",
+        "lower": "坎",
+        "upper": "艮",
+        "hexagram": "艮上坎下"
+      },
+      "recentSequence": "PPBBPBPBPBBPPBBBPPPBPBPP"
+    },
+    {
+      "code": "B603",
+      "group": "B",
+      "targetIndex": 14,
+      "rounds": 1781,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:44.944Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 64,
+        "player": 79,
+        "tie": 17,
+        "bankerPair": 19,
+        "playerPair": 12,
+        "luckySix": 6
+      },
+      "shortCounts": {
+        "banker": 24,
+        "player": 19,
+        "tie": 5,
+        "bankerPair": 6,
+        "playerPair": 2,
+        "luckySix": 3
+      },
+      "bankerRate": 0.4476,
+      "playerRate": 0.5524,
+      "tieRate": 0.1063,
+      "bankerPairRate": 0.1188,
+      "playerPairRate": 0.075,
+      "luckySixRate": 0.0375,
+      "longBias": -0.1049,
+      "shortBias": 0.1163,
+      "biasShift": 0.2212,
+      "alternationRate": 0.5352,
+      "shortAlternationRate": 0.5,
+      "currentStreak": {
+        "side": "player",
+        "length": 3
+      },
+      "frontBack": {
+        "frontBias": -0.3056,
+        "backBias": 0.0986,
+        "shift": 0.4042
+      },
+      "pattern": "中線偏閒",
+      "observeMode": "均衡觀察",
+      "lastSignal": "閒3連",
+      "trendScore": 78.96,
+      "fiveElements": {
+        "scores": {
+          "wood": 28,
+          "fire": 64,
+          "earth": 25.5,
+          "metal": 7.2,
+          "water": 79
+        },
+        "dominant": "water",
+        "read": "水旺：閒勢訊號偏強，宜看反向壓力"
+      },
+      "bagua": {
+        "bits": "001000",
+        "lower": "震",
+        "upper": "坤",
+        "hexagram": "坤上震下"
+      },
+      "recentSequence": "PPBBPBBPBBBBBPBBBBPPBPPP"
+    },
+    {
+      "code": "B505",
+      "group": "B",
+      "targetIndex": 9,
+      "rounds": 1686,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:53.918Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 64,
+        "player": 77,
+        "tie": 19,
+        "bankerPair": 17,
+        "playerPair": 9,
+        "luckySix": 11
+      },
+      "shortCounts": {
+        "banker": 20,
+        "player": 22,
+        "tie": 6,
+        "bankerPair": 4,
+        "playerPair": 3,
+        "luckySix": 4
+      },
+      "bankerRate": 0.4539,
+      "playerRate": 0.5461,
+      "tieRate": 0.1188,
+      "bankerPairRate": 0.1063,
+      "playerPairRate": 0.0563,
+      "luckySixRate": 0.0688,
+      "longBias": -0.0922,
+      "shortBias": -0.0476,
+      "biasShift": 0.0446,
+      "alternationRate": 0.3714,
+      "shortAlternationRate": 0.3415,
+      "currentStreak": {
+        "side": "banker",
+        "length": 7
+      },
+      "frontBack": {
+        "frontBias": -0.0286,
+        "backBias": -0.1549,
+        "shift": -0.1263
+      },
+      "pattern": "莊長龍",
+      "observeMode": "長連後觀察斷點",
+      "lastSignal": "莊7連",
+      "trendScore": 78.79,
+      "fiveElements": {
+        "scores": {
+          "wood": 25,
+          "fire": 64,
+          "earth": 28.5,
+          "metal": 13.2,
+          "water": 77
+        },
+        "dominant": "water",
+        "read": "水旺：閒勢訊號偏強，宜看反向壓力"
+      },
+      "bagua": {
+        "bits": "111111",
+        "lower": "乾",
+        "upper": "乾",
+        "hexagram": "乾上乾下"
+      },
+      "recentSequence": "BBBPBPPBPPPPPPBPPBBBBBBB"
+    },
+    {
+      "code": "B504",
+      "group": "B",
+      "targetIndex": 8,
+      "rounds": 1812,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:45:40.209Z",
+      "freshnessMinutes": 10,
+      "counts": {
+        "banker": 67,
+        "player": 80,
+        "tie": 13,
+        "bankerPair": 12,
+        "playerPair": 12,
+        "luckySix": 7
+      },
+      "shortCounts": {
+        "banker": 17,
+        "player": 26,
+        "tie": 5,
+        "bankerPair": 4,
+        "playerPair": 2,
+        "luckySix": 2
+      },
+      "bankerRate": 0.4558,
+      "playerRate": 0.5442,
+      "tieRate": 0.0813,
+      "bankerPairRate": 0.075,
+      "playerPairRate": 0.075,
+      "luckySixRate": 0.0438,
+      "longBias": -0.0884,
+      "shortBias": -0.2093,
+      "biasShift": -0.1209,
+      "alternationRate": 0.5548,
+      "shortAlternationRate": 0.4762,
+      "currentStreak": {
+        "side": "player",
+        "length": 1
+      },
+      "frontBack": {
+        "frontBias": -0.1053,
+        "backBias": -0.0704,
+        "shift": 0.0349
+      },
+      "pattern": "短線偏閒",
+      "observeMode": "偏閒觀察",
+      "lastSignal": "閒1連",
+      "trendScore": 76.1,
+      "fiveElements": {
+        "scores": {
+          "wood": 24,
+          "fire": 67,
+          "earth": 19.5,
+          "metal": 8.4,
+          "water": 80
+        },
+        "dominant": "water",
+        "read": "水旺：閒勢訊號偏強，宜看反向壓力"
+      },
+      "bagua": {
+        "bits": "000110",
+        "lower": "坤",
+        "upper": "巽",
+        "hexagram": "巽上坤下"
+      },
+      "recentSequence": "PBPPBPBPBBBPPPPBPPPPPBBP"
+    }
+  ],
+  "cross": {
+    "sameDirection": [
+      {
+        "pair": "B502-Q502",
+        "left": "B502",
+        "right": "Q502",
+        "compared": 80,
+        "sameRate": 0.6625,
+        "oppositeRate": 0.3375,
+        "edge": 0.1625
+      },
+      {
+        "pair": "B601-Q202",
+        "left": "B601",
+        "right": "Q202",
+        "compared": 80,
+        "sameRate": 0.6625,
+        "oppositeRate": 0.3375,
+        "edge": 0.1625
+      },
+      {
+        "pair": "B201-Q204",
+        "left": "B201",
+        "right": "Q204",
+        "compared": 80,
+        "sameRate": 0.65,
+        "oppositeRate": 0.35,
+        "edge": 0.15
+      },
+      {
+        "pair": "B503-IB201",
+        "left": "B503",
+        "right": "IB201",
+        "compared": 80,
+        "sameRate": 0.65,
+        "oppositeRate": 0.35,
+        "edge": 0.15
+      },
+      {
+        "pair": "B506-V972",
+        "left": "B506",
+        "right": "V972",
+        "compared": 80,
+        "sameRate": 0.65,
+        "oppositeRate": 0.35,
+        "edge": 0.15
+      },
+      {
+        "pair": "IB201-Q702",
+        "left": "IB201",
+        "right": "Q702",
+        "compared": 80,
+        "sameRate": 0.65,
+        "oppositeRate": 0.35,
+        "edge": 0.15
+      },
+      {
+        "pair": "Q202-V912",
+        "left": "Q202",
+        "right": "V912",
+        "compared": 80,
+        "sameRate": 0.65,
+        "oppositeRate": 0.35,
+        "edge": 0.15
+      },
+      {
+        "pair": "B220-B507",
+        "left": "B220",
+        "right": "B507",
+        "compared": 80,
+        "sameRate": 0.6375,
+        "oppositeRate": 0.3625,
+        "edge": 0.1375
+      },
+      {
+        "pair": "B203-V911",
+        "left": "B203",
+        "right": "V911",
+        "compared": 80,
+        "sameRate": 0.625,
+        "oppositeRate": 0.375,
+        "edge": 0.125
+      },
+      {
+        "pair": "B503-V972",
+        "left": "B503",
+        "right": "V972",
+        "compared": 80,
+        "sameRate": 0.625,
+        "oppositeRate": 0.375,
+        "edge": 0.125
+      },
+      {
+        "pair": "B506-V971",
+        "left": "B506",
+        "right": "V971",
+        "compared": 80,
+        "sameRate": 0.625,
+        "oppositeRate": 0.375,
+        "edge": 0.125
+      },
+      {
+        "pair": "B507-C701",
+        "left": "B507",
+        "right": "C701",
+        "compared": 80,
+        "sameRate": 0.625,
+        "oppositeRate": 0.375,
+        "edge": 0.125
+      },
+      {
+        "pair": "C201-Q201",
+        "left": "C201",
+        "right": "Q201",
+        "compared": 80,
+        "sameRate": 0.625,
+        "oppositeRate": 0.375,
+        "edge": 0.125
+      },
+      {
+        "pair": "Q202-Q701",
+        "left": "Q202",
+        "right": "Q701",
+        "compared": 80,
+        "sameRate": 0.625,
+        "oppositeRate": 0.375,
+        "edge": 0.125
+      },
+      {
+        "pair": "B201-B507",
+        "left": "B201",
+        "right": "B507",
+        "compared": 80,
+        "sameRate": 0.6125,
+        "oppositeRate": 0.3875,
+        "edge": 0.1125
+      }
+    ],
+    "oppositeDirection": [
+      {
+        "pair": "B507-Q702",
+        "left": "B507",
+        "right": "Q702",
+        "compared": 80,
+        "sameRate": 0.325,
+        "oppositeRate": 0.675,
+        "edge": 0.175
+      },
+      {
+        "pair": "B504-B605",
+        "left": "B504",
+        "right": "B605",
+        "compared": 80,
+        "sameRate": 0.3375,
+        "oppositeRate": 0.6625,
+        "edge": 0.1625
+      },
+      {
+        "pair": "B604-V972",
+        "left": "B604",
+        "right": "V972",
+        "compared": 80,
+        "sameRate": 0.3625,
+        "oppositeRate": 0.6375,
+        "edge": 0.1375
+      },
+      {
+        "pair": "B618-V972",
+        "left": "B618",
+        "right": "V972",
+        "compared": 80,
+        "sameRate": 0.3625,
+        "oppositeRate": 0.6375,
+        "edge": 0.1375
+      },
+      {
+        "pair": "B502-V912",
+        "left": "B502",
+        "right": "V912",
+        "compared": 80,
+        "sameRate": 0.375,
+        "oppositeRate": 0.625,
+        "edge": 0.125
+      },
+      {
+        "pair": "B505-B506",
+        "left": "B505",
+        "right": "B506",
+        "compared": 80,
+        "sameRate": 0.375,
+        "oppositeRate": 0.625,
+        "edge": 0.125
+      },
+      {
+        "pair": "B505-B603",
+        "left": "B505",
+        "right": "B603",
+        "compared": 80,
+        "sameRate": 0.375,
+        "oppositeRate": 0.625,
+        "edge": 0.125
+      },
+      {
+        "pair": "B505-C201",
+        "left": "B505",
+        "right": "C201",
+        "compared": 80,
+        "sameRate": 0.375,
+        "oppositeRate": 0.625,
+        "edge": 0.125
+      },
+      {
+        "pair": "B219-IB202",
+        "left": "B219",
+        "right": "IB202",
+        "compared": 80,
+        "sameRate": 0.3875,
+        "oppositeRate": 0.6125,
+        "edge": 0.1125
+      },
+      {
+        "pair": "B502-B507",
+        "left": "B502",
+        "right": "B507",
+        "compared": 80,
+        "sameRate": 0.3875,
+        "oppositeRate": 0.6125,
+        "edge": 0.1125
+      },
+      {
+        "pair": "B503-IB202",
+        "left": "B503",
+        "right": "IB202",
+        "compared": 80,
+        "sameRate": 0.3875,
+        "oppositeRate": 0.6125,
+        "edge": 0.1125
+      },
+      {
+        "pair": "C701-V911",
+        "left": "C701",
+        "right": "V911",
+        "compared": 80,
+        "sameRate": 0.3875,
+        "oppositeRate": 0.6125,
+        "edge": 0.1125
+      },
+      {
+        "pair": "V911-V971",
+        "left": "V911",
+        "right": "V971",
+        "compared": 80,
+        "sameRate": 0.3875,
+        "oppositeRate": 0.6125,
+        "edge": 0.1125
+      },
+      {
+        "pair": "B201-Q701",
+        "left": "B201",
+        "right": "Q701",
+        "compared": 80,
+        "sameRate": 0.4,
+        "oppositeRate": 0.6,
+        "edge": 0.1
+      },
+      {
+        "pair": "B202-B219",
+        "left": "B202",
+        "right": "B219",
+        "compared": 80,
+        "sameRate": 0.4,
+        "oppositeRate": 0.6,
+        "edge": 0.1
+      }
+    ],
+    "adjacent": [
+      {
+        "pair": "B201-B202",
+        "compared": 80,
+        "sameRate": 0.5375,
+        "oppositeRate": 0.4625
+      },
+      {
+        "pair": "B202-B203",
+        "compared": 80,
+        "sameRate": 0.5625,
+        "oppositeRate": 0.4375
+      },
+      {
+        "pair": "B203-B219",
+        "compared": 80,
+        "sameRate": 0.5125,
+        "oppositeRate": 0.4875
+      },
+      {
+        "pair": "B219-B220",
+        "compared": 80,
+        "sameRate": 0.5375,
+        "oppositeRate": 0.4625
+      },
+      {
+        "pair": "B220-B501",
+        "compared": 80,
+        "sameRate": 0.525,
+        "oppositeRate": 0.475
+      },
+      {
+        "pair": "B501-B502",
+        "compared": 80,
+        "sameRate": 0.5,
+        "oppositeRate": 0.5
+      },
+      {
+        "pair": "B502-B503",
+        "compared": 80,
+        "sameRate": 0.5375,
+        "oppositeRate": 0.4625
+      },
+      {
+        "pair": "B503-B504",
+        "compared": 80,
+        "sameRate": 0.525,
+        "oppositeRate": 0.475
+      },
+      {
+        "pair": "B504-B505",
+        "compared": 80,
+        "sameRate": 0.525,
+        "oppositeRate": 0.475
+      },
+      {
+        "pair": "B505-B506",
+        "compared": 80,
+        "sameRate": 0.375,
+        "oppositeRate": 0.625
+      },
+      {
+        "pair": "B506-B507",
+        "compared": 80,
+        "sameRate": 0.4,
+        "oppositeRate": 0.6
+      },
+      {
+        "pair": "B507-B601",
+        "compared": 80,
+        "sameRate": 0.55,
+        "oppositeRate": 0.45
+      },
+      {
+        "pair": "B601-B602",
+        "compared": 80,
+        "sameRate": 0.5125,
+        "oppositeRate": 0.4875
+      },
+      {
+        "pair": "B602-B603",
+        "compared": 80,
+        "sameRate": 0.4625,
+        "oppositeRate": 0.5375
+      },
+      {
+        "pair": "B603-B604",
+        "compared": 80,
+        "sameRate": 0.5125,
+        "oppositeRate": 0.4875
+      },
+      {
+        "pair": "B604-B605",
+        "compared": 80,
+        "sameRate": 0.475,
+        "oppositeRate": 0.525
+      },
+      {
+        "pair": "B605-B618",
+        "compared": 80,
+        "sameRate": 0.575,
+        "oppositeRate": 0.425
+      },
+      {
+        "pair": "B618-C201",
+        "compared": 80,
+        "sameRate": 0.5125,
+        "oppositeRate": 0.4875
+      },
+      {
+        "pair": "C201-C202",
+        "compared": 80,
+        "sameRate": 0.575,
+        "oppositeRate": 0.425
+      },
+      {
+        "pair": "C202-C501",
+        "compared": 80,
+        "sameRate": 0.4625,
+        "oppositeRate": 0.5375
+      },
+      {
+        "pair": "C501-C701",
+        "compared": 80,
+        "sameRate": 0.4875,
+        "oppositeRate": 0.5125
+      },
+      {
+        "pair": "C701-IB201",
+        "compared": 80,
+        "sameRate": 0.525,
+        "oppositeRate": 0.475
+      },
+      {
+        "pair": "IB201-IB202",
+        "compared": 80,
+        "sameRate": 0.4875,
+        "oppositeRate": 0.5125
+      },
+      {
+        "pair": "IB202-Q201",
+        "compared": 80,
+        "sameRate": 0.4625,
+        "oppositeRate": 0.5375
+      },
+      {
+        "pair": "Q201-Q202",
+        "compared": 80,
+        "sameRate": 0.4625,
+        "oppositeRate": 0.5375
+      },
+      {
+        "pair": "Q202-Q204",
+        "compared": 80,
+        "sameRate": 0.5,
+        "oppositeRate": 0.5
+      },
+      {
+        "pair": "Q204-Q501",
+        "compared": 80,
+        "sameRate": 0.4875,
+        "oppositeRate": 0.5125
+      },
+      {
+        "pair": "Q501-Q502",
+        "compared": 80,
+        "sameRate": 0.45,
+        "oppositeRate": 0.55
+      },
+      {
+        "pair": "Q502-Q601",
+        "compared": 80,
+        "sameRate": 0.5875,
+        "oppositeRate": 0.4125
+      },
+      {
+        "pair": "Q601-Q701",
+        "compared": 80,
+        "sameRate": 0.475,
+        "oppositeRate": 0.525
+      },
+      {
+        "pair": "Q701-Q702",
+        "compared": 80,
+        "sameRate": 0.5375,
+        "oppositeRate": 0.4625
+      },
+      {
+        "pair": "Q702-V911",
+        "compared": 80,
+        "sameRate": 0.5625,
+        "oppositeRate": 0.4375
+      },
+      {
+        "pair": "V911-V912",
+        "compared": 80,
+        "sameRate": 0.6,
+        "oppositeRate": 0.4
+      },
+      {
+        "pair": "V912-V971",
+        "compared": 80,
+        "sameRate": 0.5125,
+        "oppositeRate": 0.4875
+      },
+      {
+        "pair": "V971-V972",
+        "compared": 80,
+        "sameRate": 0.525,
+        "oppositeRate": 0.475
+      }
+    ]
+  },
+  "tables": [
+    {
+      "code": "B201",
+      "group": "B",
+      "targetIndex": 0,
+      "rounds": 1902,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:55.983Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 66,
+        "player": 88,
+        "tie": 6,
+        "bankerPair": 14,
+        "playerPair": 19,
+        "luckySix": 7
+      },
+      "shortCounts": {
+        "banker": 19,
+        "player": 26,
+        "tie": 3,
+        "bankerPair": 2,
+        "playerPair": 10,
+        "luckySix": 4
+      },
+      "bankerRate": 0.4286,
+      "playerRate": 0.5714,
+      "tieRate": 0.0375,
+      "bankerPairRate": 0.0875,
+      "playerPairRate": 0.1188,
+      "luckySixRate": 0.0438,
+      "longBias": -0.1429,
+      "shortBias": -0.1556,
+      "biasShift": -0.0127,
+      "alternationRate": 0.4314,
+      "shortAlternationRate": 0.4318,
+      "currentStreak": {
+        "side": "player",
+        "length": 1
+      },
+      "frontBack": {
+        "frontBias": -0.1948,
+        "backBias": -0.0909,
+        "shift": 0.1039
+      },
+      "pattern": "短線偏閒",
+      "observeMode": "均衡觀察",
+      "lastSignal": "閒1連",
+      "trendScore": 63.78,
+      "fiveElements": {
+        "scores": {
+          "wood": 33,
+          "fire": 66,
+          "earth": 9,
+          "metal": 8.4,
+          "water": 88
+        },
+        "dominant": "water",
+        "read": "水旺：閒勢訊號偏強，宜看反向壓力"
+      },
+      "bagua": {
+        "bits": "000010",
+        "lower": "坤",
+        "upper": "坎",
+        "hexagram": "坎上坤下"
+      },
+      "recentSequence": "PBPBBPPPBPPBPPPPPPPPPPBP"
+    },
+    {
+      "code": "B202",
+      "group": "B",
+      "targetIndex": 1,
+      "rounds": 1909,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:56.306Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 88,
+        "player": 55,
+        "tie": 17,
+        "bankerPair": 14,
+        "playerPair": 16,
+        "luckySix": 15
+      },
+      "shortCounts": {
+        "banker": 21,
+        "player": 22,
+        "tie": 5,
+        "bankerPair": 7,
+        "playerPair": 6,
+        "luckySix": 2
+      },
+      "bankerRate": 0.6154,
+      "playerRate": 0.3846,
+      "tieRate": 0.1063,
+      "bankerPairRate": 0.0875,
+      "playerPairRate": 0.1,
+      "luckySixRate": 0.0938,
+      "longBias": 0.2308,
+      "shortBias": -0.0233,
+      "biasShift": -0.2541,
+      "alternationRate": 0.507,
+      "shortAlternationRate": 0.5238,
+      "currentStreak": {
+        "side": "banker",
+        "length": 3
+      },
+      "frontBack": {
+        "frontBias": 0.3333,
+        "backBias": 0.1268,
+        "shift": -0.2065
+      },
+      "pattern": "中線偏莊",
+      "observeMode": "均衡觀察",
+      "lastSignal": "莊3連",
+      "trendScore": 69.22,
+      "fiveElements": {
+        "scores": {
+          "wood": 28,
+          "fire": 88,
+          "earth": 25.5,
+          "metal": 18,
+          "water": 55
+        },
+        "dominant": "fire",
+        "read": "火旺：莊勢訊號偏強，宜看順勢是否延續"
+      },
+      "bagua": {
+        "bits": "010111",
+        "lower": "坎",
+        "upper": "乾",
+        "hexagram": "乾上坎下"
+      },
+      "recentSequence": "PPPBPPBPBBPPPPBBPBPBPBBB"
+    },
+    {
+      "code": "B203",
+      "group": "B",
+      "targetIndex": 2,
+      "rounds": 1889,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:56.656Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 77,
+        "player": 71,
+        "tie": 12,
+        "bankerPair": 13,
+        "playerPair": 15,
+        "luckySix": 9
+      },
+      "shortCounts": {
+        "banker": 22,
+        "player": 23,
+        "tie": 3,
+        "bankerPair": 6,
+        "playerPair": 1,
+        "luckySix": 3
+      },
+      "bankerRate": 0.5203,
+      "playerRate": 0.4797,
+      "tieRate": 0.075,
+      "bankerPairRate": 0.0813,
+      "playerPairRate": 0.0938,
+      "luckySixRate": 0.0563,
+      "longBias": 0.0405,
+      "shortBias": -0.0222,
+      "biasShift": -0.0627,
+      "alternationRate": 0.4898,
+      "shortAlternationRate": 0.5,
+      "currentStreak": {
+        "side": "banker",
+        "length": 2
+      },
+      "frontBack": {
+        "frontBias": 0.0933,
+        "backBias": -0.0137,
+        "shift": -0.107
+      },
+      "pattern": "中線偏莊",
+      "observeMode": "均衡觀察",
+      "lastSignal": "莊2連",
+      "trendScore": 52.68,
+      "fiveElements": {
+        "scores": {
+          "wood": 27,
+          "fire": 77,
+          "earth": 18,
+          "metal": 10.8,
+          "water": 71
+        },
+        "dominant": "fire",
+        "read": "火旺：莊勢訊號偏強，宜看順勢是否延續"
+      },
+      "bagua": {
+        "bits": "000011",
+        "lower": "坤",
+        "upper": "兌",
+        "hexagram": "兌上坤下"
+      },
+      "recentSequence": "PBBBPBPPBBBPPPPBPBPPPPBB"
+    },
+    {
+      "code": "B219",
+      "group": "B",
+      "targetIndex": 3,
+      "rounds": 1509,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:57.686Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 68,
+        "player": 71,
+        "tie": 21,
+        "bankerPair": 13,
+        "playerPair": 20,
+        "luckySix": 7
+      },
+      "shortCounts": {
+        "banker": 26,
+        "player": 15,
+        "tie": 7,
+        "bankerPair": 6,
+        "playerPair": 3,
+        "luckySix": 3
+      },
+      "bankerRate": 0.4892,
+      "playerRate": 0.5108,
+      "tieRate": 0.1313,
+      "bankerPairRate": 0.0813,
+      "playerPairRate": 0.125,
+      "luckySixRate": 0.0438,
+      "longBias": -0.0216,
+      "shortBias": 0.2683,
+      "biasShift": 0.2899,
+      "alternationRate": 0.4928,
+      "shortAlternationRate": 0.45,
+      "currentStreak": {
+        "side": "banker",
+        "length": 3
+      },
+      "frontBack": {
+        "frontBias": -0.1429,
+        "backBias": 0.1014,
+        "shift": 0.2443
+      },
+      "pattern": "短線偏莊",
+      "observeMode": "順勢觀察",
+      "lastSignal": "莊3連",
+      "trendScore": 93,
+      "fiveElements": {
+        "scores": {
+          "wood": 31,
+          "fire": 68,
+          "earth": 31.5,
+          "metal": 8.4,
+          "water": 71
+        },
+        "dominant": "water",
+        "read": "水旺：閒勢訊號偏強，宜看反向壓力"
+      },
+      "bagua": {
+        "bits": "100111",
+        "lower": "艮",
+        "upper": "乾",
+        "hexagram": "乾上艮下"
+      },
+      "recentSequence": "BBBPPBBPBPPPBBBPBPBPPBBB"
+    },
+    {
+      "code": "B220",
+      "group": "B",
+      "targetIndex": 4,
+      "rounds": 1456,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:58.047Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 72,
+        "player": 71,
+        "tie": 17,
+        "bankerPair": 15,
+        "playerPair": 10,
+        "luckySix": 4
+      },
+      "shortCounts": {
+        "banker": 22,
+        "player": 23,
+        "tie": 3,
+        "bankerPair": 5,
+        "playerPair": 5,
+        "luckySix": 2
+      },
+      "bankerRate": 0.5035,
+      "playerRate": 0.4965,
+      "tieRate": 0.1063,
+      "bankerPairRate": 0.0938,
+      "playerPairRate": 0.0625,
+      "luckySixRate": 0.025,
+      "longBias": 0.007,
+      "shortBias": -0.0222,
+      "biasShift": -0.0292,
+      "alternationRate": 0.4366,
+      "shortAlternationRate": 0.3864,
+      "currentStreak": {
+        "side": "banker",
+        "length": 5
+      },
+      "frontBack": {
+        "frontBias": 0.1111,
+        "backBias": -0.0986,
+        "shift": -0.2097
+      },
+      "pattern": "莊長龍",
+      "observeMode": "均衡觀察",
+      "lastSignal": "莊5連",
+      "trendScore": 71.82,
+      "fiveElements": {
+        "scores": {
+          "wood": 24,
+          "fire": 72,
+          "earth": 25.5,
+          "metal": 4.8,
+          "water": 71
+        },
+        "dominant": "fire",
+        "read": "火旺：莊勢訊號偏強，宜看順勢是否延續"
+      },
+      "bagua": {
+        "bits": "011111",
+        "lower": "兌",
+        "upper": "乾",
+        "hexagram": "乾上兌下"
+      },
+      "recentSequence": "PPBBPBBBPPBBPBPPPPPBBBBB"
+    },
+    {
+      "code": "B501",
+      "group": "B",
+      "targetIndex": 5,
+      "rounds": 1748,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:52.645Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 81,
+        "player": 66,
+        "tie": 13,
+        "bankerPair": 11,
+        "playerPair": 12,
+        "luckySix": 16
+      },
+      "shortCounts": {
+        "banker": 30,
+        "player": 14,
+        "tie": 4,
+        "bankerPair": 3,
+        "playerPair": 2,
+        "luckySix": 2
+      },
+      "bankerRate": 0.551,
+      "playerRate": 0.449,
+      "tieRate": 0.0813,
+      "bankerPairRate": 0.0688,
+      "playerPairRate": 0.075,
+      "luckySixRate": 0.1,
+      "longBias": 0.102,
+      "shortBias": 0.3636,
+      "biasShift": 0.2616,
+      "alternationRate": 0.5548,
+      "shortAlternationRate": 0.5116,
+      "currentStreak": {
+        "side": "banker",
+        "length": 6
+      },
+      "frontBack": {
+        "frontBias": -0.0278,
+        "backBias": 0.2267,
+        "shift": 0.2545
+      },
+      "pattern": "莊長龍",
+      "observeMode": "長連後觀察斷點",
+      "lastSignal": "莊6連",
+      "trendScore": 100.7,
+      "fiveElements": {
+        "scores": {
+          "wood": 21,
+          "fire": 81,
+          "earth": 19.5,
+          "metal": 19.2,
+          "water": 66
+        },
+        "dominant": "fire",
+        "read": "火旺：莊勢訊號偏強，宜看順勢是否延續"
+      },
+      "bagua": {
+        "bits": "111111",
+        "lower": "乾",
+        "upper": "乾",
+        "hexagram": "乾上乾下"
+      },
+      "recentSequence": "PBPBBPPBPBBPBBBBBPBBBBBB"
+    },
+    {
+      "code": "B502",
+      "group": "B",
+      "targetIndex": 6,
+      "rounds": 1713,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:52.970Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 76,
+        "player": 72,
+        "tie": 12,
+        "bankerPair": 12,
+        "playerPair": 12,
+        "luckySix": 7
+      },
+      "shortCounts": {
+        "banker": 22,
+        "player": 22,
+        "tie": 4,
+        "bankerPair": 3,
+        "playerPair": 4,
+        "luckySix": 0
+      },
+      "bankerRate": 0.5135,
+      "playerRate": 0.4865,
+      "tieRate": 0.075,
+      "bankerPairRate": 0.075,
+      "playerPairRate": 0.075,
+      "luckySixRate": 0.0438,
+      "longBias": 0.027,
+      "shortBias": 0,
+      "biasShift": -0.027,
+      "alternationRate": 0.5442,
+      "shortAlternationRate": 0.4186,
+      "currentStreak": {
+        "side": "banker",
+        "length": 3
+      },
+      "frontBack": {
+        "frontBias": 0.0541,
+        "backBias": 0,
+        "shift": -0.0541
+      },
+      "pattern": "均衡盤",
+      "observeMode": "均衡觀察",
+      "lastSignal": "莊3連",
+      "trendScore": 57.04,
+      "fiveElements": {
+        "scores": {
+          "wood": 22,
+          "fire": 76,
+          "earth": 18,
+          "metal": 8.4,
+          "water": 72
+        },
+        "dominant": "fire",
+        "read": "火旺：莊勢訊號偏強，宜看順勢是否延續"
+      },
+      "bagua": {
+        "bits": "110111",
+        "lower": "巽",
+        "upper": "乾",
+        "hexagram": "乾上巽下"
+      },
+      "recentSequence": "BBPBPPPPPBPBPPPPBBBBPBBB"
+    },
+    {
+      "code": "B503",
+      "group": "B",
+      "targetIndex": 7,
+      "rounds": 1708,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:53.293Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 66,
+        "player": 73,
+        "tie": 21,
+        "bankerPair": 11,
+        "playerPair": 14,
+        "luckySix": 12
+      },
+      "shortCounts": {
+        "banker": 20,
+        "player": 23,
+        "tie": 5,
+        "bankerPair": 3,
+        "playerPair": 1,
+        "luckySix": 1
+      },
+      "bankerRate": 0.4748,
+      "playerRate": 0.5252,
+      "tieRate": 0.1313,
+      "bankerPairRate": 0.0688,
+      "playerPairRate": 0.0875,
+      "luckySixRate": 0.075,
+      "longBias": -0.0504,
+      "shortBias": -0.0698,
+      "biasShift": -0.0194,
+      "alternationRate": 0.4783,
+      "shortAlternationRate": 0.4048,
+      "currentStreak": {
+        "side": "banker",
+        "length": 1
+      },
+      "frontBack": {
+        "frontBias": -0.0435,
+        "backBias": -0.0571,
+        "shift": -0.0136
+      },
+      "pattern": "中線偏閒",
+      "observeMode": "均衡觀察",
+      "lastSignal": "莊1連",
+      "trendScore": 55.64,
+      "fiveElements": {
+        "scores": {
+          "wood": 24,
+          "fire": 66,
+          "earth": 31.5,
+          "metal": 14.4,
+          "water": 73
+        },
+        "dominant": "water",
+        "read": "水旺：閒勢訊號偏強，宜看反向壓力"
+      },
+      "bagua": {
+        "bits": "110101",
+        "lower": "巽",
+        "upper": "離",
+        "hexagram": "離上巽下"
+      },
+      "recentSequence": "BPBPPPPPBBPPBBPPBBBBPBPB"
+    },
+    {
+      "code": "B504",
+      "group": "B",
+      "targetIndex": 8,
+      "rounds": 1812,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:45:40.209Z",
+      "freshnessMinutes": 10,
+      "counts": {
+        "banker": 67,
+        "player": 80,
+        "tie": 13,
+        "bankerPair": 12,
+        "playerPair": 12,
+        "luckySix": 7
+      },
+      "shortCounts": {
+        "banker": 17,
+        "player": 26,
+        "tie": 5,
+        "bankerPair": 4,
+        "playerPair": 2,
+        "luckySix": 2
+      },
+      "bankerRate": 0.4558,
+      "playerRate": 0.5442,
+      "tieRate": 0.0813,
+      "bankerPairRate": 0.075,
+      "playerPairRate": 0.075,
+      "luckySixRate": 0.0438,
+      "longBias": -0.0884,
+      "shortBias": -0.2093,
+      "biasShift": -0.1209,
+      "alternationRate": 0.5548,
+      "shortAlternationRate": 0.4762,
+      "currentStreak": {
+        "side": "player",
+        "length": 1
+      },
+      "frontBack": {
+        "frontBias": -0.1053,
+        "backBias": -0.0704,
+        "shift": 0.0349
+      },
+      "pattern": "短線偏閒",
+      "observeMode": "偏閒觀察",
+      "lastSignal": "閒1連",
+      "trendScore": 76.1,
+      "fiveElements": {
+        "scores": {
+          "wood": 24,
+          "fire": 67,
+          "earth": 19.5,
+          "metal": 8.4,
+          "water": 80
+        },
+        "dominant": "water",
+        "read": "水旺：閒勢訊號偏強，宜看反向壓力"
+      },
+      "bagua": {
+        "bits": "000110",
+        "lower": "坤",
+        "upper": "巽",
+        "hexagram": "巽上坤下"
+      },
+      "recentSequence": "PBPPBPBPBBBPPPPBPPPPPBBP"
+    },
+    {
+      "code": "B505",
+      "group": "B",
+      "targetIndex": 9,
+      "rounds": 1686,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:53.918Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 64,
+        "player": 77,
+        "tie": 19,
+        "bankerPair": 17,
+        "playerPair": 9,
+        "luckySix": 11
+      },
+      "shortCounts": {
+        "banker": 20,
+        "player": 22,
+        "tie": 6,
+        "bankerPair": 4,
+        "playerPair": 3,
+        "luckySix": 4
+      },
+      "bankerRate": 0.4539,
+      "playerRate": 0.5461,
+      "tieRate": 0.1188,
+      "bankerPairRate": 0.1063,
+      "playerPairRate": 0.0563,
+      "luckySixRate": 0.0688,
+      "longBias": -0.0922,
+      "shortBias": -0.0476,
+      "biasShift": 0.0446,
+      "alternationRate": 0.3714,
+      "shortAlternationRate": 0.3415,
+      "currentStreak": {
+        "side": "banker",
+        "length": 7
+      },
+      "frontBack": {
+        "frontBias": -0.0286,
+        "backBias": -0.1549,
+        "shift": -0.1263
+      },
+      "pattern": "莊長龍",
+      "observeMode": "長連後觀察斷點",
+      "lastSignal": "莊7連",
+      "trendScore": 78.79,
+      "fiveElements": {
+        "scores": {
+          "wood": 25,
+          "fire": 64,
+          "earth": 28.5,
+          "metal": 13.2,
+          "water": 77
+        },
+        "dominant": "water",
+        "read": "水旺：閒勢訊號偏強，宜看反向壓力"
+      },
+      "bagua": {
+        "bits": "111111",
+        "lower": "乾",
+        "upper": "乾",
+        "hexagram": "乾上乾下"
+      },
+      "recentSequence": "BBBPBPPBPPPPPPBPPBBBBBBB"
+    },
+    {
+      "code": "B506",
+      "group": "B",
+      "targetIndex": 10,
+      "rounds": 1810,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:54.311Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 76,
+        "player": 73,
+        "tie": 11,
+        "bankerPair": 16,
+        "playerPair": 7,
+        "luckySix": 11
+      },
+      "shortCounts": {
+        "banker": 18,
+        "player": 27,
+        "tie": 3,
+        "bankerPair": 6,
+        "playerPair": 2,
+        "luckySix": 1
+      },
+      "bankerRate": 0.5101,
+      "playerRate": 0.4899,
+      "tieRate": 0.0688,
+      "bankerPairRate": 0.1,
+      "playerPairRate": 0.0438,
+      "luckySixRate": 0.0688,
+      "longBias": 0.0201,
+      "shortBias": -0.2,
+      "biasShift": -0.2201,
+      "alternationRate": 0.4122,
+      "shortAlternationRate": 0.3409,
+      "currentStreak": {
+        "side": "player",
+        "length": 2
+      },
+      "frontBack": {
+        "frontBias": 0.04,
+        "backBias": 0,
+        "shift": -0.04
+      },
+      "pattern": "短線偏閒",
+      "observeMode": "偏閒觀察",
+      "lastSignal": "閒2連",
+      "trendScore": 93.55,
+      "fiveElements": {
+        "scores": {
+          "wood": 22,
+          "fire": 76,
+          "earth": 16.5,
+          "metal": 13.2,
+          "water": 73
+        },
+        "dominant": "fire",
+        "read": "火旺：莊勢訊號偏強，宜看順勢是否延續"
+      },
+      "bagua": {
+        "bits": "010100",
+        "lower": "坎",
+        "upper": "艮",
+        "hexagram": "艮上坎下"
+      },
+      "recentSequence": "PPPPPPPPPPBBBBPPBPPBPBPP"
+    },
+    {
+      "code": "B507",
+      "group": "B",
+      "targetIndex": 11,
+      "rounds": 1840,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:54.611Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 73,
+        "player": 72,
+        "tie": 15,
+        "bankerPair": 13,
+        "playerPair": 7,
+        "luckySix": 11
+      },
+      "shortCounts": {
+        "banker": 21,
+        "player": 24,
+        "tie": 3,
+        "bankerPair": 3,
+        "playerPair": 2,
+        "luckySix": 2
+      },
+      "bankerRate": 0.5034,
+      "playerRate": 0.4966,
+      "tieRate": 0.0938,
+      "bankerPairRate": 0.0813,
+      "playerPairRate": 0.0438,
+      "luckySixRate": 0.0688,
+      "longBias": 0.0069,
+      "shortBias": -0.0667,
+      "biasShift": -0.0736,
+      "alternationRate": 0.5,
+      "shortAlternationRate": 0.4545,
+      "currentStreak": {
+        "side": "player",
+        "length": 1
+      },
+      "frontBack": {
+        "frontBias": 0.0833,
+        "backBias": -0.0685,
+        "shift": -0.1518
+      },
+      "pattern": "均衡盤",
+      "observeMode": "均衡觀察",
+      "lastSignal": "閒1連",
+      "trendScore": 56.62,
+      "fiveElements": {
+        "scores": {
+          "wood": 19,
+          "fire": 73,
+          "earth": 22.5,
+          "metal": 13.2,
+          "water": 72
+        },
+        "dominant": "fire",
+        "read": "火旺：莊勢訊號偏強，宜看順勢是否延續"
+      },
+      "bagua": {
+        "bits": "000010",
+        "lower": "坤",
+        "upper": "坎",
+        "hexagram": "坎上坤下"
+      },
+      "recentSequence": "PPBBBBBBPPBPPPBBBPPPPPBP"
+    },
+    {
+      "code": "B601",
+      "group": "B",
+      "targetIndex": 12,
+      "rounds": 1827,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:42.580Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 75,
+        "player": 66,
+        "tie": 19,
+        "bankerPair": 10,
+        "playerPair": 16,
+        "luckySix": 11
+      },
+      "shortCounts": {
+        "banker": 27,
+        "player": 15,
+        "tie": 6,
+        "bankerPair": 3,
+        "playerPair": 3,
+        "luckySix": 4
+      },
+      "bankerRate": 0.5319,
+      "playerRate": 0.4681,
+      "tieRate": 0.1188,
+      "bankerPairRate": 0.0625,
+      "playerPairRate": 0.1,
+      "luckySixRate": 0.0688,
+      "longBias": 0.0638,
+      "shortBias": 0.2857,
+      "biasShift": 0.2219,
+      "alternationRate": 0.5214,
+      "shortAlternationRate": 0.439,
+      "currentStreak": {
+        "side": "player",
+        "length": 1
+      },
+      "frontBack": {
+        "frontBias": -0.0286,
+        "backBias": 0.1549,
+        "shift": 0.1835
+      },
+      "pattern": "短線偏莊",
+      "observeMode": "偏莊觀察",
+      "lastSignal": "閒1連",
+      "trendScore": 83.66,
+      "fiveElements": {
+        "scores": {
+          "wood": 23,
+          "fire": 75,
+          "earth": 28.5,
+          "metal": 13.2,
+          "water": 66
+        },
+        "dominant": "fire",
+        "read": "火旺：莊勢訊號偏強，宜看順勢是否延續"
+      },
+      "bagua": {
+        "bits": "011010",
+        "lower": "兌",
+        "upper": "坎",
+        "hexagram": "坎上兌下"
+      },
+      "recentSequence": "BPBBBBBBBBBPPBBPBPPBBPBP"
+    },
+    {
+      "code": "B602",
+      "group": "B",
+      "targetIndex": 13,
+      "rounds": 1812,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:44.009Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 73,
+        "player": 69,
+        "tie": 18,
+        "bankerPair": 8,
+        "playerPair": 11,
+        "luckySix": 11
+      },
+      "shortCounts": {
+        "banker": 20,
+        "player": 22,
+        "tie": 6,
+        "bankerPair": 1,
+        "playerPair": 4,
+        "luckySix": 4
+      },
+      "bankerRate": 0.5141,
+      "playerRate": 0.4859,
+      "tieRate": 0.1125,
+      "bankerPairRate": 0.05,
+      "playerPairRate": 0.0688,
+      "luckySixRate": 0.0688,
+      "longBias": 0.0282,
+      "shortBias": -0.0476,
+      "biasShift": -0.0758,
+      "alternationRate": 0.5603,
+      "shortAlternationRate": 0.5122,
+      "currentStreak": {
+        "side": "player",
+        "length": 1
+      },
+      "frontBack": {
+        "frontBias": 0.0986,
+        "backBias": -0.0423,
+        "shift": -0.1409
+      },
+      "pattern": "均衡盤",
+      "observeMode": "均衡觀察",
+      "lastSignal": "閒1連",
+      "trendScore": 52.51,
+      "fiveElements": {
+        "scores": {
+          "wood": 19,
+          "fire": 73,
+          "earth": 27,
+          "metal": 13.2,
+          "water": 69
+        },
+        "dominant": "fire",
+        "read": "火旺：莊勢訊號偏強，宜看順勢是否延續"
+      },
+      "bagua": {
+        "bits": "011010",
+        "lower": "兌",
+        "upper": "坎",
+        "hexagram": "坎上兌下"
+      },
+      "recentSequence": "PBBPPPBPBPPPBBBPBPPBBPBP"
+    },
+    {
+      "code": "B603",
+      "group": "B",
+      "targetIndex": 14,
+      "rounds": 1781,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:44.944Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 64,
+        "player": 79,
+        "tie": 17,
+        "bankerPair": 19,
+        "playerPair": 12,
+        "luckySix": 6
+      },
+      "shortCounts": {
+        "banker": 24,
+        "player": 19,
+        "tie": 5,
+        "bankerPair": 6,
+        "playerPair": 2,
+        "luckySix": 3
+      },
+      "bankerRate": 0.4476,
+      "playerRate": 0.5524,
+      "tieRate": 0.1063,
+      "bankerPairRate": 0.1188,
+      "playerPairRate": 0.075,
+      "luckySixRate": 0.0375,
+      "longBias": -0.1049,
+      "shortBias": 0.1163,
+      "biasShift": 0.2212,
+      "alternationRate": 0.5352,
+      "shortAlternationRate": 0.5,
+      "currentStreak": {
+        "side": "player",
+        "length": 3
+      },
+      "frontBack": {
+        "frontBias": -0.3056,
+        "backBias": 0.0986,
+        "shift": 0.4042
+      },
+      "pattern": "中線偏閒",
+      "observeMode": "均衡觀察",
+      "lastSignal": "閒3連",
+      "trendScore": 78.96,
+      "fiveElements": {
+        "scores": {
+          "wood": 28,
+          "fire": 64,
+          "earth": 25.5,
+          "metal": 7.2,
+          "water": 79
+        },
+        "dominant": "water",
+        "read": "水旺：閒勢訊號偏強，宜看反向壓力"
+      },
+      "bagua": {
+        "bits": "001000",
+        "lower": "震",
+        "upper": "坤",
+        "hexagram": "坤上震下"
+      },
+      "recentSequence": "PPBBPBBPBBBBBPBBBBPPBPPP"
+    },
+    {
+      "code": "B604",
+      "group": "B",
+      "targetIndex": 15,
+      "rounds": 1863,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:45.863Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 71,
+        "player": 74,
+        "tie": 15,
+        "bankerPair": 16,
+        "playerPair": 5,
+        "luckySix": 3
+      },
+      "shortCounts": {
+        "banker": 17,
+        "player": 28,
+        "tie": 3,
+        "bankerPair": 7,
+        "playerPair": 0,
+        "luckySix": 0
+      },
+      "bankerRate": 0.4897,
+      "playerRate": 0.5103,
+      "tieRate": 0.0938,
+      "bankerPairRate": 0.1,
+      "playerPairRate": 0.0313,
+      "luckySixRate": 0.0188,
+      "longBias": -0.0207,
+      "shortBias": -0.2444,
+      "biasShift": -0.2237,
+      "alternationRate": 0.4375,
+      "shortAlternationRate": 0.4773,
+      "currentStreak": {
+        "side": "player",
+        "length": 1
+      },
+      "frontBack": {
+        "frontBias": 0.1781,
+        "backBias": -0.2222,
+        "shift": -0.4003
+      },
+      "pattern": "短線偏閒",
+      "observeMode": "偏閒觀察",
+      "lastSignal": "閒1連",
+      "trendScore": 81.36,
+      "fiveElements": {
+        "scores": {
+          "wood": 21,
+          "fire": 71,
+          "earth": 22.5,
+          "metal": 3.6,
+          "water": 74
+        },
+        "dominant": "water",
+        "read": "水旺：閒勢訊號偏強，宜看反向壓力"
+      },
+      "bagua": {
+        "bits": "000110",
+        "lower": "坤",
+        "upper": "巽",
+        "hexagram": "巽上坤下"
+      },
+      "recentSequence": "BPBBPPPPPPPPBPBBBPPPPBBP"
+    },
+    {
+      "code": "B605",
+      "group": "B",
+      "targetIndex": 16,
+      "rounds": 1858,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:46.856Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 70,
+        "player": 73,
+        "tie": 17,
+        "bankerPair": 17,
+        "playerPair": 15,
+        "luckySix": 10
+      },
+      "shortCounts": {
+        "banker": 22,
+        "player": 15,
+        "tie": 11,
+        "bankerPair": 4,
+        "playerPair": 6,
+        "luckySix": 2
+      },
+      "bankerRate": 0.4895,
+      "playerRate": 0.5105,
+      "tieRate": 0.1063,
+      "bankerPairRate": 0.1063,
+      "playerPairRate": 0.0938,
+      "luckySixRate": 0.0625,
+      "longBias": -0.021,
+      "shortBias": 0.1892,
+      "biasShift": 0.2102,
+      "alternationRate": 0.4014,
+      "shortAlternationRate": 0.3611,
+      "currentStreak": {
+        "side": "player",
+        "length": 1
+      },
+      "frontBack": {
+        "frontBias": 0,
+        "backBias": -0.0462,
+        "shift": -0.0462
+      },
+      "pattern": "短線偏莊",
+      "observeMode": "偏莊觀察",
+      "lastSignal": "閒1連",
+      "trendScore": 86.04,
+      "fiveElements": {
+        "scores": {
+          "wood": 31,
+          "fire": 70,
+          "earth": 25.5,
+          "metal": 12,
+          "water": 73
+        },
+        "dominant": "water",
+        "read": "水旺：閒勢訊號偏強，宜看反向壓力"
+      },
+      "bagua": {
+        "bits": "110010",
+        "lower": "巽",
+        "upper": "坎",
+        "hexagram": "坎上巽下"
+      },
+      "recentSequence": "PPBPPBPBBPBBBBBPPBBBPPBP"
+    },
+    {
+      "code": "B618",
+      "group": "B",
+      "targetIndex": 17,
+      "rounds": 1362,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:49.151Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 63,
+        "player": 80,
+        "tie": 17,
+        "bankerPair": 12,
+        "playerPair": 15,
+        "luckySix": 9
+      },
+      "shortCounts": {
+        "banker": 19,
+        "player": 26,
+        "tie": 3,
+        "bankerPair": 2,
+        "playerPair": 6,
+        "luckySix": 4
+      },
+      "bankerRate": 0.4406,
+      "playerRate": 0.5594,
+      "tieRate": 0.1063,
+      "bankerPairRate": 0.075,
+      "playerPairRate": 0.0938,
+      "luckySixRate": 0.0563,
+      "longBias": -0.1189,
+      "shortBias": -0.1556,
+      "biasShift": -0.0367,
+      "alternationRate": 0.4507,
+      "shortAlternationRate": 0.4773,
+      "currentStreak": {
+        "side": "player",
+        "length": 1
+      },
+      "frontBack": {
+        "frontBias": -0.0571,
+        "backBias": -0.1781,
+        "shift": -0.121
+      },
+      "pattern": "短線偏閒",
+      "observeMode": "均衡觀察",
+      "lastSignal": "閒1連",
+      "trendScore": 62.97,
+      "fiveElements": {
+        "scores": {
+          "wood": 25,
+          "fire": 63,
+          "earth": 25.5,
+          "metal": 10.8,
+          "water": 80
+        },
+        "dominant": "water",
+        "read": "水旺：閒勢訊號偏強，宜看反向壓力"
+      },
+      "bagua": {
+        "bits": "000110",
+        "lower": "坤",
+        "upper": "巽",
+        "hexagram": "巽上坤下"
+      },
+      "recentSequence": "BPPPBPBPPPPBBPPBBBPPPBBP"
+    },
+    {
+      "code": "C201",
+      "group": "C",
+      "targetIndex": 18,
+      "rounds": 283,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-25T14:58:48.439Z",
+      "freshnessMinutes": 1497,
+      "counts": {
+        "banker": 73,
+        "player": 70,
+        "tie": 17,
+        "bankerPair": 14,
+        "playerPair": 9,
+        "luckySix": 4
+      },
+      "shortCounts": {
+        "banker": 22,
+        "player": 21,
+        "tie": 5,
+        "bankerPair": 5,
+        "playerPair": 2,
+        "luckySix": 2
+      },
+      "bankerRate": 0.5105,
+      "playerRate": 0.4895,
+      "tieRate": 0.1063,
+      "bankerPairRate": 0.0875,
+      "playerPairRate": 0.0563,
+      "luckySixRate": 0.025,
+      "longBias": 0.021,
+      "shortBias": 0.0233,
+      "biasShift": 0.0023,
+      "alternationRate": 0.5211,
+      "shortAlternationRate": 0.4524,
+      "currentStreak": {
+        "side": "player",
+        "length": 2
+      },
+      "frontBack": {
+        "frontBias": 0.0278,
+        "backBias": 0.0141,
+        "shift": -0.0137
+      },
+      "pattern": "均衡盤",
+      "observeMode": "資料偏少/偏舊，暫緩觀察",
+      "lastSignal": "閒2連",
+      "trendScore": 40.84,
+      "fiveElements": {
+        "scores": {
+          "wood": 23,
+          "fire": 73,
+          "earth": 25.5,
+          "metal": 4.8,
+          "water": 70
+        },
+        "dominant": "fire",
+        "read": "火旺：莊勢訊號偏強，宜看順勢是否延續"
+      },
+      "bagua": {
+        "bits": "100100",
+        "lower": "艮",
+        "upper": "艮",
+        "hexagram": "艮上艮下"
+      },
+      "recentSequence": "BPBPPPBPBBPBBBBBPPBPPBPP"
+    },
+    {
+      "code": "C202",
+      "group": "C",
+      "targetIndex": 19,
+      "rounds": 261,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T08:52:40.617Z",
+      "freshnessMinutes": 423,
+      "counts": {
+        "banker": 81,
+        "player": 65,
+        "tie": 14,
+        "bankerPair": 14,
+        "playerPair": 13,
+        "luckySix": 7
+      },
+      "shortCounts": {
+        "banker": 25,
+        "player": 19,
+        "tie": 4,
+        "bankerPair": 1,
+        "playerPair": 4,
+        "luckySix": 3
+      },
+      "bankerRate": 0.5548,
+      "playerRate": 0.4452,
+      "tieRate": 0.0875,
+      "bankerPairRate": 0.0875,
+      "playerPairRate": 0.0813,
+      "luckySixRate": 0.0438,
+      "longBias": 0.1096,
+      "shortBias": 0.1364,
+      "biasShift": 0.0268,
+      "alternationRate": 0.4966,
+      "shortAlternationRate": 0.5814,
+      "currentStreak": {
+        "side": "banker",
+        "length": 4
+      },
+      "frontBack": {
+        "frontBias": 0.0811,
+        "backBias": 0.1389,
+        "shift": 0.0578
+      },
+      "pattern": "短線偏莊",
+      "observeMode": "資料偏少/偏舊，暫緩觀察",
+      "lastSignal": "莊4連",
+      "trendScore": 68.4,
+      "fiveElements": {
+        "scores": {
+          "wood": 25,
+          "fire": 81,
+          "earth": 21,
+          "metal": 8.4,
+          "water": 65
+        },
+        "dominant": "fire",
+        "read": "火旺：莊勢訊號偏強，宜看順勢是否延續"
+      },
+      "bagua": {
+        "bits": "101111",
+        "lower": "離",
+        "upper": "乾",
+        "hexagram": "乾上離下"
+      },
+      "recentSequence": "PPBPBBBPPPPBBBBPPBBPBBBB"
+    },
+    {
+      "code": "C501",
+      "group": "C",
+      "targetIndex": 20,
+      "rounds": 268,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T13:16:16.937Z",
+      "freshnessMinutes": 160,
+      "counts": {
+        "banker": 75,
+        "player": 71,
+        "tie": 14,
+        "bankerPair": 7,
+        "playerPair": 12,
+        "luckySix": 6
+      },
+      "shortCounts": {
+        "banker": 21,
+        "player": 21,
+        "tie": 6,
+        "bankerPair": 1,
+        "playerPair": 4,
+        "luckySix": 0
+      },
+      "bankerRate": 0.5137,
+      "playerRate": 0.4863,
+      "tieRate": 0.0875,
+      "bankerPairRate": 0.0438,
+      "playerPairRate": 0.075,
+      "luckySixRate": 0.0375,
+      "longBias": 0.0274,
+      "shortBias": 0,
+      "biasShift": -0.0274,
+      "alternationRate": 0.5034,
+      "shortAlternationRate": 0.561,
+      "currentStreak": {
+        "side": "banker",
+        "length": 2
+      },
+      "frontBack": {
+        "frontBias": 0.1892,
+        "backBias": -0.1389,
+        "shift": -0.3281
+      },
+      "pattern": "均衡盤",
+      "observeMode": "均衡觀察",
+      "lastSignal": "莊2連",
+      "trendScore": 45.85,
+      "fiveElements": {
+        "scores": {
+          "wood": 19,
+          "fire": 75,
+          "earth": 21,
+          "metal": 7.2,
+          "water": 71
+        },
+        "dominant": "fire",
+        "read": "火旺：莊勢訊號偏強，宜看順勢是否延續"
+      },
+      "bagua": {
+        "bits": "110011",
+        "lower": "巽",
+        "upper": "兌",
+        "hexagram": "兌上巽下"
+      },
+      "recentSequence": "PBBBBPBPPBPPPPBPBBBBPPBB"
+    },
+    {
+      "code": "C701",
+      "group": "C",
+      "targetIndex": 21,
+      "rounds": 283,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-25T14:44:36.178Z",
+      "freshnessMinutes": 1511,
+      "counts": {
+        "banker": 84,
+        "player": 63,
+        "tie": 13,
+        "bankerPair": 11,
+        "playerPair": 7,
+        "luckySix": 9
+      },
+      "shortCounts": {
+        "banker": 22,
+        "player": 21,
+        "tie": 5,
+        "bankerPair": 3,
+        "playerPair": 2,
+        "luckySix": 5
+      },
+      "bankerRate": 0.5714,
+      "playerRate": 0.4286,
+      "tieRate": 0.0813,
+      "bankerPairRate": 0.0688,
+      "playerPairRate": 0.0438,
+      "luckySixRate": 0.0563,
+      "longBias": 0.1429,
+      "shortBias": 0.0233,
+      "biasShift": -0.1196,
+      "alternationRate": 0.5822,
+      "shortAlternationRate": 0.7143,
+      "currentStreak": {
+        "side": "player",
+        "length": 1
+      },
+      "frontBack": {
+        "frontBias": 0.28,
+        "backBias": 0,
+        "shift": -0.28
+      },
+      "pattern": "單跳/跳路偏強",
+      "observeMode": "資料偏少/偏舊，暫緩觀察",
+      "lastSignal": "閒1連",
+      "trendScore": 55.22,
+      "fiveElements": {
+        "scores": {
+          "wood": 17,
+          "fire": 84,
+          "earth": 19.5,
+          "metal": 10.8,
+          "water": 63
+        },
+        "dominant": "fire",
+        "read": "火旺：莊勢訊號偏強，宜看順勢是否延續"
+      },
+      "bagua": {
+        "bits": "010010",
+        "lower": "坎",
+        "upper": "坎",
+        "hexagram": "坎上坎下"
+      },
+      "recentSequence": "PPBBBPBPBPBBPPBPBBPBPPBP"
+    },
+    {
+      "code": "IB201",
+      "group": "IB",
+      "targetIndex": 22,
+      "rounds": 1588,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:56.998Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 82,
+        "player": 62,
+        "tie": 16,
+        "bankerPair": 11,
+        "playerPair": 6,
+        "luckySix": 5
+      },
+      "shortCounts": {
+        "banker": 20,
+        "player": 19,
+        "tie": 9,
+        "bankerPair": 0,
+        "playerPair": 2,
+        "luckySix": 1
+      },
+      "bankerRate": 0.5694,
+      "playerRate": 0.4306,
+      "tieRate": 0.1,
+      "bankerPairRate": 0.0688,
+      "playerPairRate": 0.0375,
+      "luckySixRate": 0.0313,
+      "longBias": 0.1389,
+      "shortBias": 0.0256,
+      "biasShift": -0.1133,
+      "alternationRate": 0.4615,
+      "shortAlternationRate": 0.5789,
+      "currentStreak": {
+        "side": "banker",
+        "length": 1
+      },
+      "frontBack": {
+        "frontBias": 0.2973,
+        "backBias": -0.0286,
+        "shift": -0.3259
+      },
+      "pattern": "中線偏莊",
+      "observeMode": "均衡觀察",
+      "lastSignal": "莊1連",
+      "trendScore": 56.87,
+      "fiveElements": {
+        "scores": {
+          "wood": 17,
+          "fire": 82,
+          "earth": 24,
+          "metal": 6,
+          "water": 62
+        },
+        "dominant": "fire",
+        "read": "火旺：莊勢訊號偏強，宜看順勢是否延續"
+      },
+      "bagua": {
+        "bits": "100101",
+        "lower": "艮",
+        "upper": "離",
+        "hexagram": "離上艮下"
+      },
+      "recentSequence": "PBPBBPBBBBPPBPPBBPBPPBPB"
+    },
+    {
+      "code": "IB202",
+      "group": "IB",
+      "targetIndex": 23,
+      "rounds": 1605,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:57.362Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 66,
+        "player": 79,
+        "tie": 15,
+        "bankerPair": 16,
+        "playerPair": 15,
+        "luckySix": 9
+      },
+      "shortCounts": {
+        "banker": 16,
+        "player": 29,
+        "tie": 3,
+        "bankerPair": 4,
+        "playerPair": 3,
+        "luckySix": 1
+      },
+      "bankerRate": 0.4552,
+      "playerRate": 0.5448,
+      "tieRate": 0.0938,
+      "bankerPairRate": 0.1,
+      "playerPairRate": 0.0938,
+      "luckySixRate": 0.0563,
+      "longBias": -0.0897,
+      "shortBias": -0.2889,
+      "biasShift": -0.1992,
+      "alternationRate": 0.4931,
+      "shortAlternationRate": 0.4773,
+      "currentStreak": {
+        "side": "player",
+        "length": 1
+      },
+      "frontBack": {
+        "frontBias": -0.0571,
+        "backBias": -0.12,
+        "shift": -0.0629
+      },
+      "pattern": "短線偏閒",
+      "observeMode": "偏閒觀察",
+      "lastSignal": "閒1連",
+      "trendScore": 81.36,
+      "fiveElements": {
+        "scores": {
+          "wood": 28,
+          "fire": 66,
+          "earth": 22.5,
+          "metal": 10.8,
+          "water": 79
+        },
+        "dominant": "water",
+        "read": "水旺：閒勢訊號偏強，宜看反向壓力"
+      },
+      "bagua": {
+        "bits": "010010",
+        "lower": "坎",
+        "upper": "坎",
+        "hexagram": "坎上坎下"
+      },
+      "recentSequence": "PBPBBBPPBPPPBPBBPPPBPPBP"
+    },
+    {
+      "code": "Q201",
+      "group": "Q",
+      "targetIndex": 24,
+      "rounds": 2123,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:54.971Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 86,
+        "player": 60,
+        "tie": 14,
+        "bankerPair": 12,
+        "playerPair": 18,
+        "luckySix": 11
+      },
+      "shortCounts": {
+        "banker": 22,
+        "player": 20,
+        "tie": 6,
+        "bankerPair": 3,
+        "playerPair": 5,
+        "luckySix": 0
+      },
+      "bankerRate": 0.589,
+      "playerRate": 0.411,
+      "tieRate": 0.0875,
+      "bankerPairRate": 0.075,
+      "playerPairRate": 0.1125,
+      "luckySixRate": 0.0688,
+      "longBias": 0.1781,
+      "shortBias": 0.0476,
+      "biasShift": -0.1305,
+      "alternationRate": 0.5103,
+      "shortAlternationRate": 0.561,
+      "currentStreak": {
+        "side": "banker",
+        "length": 1
+      },
+      "frontBack": {
+        "frontBias": 0.0933,
+        "backBias": 0.2676,
+        "shift": 0.1743
+      },
+      "pattern": "中線偏莊",
+      "observeMode": "均衡觀察",
+      "lastSignal": "莊1連",
+      "trendScore": 59.81,
+      "fiveElements": {
+        "scores": {
+          "wood": 29,
+          "fire": 86,
+          "earth": 21,
+          "metal": 13.2,
+          "water": 60
+        },
+        "dominant": "fire",
+        "read": "火旺：莊勢訊號偏強，宜看順勢是否延續"
+      },
+      "bagua": {
+        "bits": "111001",
+        "lower": "乾",
+        "upper": "震",
+        "hexagram": "震上乾下"
+      },
+      "recentSequence": "PPBBBPPPPBBBPBPBPBBBBPPB"
+    },
+    {
+      "code": "Q202",
+      "group": "Q",
+      "targetIndex": 25,
+      "rounds": 2253,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:55.271Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 80,
+        "player": 71,
+        "tie": 9,
+        "bankerPair": 12,
+        "playerPair": 7,
+        "luckySix": 8
+      },
+      "shortCounts": {
+        "banker": 24,
+        "player": 20,
+        "tie": 4,
+        "bankerPair": 2,
+        "playerPair": 1,
+        "luckySix": 2
+      },
+      "bankerRate": 0.5298,
+      "playerRate": 0.4702,
+      "tieRate": 0.0563,
+      "bankerPairRate": 0.075,
+      "playerPairRate": 0.0438,
+      "luckySixRate": 0.05,
+      "longBias": 0.0596,
+      "shortBias": 0.0909,
+      "biasShift": 0.0313,
+      "alternationRate": 0.5933,
+      "shortAlternationRate": 0.4651,
+      "currentStreak": {
+        "side": "player",
+        "length": 1
+      },
+      "frontBack": {
+        "frontBias": 0.1169,
+        "backBias": 0,
+        "shift": -0.1169
+      },
+      "pattern": "震盪互換",
+      "observeMode": "均衡觀察",
+      "lastSignal": "閒1連",
+      "trendScore": 55.51,
+      "fiveElements": {
+        "scores": {
+          "wood": 19,
+          "fire": 80,
+          "earth": 13.5,
+          "metal": 9.6,
+          "water": 71
+        },
+        "dominant": "fire",
+        "read": "火旺：莊勢訊號偏強，宜看順勢是否延續"
+      },
+      "bagua": {
+        "bits": "110110",
+        "lower": "巽",
+        "upper": "巽",
+        "hexagram": "巽上巽下"
+      },
+      "recentSequence": "BPPBPBBPPPBPBBPPPPBBPBBP"
+    },
+    {
+      "code": "Q204",
+      "group": "Q",
+      "targetIndex": 26,
+      "rounds": 2280,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:55.686Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 72,
+        "player": 72,
+        "tie": 16,
+        "bankerPair": 16,
+        "playerPair": 8,
+        "luckySix": 6
+      },
+      "shortCounts": {
+        "banker": 21,
+        "player": 25,
+        "tie": 2,
+        "bankerPair": 4,
+        "playerPair": 2,
+        "luckySix": 1
+      },
+      "bankerRate": 0.5,
+      "playerRate": 0.5,
+      "tieRate": 0.1,
+      "bankerPairRate": 0.1,
+      "playerPairRate": 0.05,
+      "luckySixRate": 0.0375,
+      "longBias": 0,
+      "shortBias": -0.087,
+      "biasShift": -0.087,
+      "alternationRate": 0.4825,
+      "shortAlternationRate": 0.5111,
+      "currentStreak": {
+        "side": "banker",
+        "length": 3
+      },
+      "frontBack": {
+        "frontBias": 0,
+        "backBias": 0,
+        "shift": 0
+      },
+      "pattern": "均衡盤",
+      "observeMode": "均衡觀察",
+      "lastSignal": "莊3連",
+      "trendScore": 68.07,
+      "fiveElements": {
+        "scores": {
+          "wood": 22,
+          "fire": 72,
+          "earth": 24,
+          "metal": 7.2,
+          "water": 72
+        },
+        "dominant": "fire",
+        "read": "火旺：莊勢訊號偏強，宜看順勢是否延續"
+      },
+      "bagua": {
+        "bits": "000111",
+        "lower": "坤",
+        "upper": "乾",
+        "hexagram": "乾上坤下"
+      },
+      "recentSequence": "PBPBBPPPBPPPPPPBBPPPPBBB"
+    },
+    {
+      "code": "Q501",
+      "group": "Q",
+      "targetIndex": 27,
+      "rounds": 1733,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:52:13.840Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 69,
+        "player": 76,
+        "tie": 15,
+        "bankerPair": 13,
+        "playerPair": 13,
+        "luckySix": 8
+      },
+      "shortCounts": {
+        "banker": 18,
+        "player": 26,
+        "tie": 4,
+        "bankerPair": 4,
+        "playerPair": 3,
+        "luckySix": 2
+      },
+      "bankerRate": 0.4759,
+      "playerRate": 0.5241,
+      "tieRate": 0.0938,
+      "bankerPairRate": 0.0813,
+      "playerPairRate": 0.0813,
+      "luckySixRate": 0.05,
+      "longBias": -0.0483,
+      "shortBias": -0.1818,
+      "biasShift": -0.1335,
+      "alternationRate": 0.4931,
+      "shortAlternationRate": 0.5581,
+      "currentStreak": {
+        "side": "player",
+        "length": 1
+      },
+      "frontBack": {
+        "frontBias": -0.0541,
+        "backBias": -0.0423,
+        "shift": 0.0118
+      },
+      "pattern": "短線偏閒",
+      "observeMode": "偏閒觀察",
+      "lastSignal": "閒1連",
+      "trendScore": 75.98,
+      "fiveElements": {
+        "scores": {
+          "wood": 25,
+          "fire": 69,
+          "earth": 22.5,
+          "metal": 9.6,
+          "water": 76
+        },
+        "dominant": "water",
+        "read": "水旺：閒勢訊號偏強，宜看反向壓力"
+      },
+      "bagua": {
+        "bits": "001010",
+        "lower": "震",
+        "upper": "坎",
+        "hexagram": "坎上震下"
+      },
+      "recentSequence": "PBBBPPPPBBBPBPBPPPPPBPBP"
+    },
+    {
+      "code": "Q502",
+      "group": "Q",
+      "targetIndex": 28,
+      "rounds": 2150,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:40.414Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 64,
+        "player": 79,
+        "tie": 17,
+        "bankerPair": 15,
+        "playerPair": 14,
+        "luckySix": 6
+      },
+      "shortCounts": {
+        "banker": 20,
+        "player": 23,
+        "tie": 5,
+        "bankerPair": 8,
+        "playerPair": 8,
+        "luckySix": 3
+      },
+      "bankerRate": 0.4476,
+      "playerRate": 0.5524,
+      "tieRate": 0.1063,
+      "bankerPairRate": 0.0938,
+      "playerPairRate": 0.0875,
+      "luckySixRate": 0.0375,
+      "longBias": -0.1049,
+      "shortBias": -0.0698,
+      "biasShift": 0.0351,
+      "alternationRate": 0.5141,
+      "shortAlternationRate": 0.5238,
+      "currentStreak": {
+        "side": "banker",
+        "length": 1
+      },
+      "frontBack": {
+        "frontBias": -0.1549,
+        "backBias": -0.0556,
+        "shift": 0.0993
+      },
+      "pattern": "中線偏閒",
+      "observeMode": "均衡觀察",
+      "lastSignal": "莊1連",
+      "trendScore": 52.61,
+      "fiveElements": {
+        "scores": {
+          "wood": 29,
+          "fire": 64,
+          "earth": 25.5,
+          "metal": 7.2,
+          "water": 79
+        },
+        "dominant": "water",
+        "read": "水旺：閒勢訊號偏強，宜看反向壓力"
+      },
+      "bagua": {
+        "bits": "110101",
+        "lower": "巽",
+        "upper": "離",
+        "hexagram": "離上巽下"
+      },
+      "recentSequence": "BPPBPBBPPBPPPPBPPBBBPBPB"
+    },
+    {
+      "code": "Q601",
+      "group": "Q",
+      "targetIndex": 29,
+      "rounds": 2115,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:47.143Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 84,
+        "player": 62,
+        "tie": 14,
+        "bankerPair": 12,
+        "playerPair": 12,
+        "luckySix": 14
+      },
+      "shortCounts": {
+        "banker": 28,
+        "player": 15,
+        "tie": 5,
+        "bankerPair": 5,
+        "playerPair": 3,
+        "luckySix": 5
+      },
+      "bankerRate": 0.5753,
+      "playerRate": 0.4247,
+      "tieRate": 0.0875,
+      "bankerPairRate": 0.075,
+      "playerPairRate": 0.075,
+      "luckySixRate": 0.0875,
+      "longBias": 0.1507,
+      "shortBias": 0.3023,
+      "biasShift": 0.1516,
+      "alternationRate": 0.4966,
+      "shortAlternationRate": 0.4286,
+      "currentStreak": {
+        "side": "banker",
+        "length": 1
+      },
+      "frontBack": {
+        "frontBias": 0.1233,
+        "backBias": 0.1781,
+        "shift": 0.0548
+      },
+      "pattern": "短線偏莊",
+      "observeMode": "偏莊觀察",
+      "lastSignal": "莊1連",
+      "trendScore": 81.41,
+      "fiveElements": {
+        "scores": {
+          "wood": 23,
+          "fire": 84,
+          "earth": 21,
+          "metal": 16.8,
+          "water": 62
+        },
+        "dominant": "fire",
+        "read": "火旺：莊勢訊號偏強，宜看順勢是否延續"
+      },
+      "bagua": {
+        "bits": "011101",
+        "lower": "兌",
+        "upper": "離",
+        "hexagram": "離上兌下"
+      },
+      "recentSequence": "PPBBBBBPPPBBBPPBBBPBBBPB"
+    },
+    {
+      "code": "Q701",
+      "group": "Q",
+      "targetIndex": 30,
+      "rounds": 2270,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:51.037Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 76,
+        "player": 66,
+        "tie": 18,
+        "bankerPair": 15,
+        "playerPair": 12,
+        "luckySix": 8
+      },
+      "shortCounts": {
+        "banker": 18,
+        "player": 24,
+        "tie": 6,
+        "bankerPair": 4,
+        "playerPair": 6,
+        "luckySix": 4
+      },
+      "bankerRate": 0.5352,
+      "playerRate": 0.4648,
+      "tieRate": 0.1125,
+      "bankerPairRate": 0.0938,
+      "playerPairRate": 0.075,
+      "luckySixRate": 0.05,
+      "longBias": 0.0704,
+      "shortBias": -0.1429,
+      "biasShift": -0.2133,
+      "alternationRate": 0.4965,
+      "shortAlternationRate": 0.5366,
+      "currentStreak": {
+        "side": "player",
+        "length": 2
+      },
+      "frontBack": {
+        "frontBias": 0.2857,
+        "backBias": -0.1389,
+        "shift": -0.4246
+      },
+      "pattern": "短線偏閒",
+      "observeMode": "均衡觀察",
+      "lastSignal": "閒2連",
+      "trendScore": 79.34,
+      "fiveElements": {
+        "scores": {
+          "wood": 26,
+          "fire": 76,
+          "earth": 27,
+          "metal": 9.6,
+          "water": 66
+        },
+        "dominant": "fire",
+        "read": "火旺：莊勢訊號偏強，宜看順勢是否延續"
+      },
+      "bagua": {
+        "bits": "010100",
+        "lower": "坎",
+        "upper": "艮",
+        "hexagram": "艮上坎下"
+      },
+      "recentSequence": "PPBBPBPBPBBPPBBBPPPBPBPP"
+    },
+    {
+      "code": "Q702",
+      "group": "Q",
+      "targetIndex": 31,
+      "rounds": 2461,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T15:51:51.960Z",
+      "freshnessMinutes": 4,
+      "counts": {
+        "banker": 83,
+        "player": 65,
+        "tie": 12,
+        "bankerPair": 8,
+        "playerPair": 14,
+        "luckySix": 9
+      },
+      "shortCounts": {
+        "banker": 23,
+        "player": 23,
+        "tie": 2,
+        "bankerPair": 2,
+        "playerPair": 6,
+        "luckySix": 2
+      },
+      "bankerRate": 0.5608,
+      "playerRate": 0.4392,
+      "tieRate": 0.075,
+      "bankerPairRate": 0.05,
+      "playerPairRate": 0.0875,
+      "luckySixRate": 0.0563,
+      "longBias": 0.1216,
+      "shortBias": 0,
+      "biasShift": -0.1216,
+      "alternationRate": 0.4966,
+      "shortAlternationRate": 0.5111,
+      "currentStreak": {
+        "side": "banker",
+        "length": 1
+      },
+      "frontBack": {
+        "frontBias": 0.1892,
+        "backBias": 0.0541,
+        "shift": -0.1351
+      },
+      "pattern": "中線偏莊",
+      "observeMode": "均衡觀察",
+      "lastSignal": "莊1連",
+      "trendScore": 50.39,
+      "fiveElements": {
+        "scores": {
+          "wood": 21,
+          "fire": 83,
+          "earth": 18,
+          "metal": 10.8,
+          "water": 65
+        },
+        "dominant": "fire",
+        "read": "火旺：莊勢訊號偏強，宜看順勢是否延續"
+      },
+      "bagua": {
+        "bits": "100101",
+        "lower": "艮",
+        "upper": "離",
+        "hexagram": "離上艮下"
+      },
+      "recentSequence": "PPPBBPPBBBPPBPBPPPBPPBPB"
+    },
+    {
+      "code": "V911",
+      "group": "V",
+      "targetIndex": 32,
+      "rounds": 362,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T12:23:03.051Z",
+      "freshnessMinutes": 213,
+      "counts": {
+        "banker": 79,
+        "player": 74,
+        "tie": 7,
+        "bankerPair": 10,
+        "playerPair": 9,
+        "luckySix": 9
+      },
+      "shortCounts": {
+        "banker": 21,
+        "player": 27,
+        "tie": 0,
+        "bankerPair": 0,
+        "playerPair": 3,
+        "luckySix": 1
+      },
+      "bankerRate": 0.5163,
+      "playerRate": 0.4837,
+      "tieRate": 0.0438,
+      "bankerPairRate": 0.0625,
+      "playerPairRate": 0.0563,
+      "luckySixRate": 0.0563,
+      "longBias": 0.0327,
+      "shortBias": -0.125,
+      "biasShift": -0.1577,
+      "alternationRate": 0.5132,
+      "shortAlternationRate": 0.5319,
+      "currentStreak": {
+        "side": "banker",
+        "length": 1
+      },
+      "frontBack": {
+        "frontBias": 0.2162,
+        "backBias": -0.1392,
+        "shift": -0.3554
+      },
+      "pattern": "短線偏閒",
+      "observeMode": "均衡觀察",
+      "lastSignal": "莊1連",
+      "trendScore": 64.53,
+      "fiveElements": {
+        "scores": {
+          "wood": 18,
+          "fire": 79,
+          "earth": 10.5,
+          "metal": 10.8,
+          "water": 74
+        },
+        "dominant": "fire",
+        "read": "火旺：莊勢訊號偏強，宜看順勢是否延續"
+      },
+      "bagua": {
+        "bits": "100001",
+        "lower": "艮",
+        "upper": "震",
+        "hexagram": "震上艮下"
+      },
+      "recentSequence": "PPPPPBPBBPPPPPBBPBBPPPPB"
+    },
+    {
+      "code": "V912",
+      "group": "V",
+      "targetIndex": 33,
+      "rounds": 381,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-25T19:17:19.302Z",
+      "freshnessMinutes": 1238,
+      "counts": {
+        "banker": 70,
+        "player": 78,
+        "tie": 12,
+        "bankerPair": 12,
+        "playerPair": 15,
+        "luckySix": 15
+      },
+      "shortCounts": {
+        "banker": 21,
+        "player": 23,
+        "tie": 4,
+        "bankerPair": 4,
+        "playerPair": 5,
+        "luckySix": 2
+      },
+      "bankerRate": 0.473,
+      "playerRate": 0.527,
+      "tieRate": 0.075,
+      "bankerPairRate": 0.075,
+      "playerPairRate": 0.0938,
+      "luckySixRate": 0.0938,
+      "longBias": -0.0541,
+      "shortBias": -0.0455,
+      "biasShift": 0.0086,
+      "alternationRate": 0.5306,
+      "shortAlternationRate": 0.5349,
+      "currentStreak": {
+        "side": "player",
+        "length": 2
+      },
+      "frontBack": {
+        "frontBias": -0.0137,
+        "backBias": -0.0933,
+        "shift": -0.0796
+      },
+      "pattern": "中線偏閒",
+      "observeMode": "資料偏少/偏舊，暫緩觀察",
+      "lastSignal": "閒2連",
+      "trendScore": 43.24,
+      "fiveElements": {
+        "scores": {
+          "wood": 27,
+          "fire": 70,
+          "earth": 18,
+          "metal": 18,
+          "water": 78
+        },
+        "dominant": "water",
+        "read": "水旺：閒勢訊號偏強，宜看反向壓力"
+      },
+      "bagua": {
+        "bits": "000100",
+        "lower": "坤",
+        "upper": "艮",
+        "hexagram": "艮上坤下"
+      },
+      "recentSequence": "BBPPPPBPBPBPBPBBPPPPPBPP"
+    },
+    {
+      "code": "V971",
+      "group": "V",
+      "targetIndex": 34,
+      "rounds": 405,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-26T11:20:15.149Z",
+      "freshnessMinutes": 276,
+      "counts": {
+        "banker": 77,
+        "player": 69,
+        "tie": 14,
+        "bankerPair": 12,
+        "playerPair": 9,
+        "luckySix": 11
+      },
+      "shortCounts": {
+        "banker": 22,
+        "player": 22,
+        "tie": 4,
+        "bankerPair": 4,
+        "playerPair": 3,
+        "luckySix": 3
+      },
+      "bankerRate": 0.5274,
+      "playerRate": 0.4726,
+      "tieRate": 0.0875,
+      "bankerPairRate": 0.075,
+      "playerPairRate": 0.0563,
+      "luckySixRate": 0.0688,
+      "longBias": 0.0548,
+      "shortBias": 0,
+      "biasShift": -0.0548,
+      "alternationRate": 0.4966,
+      "shortAlternationRate": 0.4651,
+      "currentStreak": {
+        "side": "player",
+        "length": 2
+      },
+      "frontBack": {
+        "frontBias": 0.0933,
+        "backBias": 0.0141,
+        "shift": -0.0792
+      },
+      "pattern": "中線偏莊",
+      "observeMode": "資料偏少/偏舊，暫緩觀察",
+      "lastSignal": "閒2連",
+      "trendScore": 41.48,
+      "fiveElements": {
+        "scores": {
+          "wood": 20,
+          "fire": 77,
+          "earth": 21,
+          "metal": 13.2,
+          "water": 69
+        },
+        "dominant": "fire",
+        "read": "火旺：莊勢訊號偏強，宜看順勢是否延續"
+      },
+      "bagua": {
+        "bits": "110100",
+        "lower": "巽",
+        "upper": "艮",
+        "hexagram": "艮上巽下"
+      },
+      "recentSequence": "PPBBBPPPBBBBPBPPPPBBPBPP"
+    },
+    {
+      "code": "V972",
+      "group": "V",
+      "targetIndex": 35,
+      "rounds": 394,
+      "analyzedRounds": 160,
+      "latestAt": "2026-06-25T14:51:39.284Z",
+      "freshnessMinutes": 1504,
+      "counts": {
+        "banker": 77,
+        "player": 77,
+        "tie": 6,
+        "bankerPair": 5,
+        "playerPair": 9,
+        "luckySix": 13
+      },
+      "shortCounts": {
+        "banker": 19,
+        "player": 24,
+        "tie": 5,
+        "bankerPair": 2,
+        "playerPair": 3,
+        "luckySix": 4
+      },
+      "bankerRate": 0.5,
+      "playerRate": 0.5,
+      "tieRate": 0.0375,
+      "bankerPairRate": 0.0313,
+      "playerPairRate": 0.0563,
+      "luckySixRate": 0.0813,
+      "longBias": 0,
+      "shortBias": -0.1163,
+      "biasShift": -0.1163,
+      "alternationRate": 0.5359,
+      "shortAlternationRate": 0.5952,
+      "currentStreak": {
+        "side": "banker",
+        "length": 1
+      },
+      "frontBack": {
+        "frontBias": 0.1139,
+        "backBias": -0.12,
+        "shift": -0.2339
+      },
+      "pattern": "均衡盤",
+      "observeMode": "資料偏少/偏舊，暫緩觀察",
+      "lastSignal": "莊1連",
+      "trendScore": 58.97,
+      "fiveElements": {
+        "scores": {
+          "wood": 13,
+          "fire": 77,
+          "earth": 9,
+          "metal": 15.6,
+          "water": 77
+        },
+        "dominant": "fire",
+        "read": "火旺：莊勢訊號偏強，宜看順勢是否延續"
+      },
+      "bagua": {
+        "bits": "011001",
+        "lower": "兌",
+        "upper": "震",
+        "hexagram": "震上兌下"
+      },
+      "recentSequence": "BPPPPBPPBBBPBBPPPBPBBPPB"
+    }
+  ]
+}

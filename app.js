@@ -1,486 +1,497 @@
-const STORAGE_KEY = "baijia-monitor-v2-empty-start";
-
 const labels = {
   banker: "莊",
   player: "閒",
-  tie: "和"
+  tie: "和",
+  bankerPair: "莊對",
+  playerPair: "閒對",
+  luckySix: "幸運6"
 };
 
-const state = loadState();
+const state = {
+  status: null,
+  analysis: null,
+  pattern: [],
+  lastAnalyzedKey: "",
+  pendingPrediction: null,
+  predictionChecks: []
+};
 
 const els = {
-  tableSelect: document.getElementById("tableSelect"),
-  tableNameInput: document.getElementById("tableNameInput"),
-  shoeInput: document.getElementById("shoeInput"),
-  addTableBtn: document.getElementById("addTableBtn"),
-  clearTableBtn: document.getElementById("clearTableBtn"),
-  resultButtons: [...document.querySelectorAll(".result-btn")],
-  bankerPairInput: document.getElementById("bankerPairInput"),
-  playerPairInput: document.getElementById("playerPairInput"),
-  luckySixInput: document.getElementById("luckySixInput"),
-  noteInput: document.getElementById("noteInput"),
-  undoBtn: document.getElementById("undoBtn"),
-  totalHands: document.getElementById("totalHands"),
-  resultSplit: document.getElementById("resultSplit"),
-  recentBias: document.getElementById("recentBias"),
-  currentStreak: document.getElementById("currentStreak"),
-  maxStreak: document.getElementById("maxStreak"),
-  sideStats: document.getElementById("sideStats"),
-  beadRoad: document.getElementById("beadRoad"),
-  bigRoad: document.getElementById("bigRoad"),
-  beadCount: document.getElementById("beadCount"),
-  bigRoadCount: document.getElementById("bigRoadCount"),
-  alertsList: document.getElementById("alertsList"),
-  qualityState: document.getElementById("qualityState"),
-  roundLog: document.getElementById("roundLog"),
-  lastUpdated: document.getElementById("lastUpdated"),
-  bulkInput: document.getElementById("bulkInput"),
-  bulkImportBtn: document.getElementById("bulkImportBtn"),
-  exportJsonBtn: document.getElementById("exportJsonBtn"),
-  exportCsvBtn: document.getElementById("exportCsvBtn"),
-  importFile: document.getElementById("importFile")
+  serverBadge: document.getElementById("serverBadge"),
+  refreshBtn: document.getElementById("refreshBtn"),
+  statusRoundCount: document.getElementById("statusRoundCount"),
+  statusUpdateAt: document.getElementById("statusUpdateAt"),
+  allbetTableCount: document.getElementById("allbetTableCount"),
+  patternCount: document.getElementById("patternCount"),
+  nextResult: document.getElementById("nextResult"),
+  nextDescription: document.getElementById("nextDescription"),
+  savedDataCount: document.getElementById("savedDataCount"),
+  sidePrediction: document.getElementById("sidePrediction"),
+  advancedAnalysis: document.getElementById("advancedAnalysis"),
+  patternButtons: [...document.querySelectorAll(".pattern-result-btn")],
+  patternInput: document.getElementById("patternInput"),
+  undoPatternBtn: document.getElementById("undoPatternBtn"),
+  clearPatternBtn: document.getElementById("clearPatternBtn"),
+  analyzeBtn: document.getElementById("analyzeBtn"),
+  collectorMessage: document.getElementById("collectorMessage"),
+  dbPath: document.getElementById("dbPath")
 };
+
+let autoAnalyzeTimer = null;
 
 init();
 
 function init() {
-  ensureDefaultTable();
   bindEvents();
-  render();
+  renderPattern();
+  renderAnalysis();
+  loadStatus();
+  setInterval(loadStatus, 60_000);
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("./sw.js").catch(() => {});
   }
 }
 
 function bindEvents() {
-  els.tableSelect.addEventListener("change", () => {
-    state.activeTableId = els.tableSelect.value;
-    saveState();
-    render();
+  els.refreshBtn.addEventListener("click", loadStatus);
+  els.analyzeBtn.addEventListener("click", analyzeInput);
+
+  els.patternButtons.forEach((button) => {
+    button.addEventListener("click", () => appendPatternResult(button.dataset.result));
   });
 
-  els.shoeInput.addEventListener("change", () => {
-    currentTable().shoe = els.shoeInput.value.trim();
-    saveState();
-    render();
-  });
-
-  els.addTableBtn.addEventListener("click", () => {
-    const name = els.tableNameInput.value.trim() || `T${state.tables.length + 1}`;
-    const id = createId();
-    state.tables.push({ id, name, shoe: "", rounds: [] });
-    state.activeTableId = id;
-    els.tableNameInput.value = "";
-    saveState();
-    render();
-  });
-
-  els.clearTableBtn.addEventListener("click", () => {
-    const table = currentTable();
-    if (!table.rounds.length) return;
-    if (confirm(`清空 ${table.name} 的全部紀錄？`)) {
-      table.rounds = [];
-      saveState();
-      render();
+  els.undoPatternBtn.addEventListener("click", () => {
+    const nextLength = state.pattern.length;
+    if (state.predictionChecks[0]?.handNumber === nextLength) {
+      state.predictionChecks.shift();
     }
-  });
-
-  els.resultButtons.forEach((button) => {
-    button.addEventListener("click", () => addRound(button.dataset.result));
-  });
-
-  els.undoBtn.addEventListener("click", () => {
-    const table = currentTable();
-    table.rounds.pop();
-    saveState();
-    render();
-  });
-
-  els.bulkImportBtn.addEventListener("click", () => {
-    const rounds = parseBulk(els.bulkInput.value);
-    if (!rounds.length) return;
-    currentTable().rounds.push(...rounds);
-    els.bulkInput.value = "";
-    saveState();
-    render();
-  });
-
-  els.exportJsonBtn.addEventListener("click", () => {
-    download("baijia-monitor-data.json", JSON.stringify(state, null, 2), "application/json");
-  });
-
-  els.exportCsvBtn.addEventListener("click", () => {
-    download("baijia-monitor-data.csv", toCsv(), "text/csv;charset=utf-8");
-  });
-
-  els.importFile.addEventListener("change", async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const text = await file.text();
-    if (file.name.toLowerCase().endsWith(".json")) {
-      importJson(text);
-    } else {
-      const rounds = parseBulk(text);
-      currentTable().rounds.push(...rounds);
+    state.pattern.pop();
+    renderPattern();
+    if (state.pattern.length < 8) {
+      state.analysis = null;
+      state.pendingPrediction = null;
+      renderAnalysis();
+      return;
     }
-    els.importFile.value = "";
-    saveState();
-    render();
+    maybeAutoAnalyze();
+  });
+
+  els.clearPatternBtn.addEventListener("click", () => {
+    state.pattern = [];
+    state.analysis = null;
+    state.lastAnalyzedKey = "";
+    state.pendingPrediction = null;
+    state.predictionChecks = [];
+    renderPattern();
+    renderAnalysis();
   });
 }
 
-function loadState() {
+async function loadStatus() {
   try {
-    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (parsed?.tables?.length) return parsed;
-  } catch (_) {
-  }
-  return {
-    activeTableId: "",
-    tables: []
-  };
-}
-
-function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-}
-
-function ensureDefaultTable() {
-  if (!state.tables.length) {
-    const id = createId();
-    state.tables.push({ id, name: "A01", shoe: "", rounds: [] });
-    state.activeTableId = id;
-    saveState();
-  }
-  if (!state.tables.some((table) => table.id === state.activeTableId)) {
-    state.activeTableId = state.tables[0].id;
+    const status = await api("/api/status");
+    state.status = status;
+    els.statusRoundCount.textContent = `${Number(status.rounds || 0).toLocaleString("zh-TW")} 局`;
+    els.statusUpdateAt.textContent = formatDateTime(status.updatedAt);
+    els.allbetTableCount.textContent = `${Number(status.allbetTables || 0)} 桌`;
+    els.savedDataCount.textContent = `已保存 ${Number(status.rounds || 0).toLocaleString("zh-TW")} 局`;
+    els.serverBadge.textContent = "本機正常";
+    els.serverBadge.className = "status-pill ok";
+    els.dbPath.textContent = status.dbPath || "-";
+    els.collectorMessage.textContent = status.collector?.lastMessage || status.collector?.lastError || "等待抓取";
+  } catch (error) {
+    els.serverBadge.textContent = "API 未連線";
+    els.serverBadge.className = "status-pill bad";
+    els.statusRoundCount.textContent = "0 局";
+    els.collectorMessage.textContent = error.message;
   }
 }
 
-function currentTable() {
-  return state.tables.find((table) => table.id === state.activeTableId) || state.tables[0];
+function appendPatternResult(result) {
+  if (!["banker", "player", "tie"].includes(result)) return;
+  recordPredictionCheck(result);
+  state.pattern.push(result);
+  renderPattern();
+  maybeAutoAnalyze();
 }
 
-function addRound(result) {
-  const round = {
-    id: createId(),
-    result,
-    bankerPair: els.bankerPairInput.checked,
-    playerPair: els.playerPairInput.checked,
-    luckySix: els.luckySixInput.checked,
-    note: els.noteInput.value.trim(),
-    createdAt: new Date().toISOString()
-  };
-  currentTable().rounds.push(round);
-  els.bankerPairInput.checked = false;
-  els.playerPairInput.checked = false;
-  els.luckySixInput.checked = false;
-  els.noteInput.value = "";
-  saveState();
-  render();
+function renderPattern() {
+  const visible = state.pattern.map((result) => labels[result]).join(" ");
+  els.patternInput.value = visible;
+  els.patternCount.textContent = `${state.pattern.length} 手`;
 }
 
-function render() {
-  renderTables();
-  const table = currentTable();
-  const stats = summarize(table.rounds);
-  els.shoeInput.value = table.shoe || "";
-  els.totalHands.textContent = String(stats.total);
-  els.resultSplit.textContent = `${stats.banker} / ${stats.player} / ${stats.tie}`;
-  els.recentBias.textContent = stats.recentBias;
-  els.currentStreak.textContent = stats.currentStreak;
-  els.maxStreak.textContent = stats.maxStreak;
-  els.sideStats.textContent = `${stats.pairs} / ${stats.luckySix}`;
-  renderBeadRoad(table.rounds);
-  renderBigRoad(table.rounds);
-  renderAlerts(stats, table.rounds);
-  renderLog(table.rounds);
+function getPatternWindow() {
+  return state.pattern.slice(-8);
 }
 
-function renderTables() {
-  els.tableSelect.innerHTML = state.tables.map((table) => (
-    `<option value="${escapeHtml(table.id)}">${escapeHtml(table.name)}</option>`
-  )).join("");
-  els.tableSelect.value = state.activeTableId;
-}
-
-function summarize(rounds) {
-  const total = rounds.length;
-  const banker = rounds.filter((round) => round.result === "banker").length;
-  const player = rounds.filter((round) => round.result === "player").length;
-  const tie = rounds.filter((round) => round.result === "tie").length;
-  const pairs = rounds.filter((round) => round.bankerPair || round.playerPair).length;
-  const luckySix = rounds.filter((round) => round.luckySix).length;
-  const recent = rounds.slice(-20);
-  const rb = recent.filter((round) => round.result === "banker").length;
-  const rp = recent.filter((round) => round.result === "player").length;
-  const rt = recent.filter((round) => round.result === "tie").length;
-  const streak = getCurrentStreak(rounds);
-  return {
-    total,
-    banker,
-    player,
-    tie,
-    pairs,
-    luckySix,
-    recentBias: total ? `莊 ${rb} / 閒 ${rp} / 和 ${rt}` : "-",
-    currentStreak: streak ? `${labels[streak.result]} x ${streak.count}` : "-",
-    maxStreak: getMaxStreak(rounds)
-  };
-}
-
-function getCurrentStreak(rounds) {
-  const nonTie = rounds.filter((round) => round.result !== "tie");
-  if (!nonTie.length) return null;
-  const last = nonTie[nonTie.length - 1].result;
-  let count = 0;
-  for (let i = nonTie.length - 1; i >= 0; i -= 1) {
-    if (nonTie[i].result !== last) break;
-    count += 1;
+function maybeAutoAnalyze() {
+  const latest = getPatternWindow();
+  if (latest.length < 8) {
+    state.lastAnalyzedKey = "";
+    clearTimeout(autoAnalyzeTimer);
+    return;
   }
-  return { result: last, count };
+  const key = latest.join("|");
+  if (key === state.lastAnalyzedKey) return;
+  clearTimeout(autoAnalyzeTimer);
+  autoAnalyzeTimer = setTimeout(() => {
+    if (getPatternWindow().join("|") !== key) return;
+    analyzeInput();
+  }, 180);
 }
 
-function getMaxStreak(rounds) {
-  let best = { result: "", count: 0 };
-  let current = { result: "", count: 0 };
-  rounds.filter((round) => round.result !== "tie").forEach((round) => {
-    if (round.result === current.result) {
-      current.count += 1;
-    } else {
-      current = { result: round.result, count: 1 };
-    }
-    if (current.count > best.count) best = { ...current };
-  });
-  return best.count ? `${labels[best.result]} x ${best.count}` : "-";
-}
+async function analyzeInput() {
+  const sequence = getPatternWindow();
+  if (sequence.length < 8) {
+    state.analysis = null;
+    state.pendingPrediction = null;
+    renderAnalysis();
+    return;
+  }
 
-function renderBeadRoad(rounds) {
-  const visible = rounds.slice(-72);
-  els.beadCount.textContent = `${rounds.length} hand`;
-  els.beadRoad.innerHTML = visible.map((round) => cellHtml(round)).join("") + emptyCells(72 - visible.length);
-}
-
-function renderBigRoad(rounds) {
-  const cells = [];
-  const columns = [];
-  let currentColumn = [];
-  let currentResult = "";
-  rounds.forEach((round) => {
-    if (round.result === "tie") {
-      if (currentColumn.length) {
-        currentColumn[currentColumn.length - 1].ties = (currentColumn[currentColumn.length - 1].ties || 0) + 1;
-      } else {
-        currentColumn.push({ ...round });
+  const key = sequence.join("|");
+  state.lastAnalyzedKey = key;
+  els.nextResult.textContent = "分析中";
+  els.nextDescription.textContent = "使用最近 8 手與資料庫歷史路型比對";
+  try {
+    state.analysis = await api("/api/analyze", {
+      method: "POST",
+      body: {
+        scope: "all",
+        sequence
       }
-      return;
-    }
-    if (round.result !== currentResult) {
-      if (currentColumn.length) columns.push(currentColumn);
-      currentColumn = [];
-      currentResult = round.result;
-    }
-    currentColumn.push(round);
+    });
+    state.pendingPrediction = buildPendingPrediction(state.analysis, key);
+    renderAnalysis();
+  } catch (error) {
+    state.analysis = null;
+    state.pendingPrediction = null;
+    els.nextResult.textContent = "分析失敗";
+    els.nextDescription.textContent = error.message;
+    els.sidePrediction.innerHTML = renderEmptyProbability();
+    if (els.advancedAnalysis) els.advancedAnalysis.innerHTML = "";
+  }
+}
+
+function recordPredictionCheck(actualResult) {
+  if (!state.pendingPrediction || state.pattern.length < 8) return;
+  const prediction = state.pendingPrediction;
+  const same = prediction.result === actualResult;
+  state.predictionChecks.unshift({
+    handNumber: state.pattern.length + 1,
+    basisKey: prediction.basisKey,
+    expected: prediction.result,
+    expectedLabel: prediction.label,
+    actual: actualResult,
+    actualLabel: labels[actualResult] || actualResult,
+    rate: prediction.rate,
+    source: prediction.source,
+    same,
+    mark: same ? "OK" : "XX",
+    checkedAt: new Date().toISOString()
   });
-  if (currentColumn.length) columns.push(currentColumn);
+  state.predictionChecks = state.predictionChecks.slice(0, 8);
+  state.pendingPrediction = null;
+}
 
-  columns.slice(-18).forEach((column) => {
-    for (let row = 0; row < 6; row += 1) {
-      cells.push(column[row] ? cellHtml(column[row], column[row].ties) : `<div class="cell empty"></div>`);
+function buildPendingPrediction(analysis, basisKey) {
+  const highest = analysis?.roadBreakdown?.overall?.highest;
+  const consensus = analysis?.roadBreakdown?.overall?.consensus;
+  const next = analysis?.nextResult;
+  const candidate = ["banker", "player"].includes(highest?.result)
+    ? {
+      result: highest.result,
+      label: highest.label,
+      rate: highest.rate,
+      source: highest.roadLabel || "路單最高百分比"
     }
-  });
-  els.bigRoadCount.textContent = `${columns.length} column`;
-  els.bigRoad.innerHTML = cells.join("") || emptyCells(36);
+    : ["banker", "player"].includes(consensus?.result)
+      ? {
+        result: consensus.result,
+        label: consensus.label,
+        rate: consensus.rate,
+        source: "五路統整"
+      }
+      : {
+        result: next?.result || "neutral",
+        label: next?.label || "-",
+        rate: next?.rate || 0,
+        source: "歷史樣本"
+      };
+  return {
+    ...candidate,
+    basisKey
+  };
 }
 
-function cellHtml(round, tieCount = 0) {
-  const side = [
-    round.bankerPair ? "莊對" : "",
-    round.playerPair ? "閒對" : "",
-    round.luckySix ? "幸運六" : ""
-  ].filter(Boolean).join(" ");
-  return `<div class="cell ${round.result}" title="${escapeHtml(side)}">
-    ${labels[round.result]}${tieCount ? `<small>+${tieCount}</small>` : ""}
-    ${round.bankerPair || round.playerPair ? '<span class="pair"></span>' : ""}
-    ${round.luckySix ? '<span class="lucky"></span>' : ""}
-  </div>`;
+function renderAnalysis() {
+  const analysis = state.analysis;
+  if (!analysis) {
+    els.nextResult.textContent = "等待 8 手";
+    els.nextDescription.textContent = "輸入莊、閒、和後自動分析最近 8 手";
+    els.sidePrediction.innerHTML = renderEmptyProbability();
+    if (els.advancedAnalysis) els.advancedAnalysis.innerHTML = "";
+    return;
+  }
+
+  const top = analysis.nextResult || { label: "-", rate: 0 };
+  els.nextResult.textContent = `${top.label || "-"} ${percent(top.rate)}`;
+  els.nextDescription.textContent = "";
+  els.sidePrediction.innerHTML = renderProbabilityList(analysis.fullRates || []);
+  if (els.advancedAnalysis) {
+    els.advancedAnalysis.innerHTML = renderAdvancedAnalysis(
+      analysis.advanced,
+      analysis.roadBreakdown,
+      state.predictionChecks
+    );
+  }
 }
 
-function emptyCells(count) {
-  return Array.from({ length: Math.max(0, count) }, () => `<div class="cell empty"></div>`).join("");
+function renderEmptyProbability() {
+  return ["banker", "player", "tie", "bankerPair", "playerPair", "luckySix"].map((key) => `
+    <div class="probability-chip">
+      <span>${labels[key]}</span>
+      <b>0.0%</b>
+    </div>
+  `).join("");
 }
 
-function renderAlerts(stats, rounds) {
-  const alerts = [];
-  if (stats.total < 20) {
-    alerts.push(["資料不足", "目前樣本少於 20 手，先累積紀錄再看趨勢。"]);
+function renderProbabilityList(items = []) {
+  const order = ["banker", "player", "tie", "bankerPair", "playerPair", "luckySix"];
+  const byKey = new Map();
+  for (const item of items) {
+    byKey.set(item.key || item.result, {
+      label: item.label || labels[item.key || item.result],
+      rate: Number(item.rate || 0),
+      count: Number(item.count || 0)
+    });
   }
-  const streak = getCurrentStreak(rounds);
-  if (streak && streak.count >= 5) {
-    alerts.push(["長連段", `${labels[streak.result]} 已連續 ${streak.count} 手，請標記桌台狀態。`]);
-  }
-  const recent = rounds.slice(-20);
-  const ties = recent.filter((round) => round.result === "tie").length;
-  if (ties >= 4) {
-    alerts.push(["和局偏多", `最近 20 手已有 ${ties} 次和局，建議檢查輸入是否正確。`]);
-  }
-  const nonTie = stats.banker + stats.player;
-  if (nonTie >= 20) {
-    const diff = Math.abs(stats.banker - stats.player) / nonTie;
-    if (diff >= 0.18) {
-      alerts.push(["比例偏斜", `莊閒比例差距 ${(diff * 100).toFixed(1)}%，列入觀察。`]);
-    }
-  }
-  if (!alerts.length) {
-    alerts.push(["狀態穩定", "目前沒有資料品質或連段異常提醒。"]);
-  }
-  els.qualityState.textContent = stats.total >= 20 ? "可觀察" : "累積中";
-  els.alertsList.innerHTML = alerts.map(([title, message]) => (
-    `<li><strong>${escapeHtml(title)}</strong><br>${escapeHtml(message)}</li>`
-  )).join("");
-}
-
-function renderLog(rounds) {
-  const recent = rounds.slice(-60).reverse();
-  els.lastUpdated.textContent = rounds.length ? formatTime(rounds[rounds.length - 1].createdAt) : "尚未輸入";
-  els.roundLog.innerHTML = recent.map((round, index) => {
-    const number = rounds.length - index;
-    const side = [
-      round.bankerPair ? "莊對" : "",
-      round.playerPair ? "閒對" : "",
-      round.luckySix ? "幸運六" : ""
-    ].filter(Boolean).join(" / ");
-    return `<div class="round-row">
-      <span class="round-badge ${round.result}">${labels[round.result]}</span>
-      <div>
-        <strong>#${number}</strong>
-        <div class="round-meta">${formatTime(round.createdAt)}${round.note ? ` · ${escapeHtml(round.note)}` : ""}</div>
+  return order.map((key) => {
+    const item = byKey.get(key) || { label: labels[key], rate: 0, count: 0 };
+    const strong = item.rate >= 0.58;
+    return `
+      <div class="probability-chip${strong ? " strong" : ""}">
+        <span>${strong ? "<em>▲</em> " : ""}${escapeHtml(item.label)}</span>
+        <b>${percent(item.rate)}</b>
       </div>
-      <span class="round-side">${escapeHtml(side)}</span>
-    </div>`;
-  }).join("") || `<div class="round-row"><span></span><div>尚未輸入資料</div><span></span></div>`;
+    `;
+  }).join("");
 }
 
-function parseBulk(text) {
-  const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-  const rounds = [];
-  lines.forEach((line) => {
-    if (line.includes(",")) {
-      const parts = line.split(",").map((part) => part.trim());
-      const result = normalizeResult(parts[0]);
-      if (result) {
-        rounds.push({
-          id: createId(),
-          result,
-          bankerPair: parseBool(parts[1]),
-          playerPair: parseBool(parts[2]),
-          luckySix: parseBool(parts[3]),
-          note: parts[4] || "",
-          createdAt: new Date().toISOString()
-        });
-      }
-      return;
-    }
-    line.split(/\s+/).forEach((token) => {
-      const result = normalizeResult(token);
-      if (result) {
-        rounds.push({
-          id: createId(),
-          result,
-          bankerPair: false,
-          playerPair: false,
-          luckySix: false,
-          note: "",
-          createdAt: new Date().toISOString()
-        });
-      }
-    });
-  });
-  return rounds;
+function renderAdvancedAnalysis(advanced, roadBreakdown, checks = []) {
+  if (!advanced && !roadBreakdown) return "";
+  const advancedPanel = advanced ? renderAdvancedPanel(advanced) : "";
+  return `
+    ${advancedPanel}
+    ${renderRoadBreakdown(roadBreakdown)}
+    ${renderPredictionChecks(checks)}
+  `;
 }
 
-function normalizeResult(value) {
-  const normalized = String(value || "").trim().toLowerCase();
-  if (["b", "banker", "莊", "庄"].includes(normalized)) return "banker";
-  if (["p", "player", "閒", "闲"].includes(normalized)) return "player";
-  if (["t", "tie", "和"].includes(normalized)) return "tie";
-  return "";
+function renderAdvancedPanel(advanced) {
+  const synthesis = advanced.synthesis || {};
+  return `
+    <article class="advanced-panel advanced-compact-panel">
+      <div class="advanced-header">
+        <span>進階交叉分析</span>
+        <strong>${escapeHtml(synthesis.label || "綜合中性")} ${percent(synthesis.confidence)}</strong>
+      </div>
+    </article>
+  `;
 }
 
-function parseBool(value) {
-  return ["1", "true", "yes", "y", "是", "有"].includes(String(value || "").trim().toLowerCase());
+function renderRoadBreakdown(roadBreakdown) {
+  if (!roadBreakdown) return "";
+  const overall = roadBreakdown.overall || {};
+  const highest = overall.highest || {};
+  const consensus = overall.consensus || {};
+  return `
+    <article class="advanced-panel road-breakdown-panel">
+      <div class="advanced-header">
+        <span>五路路單拆解</span>
+        <strong>${escapeHtml(highest.roadLabel || "-")} ${escapeHtml(highest.label || consensus.label || "-")} ${percent(highest.rate || consensus.rate)}</strong>
+      </div>
+      <div class="road-summary compact-summary">
+        <div>
+          <span>最高百分比</span>
+          <strong>${escapeHtml(highest.roadLabel || "-")} ${escapeHtml(highest.label || "-")} ${percent(highest.rate)}</strong>
+        </div>
+        <div>
+          <span>五路統整</span>
+          <strong>${escapeHtml(consensus.label || "-")} ${percent(consensus.rate)}</strong>
+        </div>
+      </div>
+      <div class="road-breakdown-grid compact-road-grid">
+        ${(roadBreakdown.roads || []).map(renderRoadCard).join("")}
+      </div>
+    </article>
+  `;
 }
 
-function importJson(text) {
-  const parsed = JSON.parse(text);
-  if (!parsed?.tables?.length) return;
-  state.tables = parsed.tables.map((table) => ({
-    id: table.id || createId(),
-    name: table.name || "Imported",
-    shoe: table.shoe || "",
-    rounds: Array.isArray(table.rounds) ? table.rounds.filter((round) => normalizeResult(round.result)) : []
-  }));
-  state.activeTableId = state.tables[0].id;
+function renderAskRoadPanel(askRoad) {
+  if (!askRoad) return "";
+  const roads = ["bigEyeRoad", "smallRoad", "cockroachRoad"];
+  const names = {
+    bigEyeRoad: "大眼仔",
+    smallRoad: "小路",
+    cockroachRoad: "蟑螂路"
+  };
+  return `
+    <div class="ask-road-panel">
+      <span>莊問路 / 閒問路</span>
+      <div class="ask-road-grid">
+        ${roads.map((key) => `
+          <div>
+            <b>${escapeHtml(names[key])}</b>
+            <p>莊：${renderAskChip(askRoad.banker?.[key])}</p>
+            <p>閒：${renderAskChip(askRoad.player?.[key])}</p>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
 }
 
-function toCsv() {
-  const rows = [["table", "shoe", "index", "result", "bankerPair", "playerPair", "luckySix", "note", "createdAt"]];
-  state.tables.forEach((table) => {
-    table.rounds.forEach((round, index) => {
-      rows.push([
-        table.name,
-        table.shoe || "",
-        String(index + 1),
-        labels[round.result],
-        round.bankerPair ? "1" : "0",
-        round.playerPair ? "1" : "0",
-        round.luckySix ? "1" : "0",
-        round.note || "",
-        round.createdAt
-      ]);
-    });
-  });
-  return rows.map((row) => row.map(csvCell).join(",")).join("\n");
+function renderAskChip(item) {
+  if (!item || item.color === "none") return `<em class="ask-chip none">-</em>`;
+  return `<em class="ask-chip ${escapeHtml(item.color)}">${escapeHtml(item.colorLabel)} ${escapeHtml(item.meaning)}</em>`;
 }
 
-function csvCell(value) {
-  const text = String(value ?? "");
-  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+function renderRoadCard(road) {
+  const prediction = road.prediction || {};
+  return `
+    <div class="road-card compact-road-card">
+      <div class="road-card-head">
+        <span>${escapeHtml(road.label || "-")}</span>
+        <strong>${renderResultIcon(prediction.result, prediction.label)} ${percent(prediction.rate)}</strong>
+      </div>
+    </div>
+  `;
 }
 
-function download(filename, content, type) {
-  const blob = new Blob([content], { type });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
+function renderPredictionChecks(checks = []) {
+  const list = Array.isArray(checks) ? checks.slice(0, 6) : [];
+  if (!list.length) {
+    return `
+      <article class="advanced-panel prediction-check-panel">
+        <div class="advanced-header">
+          <span>即時路單驗證</span>
+          <strong>等待下一手</strong>
+        </div>
+      </article>
+    `;
+  }
+  return `
+    <article class="advanced-panel prediction-check-panel">
+      <div class="advanced-header">
+        <span>即時路單驗證</span>
+        <strong>${escapeHtml(list[0].mark)} ${renderResultIcon(list[0].expected, list[0].expectedLabel)} ${percent(list[0].rate)}</strong>
+      </div>
+      <div class="prediction-check-list">
+        ${list.map((item) => `
+          <div class="${item.same ? "ok" : "miss"}">
+            <b>${escapeHtml(item.mark)}</b>
+            <span class="check-hand">#${Number(item.handNumber || 0)}</span>
+            <span class="check-icons">
+              <em>預測</em>${renderResultIcon(item.expected, item.expectedLabel)}
+              <em>輸入</em>${renderResultIcon(item.actual, item.actualLabel)}
+            </span>
+            <strong>${percent(item.rate)}</strong>
+          </div>
+        `).join("")}
+      </div>
+    </article>
+  `;
 }
 
-function formatTime(value) {
+function renderResultIcon(result, label) {
+  const key = ["banker", "player", "tie"].includes(result) ? result : "neutral";
+  const text = key === "neutral" ? (label || "觀察") : labels[key];
+  return `<i class="result-icon ${key}">${escapeHtml(text)}</i>`;
+}
+
+function renderAdvancedMetric(title, label, read, value) {
+  return `
+    <div class="advanced-metric">
+      <span>${escapeHtml(title)}</span>
+      <strong>${escapeHtml(label || "-")}</strong>
+      <p>${escapeHtml(read || "-")}</p>
+      <b>${escapeHtml(value || "-")}</b>
+    </div>
+  `;
+}
+
+function renderTableMatches(items = [], key) {
+  const list = Array.isArray(items) ? items.slice(0, 4) : [];
+  if (!list.length) return "-";
+  return list.map((item) => {
+    const value = Number(item[key] || 0);
+    return `<em>${escapeHtml(item.tableCode || item.tableId || "-")} ${percent(value)}</em>`;
+  }).join("");
+}
+
+async function api(path, options = {}) {
+  const init = {
+    method: options.method || "GET",
+    headers: { "content-type": "application/json" }
+  };
+  if (options.body !== undefined) init.body = JSON.stringify(options.body);
+
+  const response = await fetch(path, init);
+  const text = await response.text();
+  const payload = text ? safeJson(text) : {};
+  if (!response.ok) {
+    const message = payload?.error || payload?.detail || text || response.statusText || "API request failed";
+    throw new Error(`${init.method} ${path} HTTP ${response.status}: ${message}`);
+  }
+  return payload || {};
+}
+
+function safeJson(text) {
+  try {
+    return JSON.parse(text);
+  } catch (_) {
+    return null;
+  }
+}
+
+function percent(value) {
+  return `${((Number(value) || 0) * 100).toFixed(1)}%`;
+}
+
+function formatSigned(value) {
+  const number = Number(value || 0);
+  return `${number >= 0 ? "+" : ""}${number.toFixed(3)}`;
+}
+
+function sourceLabel(type) {
+  return {
+    exact: "完全相同 8 手",
+    fuzzy: "相近路型",
+    global: "全庫基準"
+  }[type] || "資料庫比對";
+}
+
+function formatDateTime(value) {
+  if (!value) return "-";
   try {
     return new Intl.DateTimeFormat("zh-TW", {
       month: "2-digit",
       day: "2-digit",
       hour: "2-digit",
-      minute: "2-digit"
+      minute: "2-digit",
+      second: "2-digit"
     }).format(new Date(value));
   } catch (_) {
-    return "";
+    return value;
   }
 }
 
 function escapeHtml(value) {
-  return String(value ?? "")
+  return String(value || "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
-}
-
-function createId() {
-  return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 }

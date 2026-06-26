@@ -1,22 +1,56 @@
 # 百家樂監控數據
 
-全新重做版本。舊版網頁、舊紀錄、舊後端監控、Telegram、Android wrapper、Oracle 部署腳本與舊資料庫流程已從目前 repo 工作樹移除。
+本專案是全新本機版百家樂路圖記錄與分析工具，定位為合法可見資料的記錄、整理、視覺化與歷史相似度分析。
 
-## 目前定位
+它不提供自動下注，不保證任何開獎結果，也不會繞過網站驗證、封鎖或平台限制。
 
-- 純靜態 GitHub Pages PWA。
-- 空白資料起點，不讀取舊版 localStorage key 或舊資料庫。
-- 手動輸入與批次匯入百家樂結果。
-- 顯示珠盤路、大路、統計摘要、資料品質與觀察提醒。
-- 支援 JSON / CSV 匯出與 JSON / CSV / TXT 匯入。
+## 功能
 
-本工具只做資料記錄、整理與視覺化，不提供下注建議，不保證任何結果。
+- 本機 24 小時資料庫：`data/baijia-db.json`
+- 目標 ALLBET 36 桌白名單監控，避免分類頁、非目標桌或舊桌污染分析
+- 桌台、房間號碼、靴號、每手結果、莊對、閒對、幸運6、卡牌備註記錄
+- 珠盤路、大路、大眼仔路、小路、蟑螂路重建
+- 輸入現場 8 到 10 把，回查本機歷史相同路徑與相近路徑
+- 顯示下一把統計偏向、信心分數、樣本數、特殊項出現率
+- Windows 登入自動啟動腳本
+- Goodwin/ALLBET 擷取器第一版：可做登入檢查、截圖、桌台候選偵測；進桌讀路圖需依現場 DOM 再微調
 
-## 本機預覽
+## 準確性原則
+
+- 正式 `rounds` 只接受原始結構化結果，例如平台 API/WebSocket 回傳、或人工輸入後由使用者確認的結果。
+- 截圖、路圖圖片、OCR、顏色判斷只能當除錯參考，不會寫成正式路單。
+- 如果擷取器只看到圖片路圖，會保存為 `output/playwright/` 除錯檔，資料庫只記錄圖片檔路徑與摘要。
+- 桌台 key 使用「桌台序號 + 桌名」，避免同名桌台覆蓋。
+
+## 小容量保存格式
+
+正式每手資料只保存必要欄位：
+
+```json
+{
+  "result": "banker",
+  "bankerPair": false,
+  "playerPair": true,
+  "luckySix": false,
+  "bankerPoints": 6,
+  "playerPoints": 4,
+  "bankerCards": [],
+  "playerCards": [],
+  "observedAt": "2026-06-23T00:00:00.000Z"
+}
+```
+
+壓縮本機資料庫、移除測試快照中的大圖文字：
+
+```powershell
+npm run data:compact
+```
+
+## 本機啟動
 
 ```powershell
 cd C:\Users\Administrator\Baijia
-npm test
+npm install
 npm start
 ```
 
@@ -26,32 +60,76 @@ npm start
 http://localhost:4173
 ```
 
-## GitHub Pages
+## 24 小時常駐
 
-Repo：
-
-```text
-https://github.com/SYLONG7708/Baijia
+```powershell
+cd C:\Users\Administrator\Baijia
+npm run daemon
 ```
 
-Pages：
+常駐模式會同時啟動：
 
-```text
-https://sylong7708.github.io/Baijia/
+- 本機儀表板：`http://localhost:4173`
+- 背景 ALLBET 擷取：預設 `GOODWIN_HEADLESS=true`，不會跳出可見瀏覽器視窗
+- 每日資料庫備份：`backups/` 與 CODEX 保存資料夾
+
+安裝 Windows 登入自動啟動：
+
+```powershell
+npm run task:install
 ```
 
-GitHub Pages 來源維持 `main` branch root。
+移除自動啟動：
 
-## 舊版保留位置
-
-遠端備份分支：
-
-```text
-backup/baijia-old-20260622
+```powershell
+npm run task:uninstall
 ```
 
-本機 CODEX 備份：
+手動備份與清理污染桌：
+
+```powershell
+npm run backup:db
+npm run data:cleanup
+```
+
+## Goodwin 擷取設定
+
+複製 `.env.example` 為 `.env.local`，只放在本機，不要上傳 GitHub。
 
 ```text
-C:\Users\Administrator\Desktop\CODEX 專案資料夾\製作過的 APP 以及資料\Baijia_舊版全新重做前備份_20260622
+GOODWIN_URL=https://www.goodwin77.com/liveView
+GOODWIN_USERNAME=你的帳號
+GOODWIN_PASSWORD=你的密碼
+GOODWIN_ENABLE_COLLECTOR=true
+GOODWIN_HEADLESS=false
+COLLECT_INTERVAL_MS=300000
+PORT=4173
 ```
+
+手動測試擷取器：
+
+```powershell
+npm run collector
+```
+
+若網站要求驗證碼、2FA、人工安全驗證或阻擋自動化，擷取器會停止並保存截圖到 `output/playwright/`，不會嘗試繞過。
+
+檢查 ALLBET 原始資料流，尋找可 100% 對應路單的 API/WebSocket：
+
+```powershell
+npm run network:inspect
+```
+
+檢查結果會寫到 `output/network/goodwin-network-candidates.json`，敏感 token 會遮蔽。只有找到可驗證的原始逐手資料後，才應接入正式 `rounds`。
+
+## 測試
+
+```powershell
+npm test
+```
+
+## 資料與隱私
+
+- `data/`、`logs/`、`storage/`、`.env.local` 已加入 `.gitignore`
+- 帳密只允許放在本機 `.env.local`
+- 匯出資料可從網頁右上角下載 CSV 或 JSON

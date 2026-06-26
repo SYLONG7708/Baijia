@@ -1,10 +1,25 @@
 {
   "name": "baijia-monitor-fresh",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "private": true,
-  "description": "Fresh static baccarat monitoring dashboard for GitHub Pages.",
+  "description": "Local baccarat road monitor, history database, and analysis dashboard.",
   "scripts": {
-    "start": "npx http-server . -p 4173 -c-1",
+    "start": "node src/server.js",
+    "server": "node src/server.js",
+    "collector": "node src/collector.js --force",
+    "network:inspect": "node scripts/inspect-goodwin-network.mjs",
+    "daemon": "node src/daemon.js",
+    "health:24h": "node scripts/check-24h-integrity.mjs",
+    "health:36": "node scripts/check-36-completeness.mjs",
+    "health:data": "node scripts/check-data-integrity.mjs",
+    "health:runtime": "node scripts/check-runtime-smoke.mjs",
+    "health:ui": "node scripts/check-ui-compact.mjs",
+    "analysis:roads": "node scripts/analyze-road-patterns.mjs",
+    "backup:db": "node scripts/backup-db.mjs",
+    "data:cleanup": "node scripts/cleanup-target-tables.mjs",
+    "data:compact": "node scripts/compact-data.mjs",
+    "task:install": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-windows-task.ps1",
+    "task:uninstall": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/uninstall-windows-task.ps1",
     "test": "node scripts/validate.mjs"
   },
   "devDependencies": {
