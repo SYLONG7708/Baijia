@@ -60,6 +60,12 @@ npm start
 http://localhost:4173
 ```
 
+現場 iPhone 版，不讀取歐博資料庫，只用手動輸入分析：
+
+```text
+http://localhost:4173/live.html
+```
+
 ## 公開網路觀看
 
 若要讓 iPhone 或外部網路直接觀看，不需要連同一個 Wi-Fi，可啟動公開 tunnel：
@@ -76,6 +82,12 @@ storage/baijia-public-tunnel.url
 ```
 
 公開觀看模式只開放儀表板狀態與 8 手分析所需 API；外部訪客不能下載 JSON/CSV、不能新增或清除資料，也看不到本機資料庫路徑。臨時 tunnel 需要本機電腦、背景監控與 `cloudflared` 程序持續執行；若要永久固定網址，需要改用 Cloudflare 帳號與自有網域建立 named tunnel。
+
+公開現場 iPhone 版入口：
+
+```text
+https://你的公開網址/live.html
+```
 
 ## 24 小時常駐
 

@@ -5,6 +5,7 @@ import { spawnSync } from "node:child_process";
 const root = process.cwd();
 const required = [
   "index.html",
+  "live.html",
   "styles.css",
   "app.js",
   "manifest.webmanifest",
@@ -42,6 +43,7 @@ if (missing.length) {
 }
 
 const index = readFileSync(join(root, "index.html"), "utf8");
+const live = readFileSync(join(root, "live.html"), "utf8");
 const app = readFileSync(join(root, "app.js"), "utf8");
 const styles = readFileSync(join(root, "styles.css"), "utf8");
 const gitignore = readFileSync(join(root, ".gitignore"), "utf8");
@@ -50,6 +52,8 @@ const packageJson = JSON.parse(readFileSync(join(root, "package.json"), "utf8"))
 const checks = [
   [index.includes("<main") && index.includes('id="statusRoundCount"'), "index main layout"],
   [index.includes('id="patternInput"') && index.includes("analysis-band"), "analysis input section"],
+  [index.includes("side-flag-btn") && index.includes('data-flag="luckySix"'), "main special buttons"],
+  [live.includes('data-mode="live"') && live.includes("side-flag-btn"), "live iPhone page"],
   [index.includes('id="advancedAnalysis"'), "advanced analysis section"],
   [index.includes("pattern-result-btn") && index.includes('data-result="banker"'), "pattern button board"],
   [index.includes('id="savedDataCount"') && index.includes('id="sidePrediction"'), "saved data and prediction blocks"],
@@ -61,8 +65,11 @@ const checks = [
   [app.includes("renderPredictionChecks"), "prediction check renderer"],
   [app.includes("renderAnalysisRecordList"), "analysis record renderer"],
   [app.includes("manualSequence: state.pattern"), "full manual sequence submission"],
+  [app.includes("localOnly: isLiveMode"), "live page local-only analysis"],
+  [app.includes("makeManualRound"), "manual round special flags"],
   [app.includes("manual-cycle-cell"), "manual cycle renderer"],
   [app.includes("renderResultIcon"), "result icon renderer"],
+  [styles.includes(".side-flag-btn.active"), "special button active styling"],
   [styles.includes(".analysis-record-row"), "analysis record styling"],
   [styles.includes(".manual-cycle-cell"), "manual cycle styling"],
   [styles.includes(".probability-chip.strong"), "high probability styling"],

@@ -228,6 +228,14 @@ h1 {
   margin: 6px 0 10px;
 }
 
+.side-flag-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(74px, 1fr));
+  gap: 8px;
+  margin: 0 0 10px;
+  max-width: 360px;
+}
+
 .pattern-result-btn {
   min-height: 52px;
   border: 0;
@@ -235,6 +243,23 @@ h1 {
   border-radius: 8px;
   font-size: 24px;
   font-weight: 900;
+}
+
+.side-flag-btn {
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #111a1f;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.side-flag-btn.active {
+  border-color: rgba(224, 184, 91, 0.85);
+  background: rgba(224, 184, 91, 0.18);
+  color: #ffd37a;
+  box-shadow: 0 0 0 1px rgba(224, 184, 91, 0.45) inset;
 }
 
 .pattern-result-btn.banker {
@@ -262,6 +287,18 @@ h1 {
   padding: 10px;
   line-height: 1.6;
   resize: vertical;
+}
+
+.live-shell {
+  width: min(760px, 100%);
+}
+
+.live-topbar {
+  padding-bottom: 12px;
+}
+
+.live-analysis-band {
+  grid-template-columns: 1fr;
 }
 
 #patternCount {
@@ -932,6 +969,16 @@ h1 {
 
   .pattern-buttons {
     grid-template-columns: repeat(3, 1fr);
+  }
+
+  .side-flag-buttons {
+    grid-template-columns: repeat(3, 1fr);
+    max-width: none;
+  }
+
+  .side-flag-btn {
+    min-height: 40px;
+    font-size: 14px;
   }
 
   .analysis-record-row {

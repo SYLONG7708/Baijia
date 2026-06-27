@@ -63,8 +63,40 @@ await checkJson("analyze", "/api/analyze", (json) => {
   body: JSON.stringify({ scope: "all", sequence: ANALYSIS_SEQUENCE })
 });
 
+await checkJson("analyze-local-only", "/api/analyze", (json) => {
+  assert(json.ok === true, "local-only analyze ok is not true");
+  assert(json.dataset?.allRounds === 0, "local-only analyze read database rounds");
+  assert(json.input?.manualLength === 10, "local-only manual length mismatch");
+  assert((json.roadBreakdown?.records || []).every((item) => item.manualCycleResult), "local-only manual cycle result missing");
+}, {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({
+    scope: "all",
+    localOnly: true,
+    sequence: ANALYSIS_SEQUENCE,
+    manualSequence: [
+      { result: "banker", bankerPair: true },
+      { result: "player" },
+      { result: "banker", luckySix: true },
+      { result: "banker" },
+      { result: "player", playerPair: true },
+      { result: "tie" },
+      { result: "banker" },
+      { result: "player" },
+      { result: "banker" },
+      { result: "player", bankerPair: true, luckySix: true }
+    ]
+  })
+});
+
 await checkText("app-js", "/app.js", (text) => {
   assert(text.includes("renderAdvancedAnalysis"), "app.js missing advanced renderer");
+});
+
+await checkText("live-page", "/live.html", (text) => {
+  assert(text.includes('data-mode="live"'), "live page missing live mode marker");
+  assert(text.includes("幸運6"), "live page missing special buttons");
 });
 
 await checkText("service-worker", "/sw.js", (text) => {

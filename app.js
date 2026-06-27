@@ -11,10 +11,17 @@ const state = {
   status: null,
   analysis: null,
   pattern: [],
+  pendingFlags: {
+    bankerPair: false,
+    playerPair: false,
+    luckySix: false
+  },
   lastAnalyzedKey: "",
   pendingPrediction: null,
   predictionChecks: []
 };
+
+const isLiveMode = document.body?.dataset?.mode === "live";
 
 const els = {
   serverBadge: document.getElementById("serverBadge"),
@@ -29,6 +36,7 @@ const els = {
   sidePrediction: document.getElementById("sidePrediction"),
   advancedAnalysis: document.getElementById("advancedAnalysis"),
   patternButtons: [...document.querySelectorAll(".pattern-result-btn")],
+  sideFlagButtons: [...document.querySelectorAll(".side-flag-btn")],
   patternInput: document.getElementById("patternInput"),
   undoPatternBtn: document.getElementById("undoPatternBtn"),
   clearPatternBtn: document.getElementById("clearPatternBtn"),
@@ -42,21 +50,27 @@ init();
 
 function init() {
   bindEvents();
+  renderPendingFlags();
   renderPattern();
   renderAnalysis();
-  loadStatus();
-  setInterval(loadStatus, 60_000);
+  if (!isLiveMode) {
+    loadStatus();
+    setInterval(loadStatus, 60_000);
+  }
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("./sw.js").catch(() => {});
   }
 }
 
 function bindEvents() {
-  els.refreshBtn.addEventListener("click", loadStatus);
+  els.refreshBtn?.addEventListener("click", loadStatus);
   els.analyzeBtn.addEventListener("click", analyzeInput);
 
   els.patternButtons.forEach((button) => {
     button.addEventListener("click", () => appendPatternResult(button.dataset.result));
+  });
+  els.sideFlagButtons.forEach((button) => {
+    button.addEventListener("click", () => togglePendingFlag(button.dataset.flag));
   });
 
   els.undoPatternBtn.addEventListener("click", () => {
@@ -77,6 +91,7 @@ function bindEvents() {
 
   els.clearPatternBtn.addEventListener("click", () => {
     state.pattern = [];
+    resetPendingFlags();
     state.analysis = null;
     state.lastAnalyzedKey = "";
     state.pendingPrediction = null;
@@ -87,28 +102,34 @@ function bindEvents() {
 }
 
 async function loadStatus() {
+  if (isLiveMode) return;
   try {
     const status = await api("/api/status");
     state.status = status;
-    els.statusRoundCount.textContent = `${Number(status.rounds || 0).toLocaleString("zh-TW")} 局`;
-    els.statusUpdateAt.textContent = formatDateTime(status.updatedAt);
-    els.allbetTableCount.textContent = `${Number(status.allbetTables || 0)} 桌`;
-    els.savedDataCount.textContent = `已保存 ${Number(status.rounds || 0).toLocaleString("zh-TW")} 局`;
-    els.serverBadge.textContent = "本機正常";
-    els.serverBadge.className = "status-pill ok";
-    els.collectorMessage.textContent = status.collector?.lastMessage || status.collector?.lastError || "等待抓取";
+    if (els.statusRoundCount) els.statusRoundCount.textContent = `${Number(status.rounds || 0).toLocaleString("zh-TW")} 局`;
+    if (els.statusUpdateAt) els.statusUpdateAt.textContent = formatDateTime(status.updatedAt);
+    if (els.allbetTableCount) els.allbetTableCount.textContent = `${Number(status.allbetTables || 0)} 桌`;
+    if (els.savedDataCount) els.savedDataCount.textContent = `已保存 ${Number(status.rounds || 0).toLocaleString("zh-TW")} 局`;
+    if (els.serverBadge) {
+      els.serverBadge.textContent = "本機正常";
+      els.serverBadge.className = "status-pill ok";
+    }
+    if (els.collectorMessage) els.collectorMessage.textContent = status.collector?.lastMessage || status.collector?.lastError || "等待抓取";
   } catch (error) {
-    els.serverBadge.textContent = "API 未連線";
-    els.serverBadge.className = "status-pill bad";
-    els.statusRoundCount.textContent = "0 局";
-    els.collectorMessage.textContent = error.message;
+    if (els.serverBadge) {
+      els.serverBadge.textContent = "API 未連線";
+      els.serverBadge.className = "status-pill bad";
+    }
+    if (els.statusRoundCount) els.statusRoundCount.textContent = "0 局";
+    if (els.collectorMessage) els.collectorMessage.textContent = error.message;
   }
 }
 
 function appendPatternResult(result) {
   if (!["banker", "player", "tie"].includes(result)) return;
   const checkedPrediction = recordPredictionCheck(result);
-  state.pattern.push(result);
+  state.pattern.push(makeManualRound(result));
+  resetPendingFlags();
   renderPattern();
   if (checkedPrediction && state.analysis) {
     renderAnalysis();
@@ -116,8 +137,40 @@ function appendPatternResult(result) {
   maybeAutoAnalyze();
 }
 
+function togglePendingFlag(flag) {
+  if (!["bankerPair", "playerPair", "luckySix"].includes(flag)) return;
+  state.pendingFlags[flag] = !state.pendingFlags[flag];
+  renderPendingFlags();
+}
+
+function resetPendingFlags() {
+  state.pendingFlags = {
+    bankerPair: false,
+    playerPair: false,
+    luckySix: false
+  };
+  renderPendingFlags();
+}
+
+function renderPendingFlags() {
+  els.sideFlagButtons.forEach((button) => {
+    const active = Boolean(state.pendingFlags[button.dataset.flag]);
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+}
+
+function makeManualRound(result) {
+  return {
+    result,
+    bankerPair: Boolean(state.pendingFlags.bankerPair),
+    playerPair: Boolean(state.pendingFlags.playerPair),
+    luckySix: Boolean(state.pendingFlags.luckySix)
+  };
+}
+
 function renderPattern() {
-  const visible = state.pattern.map((result) => labels[result]).join(" ");
+  const visible = state.pattern.map(formatManualRound).join(" ");
   els.patternInput.value = visible;
   els.patternCount.textContent = `${state.pattern.length} 手`;
 }
@@ -133,11 +186,11 @@ function maybeAutoAnalyze() {
     clearTimeout(autoAnalyzeTimer);
     return;
   }
-  const key = latest.join("|");
+  const key = latest.map(roundKey).join("|");
   if (key === state.lastAnalyzedKey) return;
   clearTimeout(autoAnalyzeTimer);
   autoAnalyzeTimer = setTimeout(() => {
-    if (getPatternWindow().join("|") !== key) return;
+    if (getPatternWindow().map(roundKey).join("|") !== key) return;
     analyzeInput();
   }, 180);
 }
@@ -151,7 +204,7 @@ async function analyzeInput() {
     return;
   }
 
-  const key = sequence.join("|");
+  const key = sequence.map(roundKey).join("|");
   state.lastAnalyzedKey = key;
   els.nextResult.textContent = "分析中";
   els.nextDescription.textContent = "使用最近 8 手與資料庫歷史路型比對";
@@ -160,6 +213,7 @@ async function analyzeInput() {
       method: "POST",
       body: {
         scope: "all",
+        localOnly: isLiveMode,
         sequence,
         manualSequence: state.pattern
       }
@@ -226,6 +280,31 @@ function buildPendingPrediction(analysis, basisKey) {
     ...candidate,
     basisKey
   };
+}
+
+function roundResult(round) {
+  return typeof round === "string" ? round : round?.result;
+}
+
+function roundKey(round) {
+  const result = roundResult(round) || "";
+  const item = typeof round === "string" ? { result } : round || {};
+  return [
+    result,
+    item.bankerPair ? "BP" : "",
+    item.playerPair ? "PP" : "",
+    item.luckySix ? "L6" : ""
+  ].filter(Boolean).join("+");
+}
+
+function formatManualRound(round) {
+  const result = roundResult(round);
+  const item = typeof round === "string" ? { result } : round || {};
+  const extra = [];
+  if (item.bankerPair) extra.push(labels.bankerPair);
+  if (item.playerPair) extra.push(labels.playerPair);
+  if (item.luckySix) extra.push(labels.luckySix);
+  return [labels[result] || result, ...extra].filter(Boolean).join("+");
 }
 
 function renderAnalysis() {
@@ -425,10 +504,10 @@ function compactRecordDetail(record) {
     const sampleText = Number(record.manualCycleSamples || 0) > 0 ? ` / ${Number(record.manualCycleSamples || 0)} 組` : "";
     parts.push(`輸入6欄 ${percent(record.manualCycleRate)}${sampleText}`);
   }
-  if (Number.isFinite(Number(record.cycleRate))) {
+  if (!isLiveMode && Number.isFinite(Number(record.cycleRate))) {
     parts.push(`資料庫6欄 ${percent(record.cycleRate)}`);
   }
-  if (Number(record.cycleSamples || 0) > 0) {
+  if (!isLiveMode && Number(record.cycleSamples || 0) > 0) {
     parts.push(`${Number(record.cycleSamples || 0)} 筆`);
   }
   if (record.topTrend?.label) {

@@ -15,6 +15,8 @@ const DEFAULT_HOST = process.env.BAIJIA_HOST || process.env.HOST || (isTruthy(pr
 const STATIC_FILES = new Map([
   ["/", "index.html"],
   ["/index.html", "index.html"],
+  ["/live", "live.html"],
+  ["/live.html", "live.html"],
   ["/styles.css", "styles.css"],
   ["/app.js", "app.js"],
   ["/manifest.webmanifest", "manifest.webmanifest"],
@@ -137,11 +139,12 @@ async function handleApi(request, response, url) {
   if (method === "POST" && url.pathname === "/api/analyze") {
     const body = await readJsonBody(request);
     const scope = body.scope === "table" ? "table" : "all";
+    const localOnly = isTruthy(body.localOnly);
     const result = analyzePattern({
       sequence: body.sequence || body.text || [],
       manualSequence: body.manualSequence || body.fullSequence || body.sequence || body.text || [],
       tableId: scope === "table" ? body.tableId || "" : "",
-      rounds: store.getAnalysisRounds()
+      rounds: localOnly ? [] : store.getAnalysisRounds()
     });
     sendJson(response, 200, result);
     return;

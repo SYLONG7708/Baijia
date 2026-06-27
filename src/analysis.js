@@ -31,7 +31,7 @@ function analyzePattern({ sequence, manualSequence = [], rounds = [], tableId = 
   const roadSignal = summarizeRoadSignals(inputRounds);
   const source = exact.total >= 3 ? exact : fuzzy.total >= 5 ? fuzzy : global;
   const resultRates = buildResultRates(source, pattern, patterns);
-  const sideRates = buildSideRates(source, global);
+  const sideRates = buildSideRates(source, global, effectiveManualRounds);
   const fullRates = buildFullRates(resultRates, sideRates);
   const topResult = resultRates[0] || { result: "banker", label: "莊", rate: 0, count: 0 };
   const confidence = scoreConfidence({ source, exact, fuzzy, patternLength: pattern.length, roadSignal });
@@ -163,11 +163,14 @@ function emptyMatches(length) {
 
 function buildResultRates(source, pattern, patterns) {
   const total = Math.max(source.total, 0);
-  const smoothing = total < 10 ? 2 : 0;
+  const patternCounts = countPatternResults(pattern);
+  const baseCounts = total ? source.counts : patternCounts;
+  const effectiveTotal = total || pattern.length;
+  const smoothing = effectiveTotal < 10 ? 2 : 0;
   const counts = {
-    banker: source.counts.banker + smoothing * BASE_REFERENCE.banker,
-    player: source.counts.player + smoothing * BASE_REFERENCE.player,
-    tie: source.counts.tie + (total < 20 ? 0.4 : 0)
+    banker: baseCounts.banker + smoothing * BASE_REFERENCE.banker,
+    player: baseCounts.player + smoothing * BASE_REFERENCE.player,
+    tie: baseCounts.tie + (effectiveTotal < 20 ? 0.4 : 0)
   };
   const denominator = Object.values(counts).reduce((sum, value) => sum + value, 0) || 1;
   const rates = ["banker", "player", "tie"].map((result) => ({
@@ -187,8 +190,17 @@ function buildResultRates(source, pattern, patterns) {
   return normalizeRates(rates).sort((a, b) => b.rate - a.rate);
 }
 
-function buildSideRates(source, global) {
-  const selected = source.total >= 5 ? source : global;
+function countPatternResults(pattern = []) {
+  return {
+    banker: pattern.filter((result) => result === "banker").length,
+    player: pattern.filter((result) => result === "player").length,
+    tie: pattern.filter((result) => result === "tie").length
+  };
+}
+
+function buildSideRates(source, global, inputRounds = []) {
+  const manual = summarizeManualSpecials(inputRounds);
+  const selected = source.total >= 5 ? source : global.total >= 5 ? global : manual;
   const denominator = Math.max(selected.total, 1);
   return [
     {
@@ -210,6 +222,16 @@ function buildSideRates(source, global) {
       rate: selected.luckySix / denominator
     }
   ];
+}
+
+function summarizeManualSpecials(rounds = []) {
+  const total = Math.max(rounds.length, 0);
+  return {
+    total,
+    bankerPair: rounds.filter((round) => round.bankerPair).length,
+    playerPair: rounds.filter((round) => round.playerPair).length,
+    luckySix: rounds.filter((round) => round.luckySix).length
+  };
 }
 
 function buildFullRates(resultRates, sideRates) {
