@@ -38,6 +38,7 @@ function analyzePattern({ sequence, rounds = [], tableId = "" }) {
   });
   const roadBreakdown = buildRoadBreakdownAnalysis({
     inputRounds,
+    allRounds,
     source,
     resultRates
   });

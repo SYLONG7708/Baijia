@@ -115,6 +115,12 @@ Load-EnvFile (Join-Path $ProjectRoot ".env.local")
 $env:GOODWIN_ENABLE_COLLECTOR = "true"
 $env:GOODWIN_HEADLESS = "true"
 $env:BAIJIA_DAEMON_ONLY = "false"
+if (-not (Get-Item Env:BAIJIA_HOST -ErrorAction SilentlyContinue)) {
+  $env:BAIJIA_HOST = "0.0.0.0"
+}
+if (-not (Get-Item Env:BAIJIA_PUBLIC_VIEW -ErrorAction SilentlyContinue)) {
+  $env:BAIJIA_PUBLIC_VIEW = "true"
+}
 if (-not (Get-Item Env:PORT -ErrorAction SilentlyContinue)) {
   $env:PORT = "4173"
 }

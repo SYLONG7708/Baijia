@@ -60,6 +60,23 @@ npm start
 http://localhost:4173
 ```
 
+## 公開網路觀看
+
+若要讓 iPhone 或外部網路直接觀看，不需要連同一個 Wi-Fi，可啟動公開 tunnel：
+
+```powershell
+cd C:\Users\Administrator\Baijia
+npm run public:tunnel
+```
+
+系統會產生 `https://*.trycloudflare.com` 公開網址，網址也會保存到：
+
+```text
+storage/baijia-public-tunnel.url
+```
+
+公開觀看模式只開放儀表板狀態與 8 手分析所需 API；外部訪客不能下載 JSON/CSV、不能新增或清除資料，也看不到本機資料庫路徑。臨時 tunnel 需要本機電腦、背景監控與 `cloudflared` 程序持續執行；若要永久固定網址，需要改用 Cloudflare 帳號與自有網域建立 named tunnel。
+
 ## 24 小時常駐
 
 ```powershell
@@ -104,6 +121,8 @@ GOODWIN_ENABLE_COLLECTOR=true
 GOODWIN_HEADLESS=false
 COLLECT_INTERVAL_MS=300000
 PORT=4173
+BAIJIA_HOST=127.0.0.1
+BAIJIA_PUBLIC_VIEW=false
 ```
 
 手動測試擷取器：

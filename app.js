@@ -33,8 +33,7 @@ const els = {
   undoPatternBtn: document.getElementById("undoPatternBtn"),
   clearPatternBtn: document.getElementById("clearPatternBtn"),
   analyzeBtn: document.getElementById("analyzeBtn"),
-  collectorMessage: document.getElementById("collectorMessage"),
-  dbPath: document.getElementById("dbPath")
+  collectorMessage: document.getElementById("collectorMessage")
 };
 
 let autoAnalyzeTimer = null;
@@ -97,7 +96,6 @@ async function loadStatus() {
     els.savedDataCount.textContent = `已保存 ${Number(status.rounds || 0).toLocaleString("zh-TW")} 局`;
     els.serverBadge.textContent = "本機正常";
     els.serverBadge.className = "status-pill ok";
-    els.dbPath.textContent = status.dbPath || "-";
     els.collectorMessage.textContent = status.collector?.lastMessage || status.collector?.lastError || "等待抓取";
   } catch (error) {
     els.serverBadge.textContent = "API 未連線";
@@ -281,11 +279,9 @@ function renderProbabilityList(items = []) {
 
 function renderAdvancedAnalysis(advanced, roadBreakdown, checks = []) {
   if (!advanced && !roadBreakdown) return "";
-  const advancedPanel = advanced ? renderAdvancedPanel(advanced) : "";
   return `
-    ${advancedPanel}
-    ${renderRoadBreakdown(roadBreakdown)}
-    ${renderPredictionChecks(checks)}
+    ${renderRoadBreakdown(roadBreakdown, advanced)}
+    ${renderPredictionChecks(checks, roadBreakdown)}
   `;
 }
 
@@ -301,26 +297,17 @@ function renderAdvancedPanel(advanced) {
   `;
 }
 
-function renderRoadBreakdown(roadBreakdown) {
+function renderRoadBreakdown(roadBreakdown, advanced) {
   if (!roadBreakdown) return "";
   const overall = roadBreakdown.overall || {};
   const highest = overall.highest || {};
   const consensus = overall.consensus || {};
+  const synthesis = advanced?.synthesis || {};
   return `
-    <article class="advanced-panel road-breakdown-panel">
+    <article class="advanced-panel road-breakdown-panel road-score-panel">
       <div class="advanced-header">
-        <span>五路路單拆解</span>
-        <strong>${escapeHtml(highest.roadLabel || "-")} ${escapeHtml(highest.label || consensus.label || "-")} ${percent(highest.rate || consensus.rate)}</strong>
-      </div>
-      <div class="road-summary compact-summary">
-        <div>
-          <span>最高百分比</span>
-          <strong>${escapeHtml(highest.roadLabel || "-")} ${escapeHtml(highest.label || "-")} ${percent(highest.rate)}</strong>
-        </div>
-        <div>
-          <span>五路統整</span>
-          <strong>${escapeHtml(consensus.label || "-")} ${percent(consensus.rate)}</strong>
-        </div>
+        <span>進階交叉分析</span>
+        <strong>${escapeHtml(highest.roadLabel || synthesis.label || "-")} ${renderResultIcon(highest.result || consensus.result, highest.label || consensus.label)} ${percent(highest.rate || consensus.rate || synthesis.confidence)}</strong>
       </div>
       <div class="road-breakdown-grid compact-road-grid">
         ${(roadBreakdown.roads || []).map(renderRoadCard).join("")}
@@ -370,15 +357,17 @@ function renderRoadCard(road) {
   `;
 }
 
-function renderPredictionChecks(checks = []) {
+function renderPredictionChecks(checks = [], roadBreakdown = null) {
   const list = Array.isArray(checks) ? checks.slice(0, 6) : [];
+  const records = Array.isArray(roadBreakdown?.records) ? roadBreakdown.records : [];
   if (!list.length) {
     return `
       <article class="advanced-panel prediction-check-panel">
         <div class="advanced-header">
           <span>即時路單驗證</span>
-          <strong>等待下一手</strong>
+          <strong>待輸入下一手</strong>
         </div>
+        ${renderAnalysisRecordList(records)}
       </article>
     `;
   }
@@ -401,8 +390,39 @@ function renderPredictionChecks(checks = []) {
           </div>
         `).join("")}
       </div>
+      ${renderAnalysisRecordList(records)}
     </article>
   `;
+}
+
+function renderAnalysisRecordList(records = []) {
+  const list = Array.isArray(records) ? records.slice(0, 5) : [];
+  if (!list.length) return "";
+  return `
+    <div class="analysis-record-list">
+      ${list.map((record) => `
+        <div class="analysis-record-row">
+          <span>${escapeHtml(record.roadLabel || "-")}</span>
+          <strong>${renderResultIcon(record.result, record.label)} ${percent(record.rate)}</strong>
+          <em>${escapeHtml(compactRecordDetail(record))}</em>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function compactRecordDetail(record) {
+  const parts = [];
+  if (Number.isFinite(Number(record.cycleRate))) {
+    parts.push(`6欄 ${percent(record.cycleRate)}`);
+  }
+  if (Number(record.cycleSamples || 0) > 0) {
+    parts.push(`${Number(record.cycleSamples || 0)} 筆`);
+  }
+  if (record.topTrend?.label) {
+    parts.push(`${record.topTrend.label} ${percent(record.topTrend.rate)}`);
+  }
+  return parts.join(" / ") || record.cycleRead || record.basis || "-";
 }
 
 function renderResultIcon(result, label) {

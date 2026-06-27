@@ -20,6 +20,7 @@ const required = [
   "src/daemon.js",
   "src/backup.js",
   "scripts/run-daemon.ps1",
+  "scripts/start-public-tunnel.ps1",
   "scripts/install-windows-task.ps1",
   "scripts/uninstall-windows-task.ps1",
   "scripts/backup-db.mjs",
@@ -58,7 +59,9 @@ const checks = [
   [app.includes("renderAdvancedAnalysis"), "advanced analysis renderer"],
   [app.includes("renderRoadBreakdown"), "road breakdown renderer"],
   [app.includes("renderPredictionChecks"), "prediction check renderer"],
+  [app.includes("renderAnalysisRecordList"), "analysis record renderer"],
   [app.includes("renderResultIcon"), "result icon renderer"],
+  [styles.includes(".analysis-record-row"), "analysis record styling"],
   [styles.includes(".probability-chip.strong"), "high probability styling"],
   [styles.includes(".advanced-panel"), "advanced analysis styling"],
   [styles.includes(".road-breakdown-grid"), "road breakdown styling"],
@@ -66,6 +69,7 @@ const checks = [
   [styles.includes(".result-icon.banker"), "result icon styling"],
   [gitignore.includes(".env.*") && gitignore.includes("data/"), "secret and data gitignore"],
   [packageJson.scripts.daemon === "node src/daemon.js", "daemon script"],
+  [packageJson.scripts["public:tunnel"] === "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-public-tunnel.ps1", "public tunnel script"],
   [packageJson.scripts["backup:db"] === "node scripts/backup-db.mjs", "database backup script"],
   [packageJson.scripts["analysis:roads"] === "node scripts/analyze-road-patterns.mjs", "road analysis script"],
   [packageJson.scripts["health:36"] === "node scripts/check-36-completeness.mjs", "36 table health script"],
@@ -118,6 +122,7 @@ for (const file of syntaxFiles) {
 if (process.platform === "win32") {
   const powerShellFiles = [
     "scripts/run-daemon.ps1",
+    "scripts/start-public-tunnel.ps1",
     "scripts/install-windows-task.ps1",
     "scripts/uninstall-windows-task.ps1"
   ];

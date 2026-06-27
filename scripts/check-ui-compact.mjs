@@ -38,6 +38,7 @@ try {
   assert(afterEight.askPanel === 0, "ask-road detail panel is visible");
   assert(afterEight.compactRoadCards === 5, `compact road cards count is ${afterEight.compactRoadCards}`);
   assert(afterEight.roadIcons >= 5, `road result icons count is ${afterEight.roadIcons}`);
+  assert(afterEight.recordRows === 5, `analysis record row count is ${afterEight.recordRows}`);
   assert(afterEight.probabilityChips === 6, `probability chip count is ${afterEight.probabilityChips}`);
   assert(afterEight.percentCount >= 8, `compact percentage count is ${afterEight.percentCount}`);
   assert(!afterEight.text.includes("樣本"), "sample text is visible in compact analysis");
@@ -50,8 +51,8 @@ try {
   const afterNine = await collectMetrics(page);
   assert(afterNine.checkRows >= 1, "prediction check row is missing");
   assert(afterNine.checkIcons >= 2, `prediction check icons count is ${afterNine.checkIcons}`);
+  assert(afterNine.recordRows === 5, `prediction analysis record row count is ${afterNine.recordRows}`);
   assert(/\b(?:OK|XX)\b/.test(afterNine.checkText), "prediction check OK/XX marker is missing");
-  assert(!afterNine.checkText.includes("小路") && !afterNine.checkText.includes("大路"), "prediction check source text is visible");
   assertNoOverflow(afterNine, "desktop-after-check");
   await page.screenshot({ path: join(OUT_DIR, "dashboard-compact-ui-health.png"), fullPage: true });
 
@@ -60,6 +61,7 @@ try {
   const mobile = await collectMetrics(page);
   assert(mobile.compactRoadCards === 5, `mobile compact road cards count is ${mobile.compactRoadCards}`);
   assert(mobile.checkIcons >= 2, `mobile prediction check icons count is ${mobile.checkIcons}`);
+  assert(mobile.recordRows === 5, `mobile analysis record row count is ${mobile.recordRows}`);
   assertNoOverflow(mobile, "mobile");
   await page.screenshot({ path: join(OUT_DIR, "dashboard-compact-ui-health-mobile.png"), fullPage: true });
 
@@ -101,6 +103,7 @@ async function collectMetrics(page) {
       probabilityChips: document.querySelectorAll(".probability-chip").length,
       checkRows: document.querySelectorAll(".prediction-check-list > div").length,
       checkIcons: document.querySelectorAll(".prediction-check-list .result-icon").length,
+      recordRows: document.querySelectorAll(".analysis-record-row").length,
       percentCount: (advancedText.match(/\d+(?:\.\d+)?%/g) || []).length,
       scrollWidth: document.documentElement.scrollWidth,
       clientWidth: document.documentElement.clientWidth,

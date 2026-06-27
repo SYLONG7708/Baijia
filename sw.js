@@ -1,4 +1,4 @@
-const CACHE_NAME = "baijia-monitor-v3-20260627-road-breakdown-compact2";
+const CACHE_NAME = "baijia-monitor-v3-20260627-road-breakdown-public-cycle";
 const ASSETS = ["./", "./index.html", "./styles.css", "./app.js", "./manifest.webmanifest", "./icon.svg"];
 
 self.addEventListener("install", (event) => {

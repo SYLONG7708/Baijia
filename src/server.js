@@ -2,6 +2,7 @@
 
 const http = require("node:http");
 const fs = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
 const { URL } = require("node:url");
 const store = require("./store");
@@ -10,7 +11,7 @@ const { analyzePattern } = require("./analysis");
 
 const ROOT = path.resolve(__dirname, "..");
 const DEFAULT_PORT = Number(process.env.PORT || 4173);
-const DEFAULT_HOST = process.env.BAIJIA_HOST || process.env.HOST || "127.0.0.1";
+const DEFAULT_HOST = process.env.BAIJIA_HOST || process.env.HOST || (isTruthy(process.env.BAIJIA_LAN) ? "0.0.0.0" : "127.0.0.1");
 const STATIC_FILES = new Map([
   ["/", "index.html"],
   ["/index.html", "index.html"],
@@ -35,6 +36,9 @@ function startServer(port = DEFAULT_PORT, host = DEFAULT_HOST) {
   });
   server.listen(port, host, () => {
     console.log(`Baijia Monitor running at http://${host === "127.0.0.1" ? "localhost" : host}:${port}`);
+    if (host === "0.0.0.0" || host === "::") {
+      for (const url of getLanUrls(port)) console.log(`Baijia iPhone/LAN URL: ${url}`);
+    }
   });
   return server;
 }
@@ -51,9 +55,16 @@ async function handleRequest(request, response) {
 async function handleApi(request, response, url) {
   const method = request.method || "GET";
   const parts = url.pathname.split("/").filter(Boolean);
+  const restrictPublic = isPublicViewMode() && isExternalRequest(request);
 
   if (method === "GET" && url.pathname === "/api/status") {
-    sendJson(response, 200, store.getStatus());
+    const status = store.getStatus();
+    sendJson(response, 200, restrictPublic ? sanitizePublicStatus(status) : status);
+    return;
+  }
+
+  if (restrictPublic && !isPublicApiAllowed(method, url.pathname)) {
+    sendJson(response, 403, { ok: false, error: "Public view mode: this API is not exposed." });
     return;
   }
 
@@ -235,6 +246,59 @@ function contentType(filePath) {
     ".jpeg": "image/jpeg",
     ".ico": "image/x-icon"
   }[ext] || "application/octet-stream";
+}
+
+function getLanUrls(port) {
+  const urls = [];
+  for (const items of Object.values(os.networkInterfaces())) {
+    for (const item of items || []) {
+      if (item.family === "IPv4" && !item.internal) urls.push(`http://${item.address}:${port}`);
+    }
+  }
+  return urls;
+}
+
+function isTruthy(value) {
+  return ["1", "true", "yes", "y", "on"].includes(String(value || "").trim().toLowerCase());
+}
+
+function isPublicViewMode() {
+  return isTruthy(process.env.BAIJIA_PUBLIC_VIEW);
+}
+
+function isPublicApiAllowed(method, pathname) {
+  if (method === "POST" && pathname === "/api/analyze") return true;
+  return false;
+}
+
+function isExternalRequest(request) {
+  const headers = request.headers || {};
+  if (headers["cf-connecting-ip"] || headers["x-forwarded-for"] || headers["x-real-ip"]) return true;
+  const address = request.socket?.remoteAddress || "";
+  return !["127.0.0.1", "::1", "::ffff:127.0.0.1", ""].includes(address);
+}
+
+function sanitizePublicStatus(status) {
+  const collector = status.collector || {};
+  return {
+    ok: true,
+    publicView: true,
+    tables: status.tables,
+    allbetTables: status.allbetTables,
+    summaryTables: status.summaryTables,
+    verifiedSummaryTables: status.verifiedSummaryTables,
+    unverifiedSummaryTables: status.unverifiedSummaryTables,
+    rounds: status.rounds,
+    snapshots: status.snapshots,
+    updatedAt: status.updatedAt,
+    collector: {
+      lastRunAt: collector.lastRunAt || "",
+      lastSuccessAt: collector.lastSuccessAt || "",
+      lastMessage: collector.lastMessage || "",
+      lastError: collector.lastError || "",
+      streakFailures: collector.streakFailures || 0
+    }
+  };
 }
 
 if (require.main === module) {
