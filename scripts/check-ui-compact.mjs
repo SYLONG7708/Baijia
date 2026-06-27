@@ -50,6 +50,7 @@ try {
   assert(afterEight.recordRows === 5, `analysis record row count is ${afterEight.recordRows}`);
   assert(afterEight.manualCycleCells === 5, `manual cycle cell count is ${afterEight.manualCycleCells}`);
   assert(afterEight.text.includes("輸入6欄"), "manual input cycle label is missing");
+  assert(afterEight.text.includes("復盤"), "manual replay label is missing");
   assert(afterEight.patternText.includes("莊對"), "banker pair input is missing");
   assert(afterEight.patternText.includes("閒對"), "player pair input is missing");
   assert(afterEight.patternText.includes("幸運6"), "lucky six input is missing");
@@ -102,6 +103,7 @@ try {
   assert(!liveMetrics.text.includes("資料庫6欄"), "live page shows database cycle text");
   assert(liveMetrics.compactRoadCards === 5, `live compact road cards count is ${liveMetrics.compactRoadCards}`);
   assert(liveMetrics.manualCycleCells === 5, `live manual cycle cell count is ${liveMetrics.manualCycleCells}`);
+  assert(liveMetrics.text.includes("復盤"), "live manual replay label is missing");
   assert(liveMetrics.patternText.includes("莊對"), "live banker pair input is missing");
   assert(liveMetrics.patternText.includes("閒對"), "live player pair input is missing");
   assert(liveMetrics.patternText.includes("幸運6"), "live lucky six input is missing");

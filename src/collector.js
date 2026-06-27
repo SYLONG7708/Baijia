@@ -62,6 +62,8 @@ async function runCollectorLoop(overrides = {}) {
     enabled: true,
     runIntervalMs: config.intervalMs,
     expectedBaccaratTables: config.expectedTables,
+    runInProgress: false,
+    runStartedAt: "",
     lastMessage: "Collector loop started."
   });
 
@@ -69,12 +71,22 @@ async function runCollectorLoop(overrides = {}) {
   while (true) {
     const startedAt = Date.now();
     try {
+      store.updateCollectorStatus({
+        enabled: true,
+        runInProgress: true,
+        runStartedAt: new Date(startedAt).toISOString(),
+        runIntervalMs: config.intervalMs,
+        expectedBaccaratTables: config.expectedTables,
+        lastMessage: "Collector scan in progress."
+      });
       const summary = await withTimeout(collectOnce(config), config.runTimeoutMs, "Collector run timeout");
       failureStreak = 0;
       const elapsedMs = Date.now() - startedAt;
       const nextRunAt = new Date(Date.now() + config.intervalMs).toISOString();
       store.updateCollectorStatus({
         enabled: true,
+        runInProgress: false,
+        runStartedAt: "",
         lastRunAt: new Date(startedAt).toISOString(),
         lastOkAt: new Date().toISOString(),
         lastError: "",
@@ -114,6 +126,8 @@ async function runCollectorLoop(overrides = {}) {
       const delay = Math.min(config.retryMaxMs, config.retryBaseMs * Math.max(1, failureStreak));
       store.updateCollectorStatus({
         enabled: true,
+        runInProgress: false,
+        runStartedAt: "",
         lastRunAt: new Date(startedAt).toISOString(),
         lastError: error.message || String(error),
         lastFailureReason: error.code || "collector-error",

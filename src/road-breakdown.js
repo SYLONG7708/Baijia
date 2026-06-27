@@ -27,26 +27,26 @@ const ROAD_DEFINITIONS = [
   { key: "cockroachRoad", label: "蟑螂路", derived: true }
 ];
 const DERIVED_ROADS = ROAD_DEFINITIONS.filter((road) => road.derived);
+const REPLAY_MIN_INPUT = 8;
+const REPLAY_MAX_CHECKS = 48;
 
 function buildRoadBreakdownAnalysis({ inputRounds = [], manualRounds = [], allRounds = [], source = {}, resultRates = [] } = {}) {
   const input = inputRounds.map((round) => normalizeRound(round)).filter(Boolean);
   const manualInput = manualRounds.map((round) => normalizeRound(round)).filter(Boolean);
   const localInput = manualInput.length >= input.length ? manualInput : input;
   const historical = groupHistories(allRounds.map(normalizeBreakdownRound).filter(Boolean));
-  const roads = buildRoads(input);
   const askRoad = buildAskRoad(input);
-  const cycleContext = { inputRounds: input, histories: historical, askRoad };
   const manualAskRoad = buildAskRoad(localInput);
-  const manualCycleContext = { inputRounds: localInput, askRoad: manualAskRoad };
-  const roadItems = [
-    withManualCycle(analyzeBead(input, source, resultRates, cycleContext), ROAD_DEFINITIONS[0], manualCycleContext),
-    withManualCycle(analyzeBigRoad(input, roads.bigRoad, cycleContext), ROAD_DEFINITIONS[1], manualCycleContext),
-    ...DERIVED_ROADS.map((definition) => withManualCycle(
-      analyzeDerivedRoad(definition, roads[definition.key], askRoad, cycleContext),
-      definition,
-      manualCycleContext
-    ))
-  ];
+  const replay = buildManualReplayStats(localInput);
+  const roadItems = buildRoadItems(input, {
+    histories: historical,
+    source,
+    resultRates,
+    manualInput: localInput
+  }).map((road) => calibrateRoadWithReplay({
+    ...road,
+    replay: replay.byRoad[road.key] || emptyReplayRoad(road.key, road.label)
+  }));
 
   return {
     ok: true,
@@ -55,10 +55,28 @@ function buildRoadBreakdownAnalysis({ inputRounds = [], manualRounds = [], allRo
     historicalGroups: historical.length,
     askRoad,
     manualAskRoad,
+    manualReplay: replay.summary,
     roads: roadItems,
     overall: summarizeOverall(roadItems),
     records: buildRecords(roadItems)
   };
+}
+
+function buildRoadItems(input, { histories = [], source = {}, resultRates = [], manualInput = input } = {}) {
+  const roads = buildRoads(input);
+  const askRoad = buildAskRoad(input);
+  const cycleContext = { inputRounds: input, histories, askRoad };
+  const manualAskRoad = buildAskRoad(manualInput);
+  const manualCycleContext = { inputRounds: manualInput, askRoad: manualAskRoad };
+  return [
+    withManualCycle(analyzeBead(input, source, resultRates, cycleContext), ROAD_DEFINITIONS[0], manualCycleContext),
+    withManualCycle(analyzeBigRoad(input, roads.bigRoad, cycleContext), ROAD_DEFINITIONS[1], manualCycleContext),
+    ...DERIVED_ROADS.map((definition) => withManualCycle(
+      analyzeDerivedRoad(definition, roads[definition.key], askRoad, cycleContext),
+      definition,
+      manualCycleContext
+    ))
+  ];
 }
 
 function withManualCycle(road, definition, manualCycleContext) {
@@ -580,6 +598,182 @@ function groupHistories(rounds) {
     .filter((group) => group.rounds.length >= 12);
 }
 
+function buildManualReplayStats(inputRounds = []) {
+  const rounds = inputRounds.map((round) => normalizeRound(round)).filter(Boolean);
+  const byRoad = Object.fromEntries(ROAD_DEFINITIONS.map((definition) => [
+    definition.key,
+    emptyReplayRoad(definition.key, definition.label)
+  ]));
+
+  if (rounds.length <= REPLAY_MIN_INPUT) {
+    return {
+      byRoad,
+      summary: summarizeReplay(byRoad, rounds.length)
+    };
+  }
+
+  const startIndex = Math.max(REPLAY_MIN_INPUT, rounds.length - REPLAY_MAX_CHECKS);
+  for (let nextIndex = startIndex; nextIndex < rounds.length; nextIndex += 1) {
+    const actual = rounds[nextIndex]?.result || "";
+    if (!SIDE_RESULTS.has(actual)) continue;
+
+    const prefix = rounds.slice(0, nextIndex);
+    const roadItems = buildRoadItems(prefix, {
+      histories: [],
+      source: {},
+      resultRates: [],
+      manualInput: prefix
+    });
+
+    for (const road of roadItems) {
+      updateReplayRoad(byRoad[road.key], road, actual, nextIndex + 1);
+    }
+  }
+
+  for (const row of Object.values(byRoad)) finalizeReplayRoad(row);
+  return {
+    byRoad,
+    summary: summarizeReplay(byRoad, rounds.length)
+  };
+}
+
+function emptyReplayRoad(roadKey, roadLabel) {
+  return {
+    source: "manual-input-replay",
+    roadKey,
+    roadLabel,
+    checked: 0,
+    hits: 0,
+    hitRate: 0.5,
+    manualCycleChecked: 0,
+    manualCycleHits: 0,
+    manualCycleHitRate: 0.5,
+    momentumRate: 0.5,
+    last: null,
+    manualCycleLast: null,
+    recent: [],
+    read: "復盤樣本不足"
+  };
+}
+
+function updateReplayRoad(row, road, actual, handNumber) {
+  if (!row) return;
+  const prediction = road.prediction || {};
+  const manualCycle = road.manualCycle || {};
+
+  if (SIDE_RESULTS.has(prediction.result)) {
+    const same = prediction.result === actual;
+    row.checked += 1;
+    if (same) row.hits += 1;
+    row.last = {
+      handNumber,
+      expected: prediction.result,
+      expectedLabel: RESULT_LABELS[prediction.result] || prediction.result,
+      actual,
+      actualLabel: RESULT_LABELS[actual] || actual,
+      rate: prediction.rate || 0.5,
+      same
+    };
+    row.recent.push(same);
+    if (row.recent.length > 12) row.recent.shift();
+  }
+
+  if (SIDE_RESULTS.has(manualCycle.result)) {
+    const same = manualCycle.result === actual;
+    row.manualCycleChecked += 1;
+    if (same) row.manualCycleHits += 1;
+    row.manualCycleLast = {
+      handNumber,
+      expected: manualCycle.result,
+      expectedLabel: RESULT_LABELS[manualCycle.result] || manualCycle.result,
+      actual,
+      actualLabel: RESULT_LABELS[actual] || actual,
+      rate: manualCycle.rate || 0.5,
+      same
+    };
+  }
+}
+
+function finalizeReplayRoad(row) {
+  row.hitRate = row.checked ? round(row.hits / row.checked) : 0.5;
+  row.manualCycleHitRate = row.manualCycleChecked ? round(row.manualCycleHits / row.manualCycleChecked) : 0.5;
+  row.momentumRate = row.recent.length
+    ? round(row.recent.filter(Boolean).length / row.recent.length)
+    : row.hitRate;
+  row.read = row.checked
+    ? `復盤 ${row.hits}/${row.checked}，近段 ${formatPercent(row.momentumRate)}`
+    : "復盤樣本不足";
+}
+
+function summarizeReplay(byRoad, inputLength) {
+  const rows = Object.values(byRoad || {});
+  const checked = rows.reduce((sum, row) => sum + Number(row.checked || 0), 0);
+  const hits = rows.reduce((sum, row) => sum + Number(row.hits || 0), 0);
+  const best = rows
+    .filter((row) => Number(row.checked || 0) > 0)
+    .sort((left, right) => Number(right.hitRate || 0) - Number(left.hitRate || 0))[0] || null;
+
+  return {
+    source: "manual-input-replay",
+    inputLength,
+    checked,
+    hits,
+    hitRate: checked ? round(hits / checked) : 0.5,
+    bestRoad: best ? {
+      roadKey: best.roadKey,
+      roadLabel: best.roadLabel,
+      hitRate: best.hitRate,
+      checked: best.checked,
+      hits: best.hits
+    } : null
+  };
+}
+
+function calibrateRoadWithReplay(road) {
+  const prediction = road.prediction || {};
+  const replay = road.replay || {};
+  if (!SIDE_RESULTS.has(prediction.result) || Number(replay.checked || 0) < 4) {
+    return road;
+  }
+
+  const hitRate = Number(replay.hitRate || 0.5);
+  const manualCycleHitRate = Number(replay.manualCycleHitRate || 0.5);
+  const manualCycleChecked = Number(replay.manualCycleChecked || 0);
+  const manualCycle = road.manualCycle || {};
+
+  if (
+    manualCycleChecked >= 4
+    && manualCycleHitRate >= 0.6
+    && manualCycleHitRate >= hitRate + 0.18
+    && SIDE_RESULTS.has(manualCycle.result)
+  ) {
+    return {
+      ...road,
+      prediction: normalizePrediction({
+        result: manualCycle.result,
+        rate: clamp(0.5 + (manualCycleHitRate - 0.5) * 0.55, 0.5, 0.76),
+        basis: `輸入6欄復盤較佳 ${formatPercent(manualCycleHitRate)}；${manualCycle.read || prediction.basis || ""}`
+      })
+    };
+  }
+
+  let rateValue = Number(prediction.rate || 0.5);
+  if (hitRate >= 0.62) {
+    rateValue += Math.min(0.06, (hitRate - 0.5) * 0.18);
+  } else if (hitRate <= 0.38) {
+    rateValue -= Math.min(0.08, (0.5 - hitRate) * 0.22);
+  }
+
+  return {
+    ...road,
+    prediction: normalizePrediction({
+      result: prediction.result,
+      rate: clamp(rateValue, 0.5, 0.92),
+      basis: `${prediction.basis || ""}${prediction.basis ? "；" : ""}復盤命中 ${formatPercent(hitRate)}`
+    })
+  };
+}
+
 function buildRecords(roads) {
   return (roads || []).map((road) => ({
     roadKey: road.key,
@@ -596,6 +790,11 @@ function buildRecords(roads) {
     manualCycleRate: road.manualCycle?.rate || 0.5,
     manualCycleSamples: road.manualCycle?.samples || 0,
     manualCycleRead: road.manualCycle?.read || "",
+    replayChecked: road.replay?.checked || 0,
+    replayHits: road.replay?.hits || 0,
+    replayHitRate: road.replay?.hitRate || 0.5,
+    replayMomentumRate: road.replay?.momentumRate || 0.5,
+    replayRead: road.replay?.read || "",
     topTrend: [...(road.trends || [])].sort((left, right) => Number(right.rate || 0) - Number(left.rate || 0))[0] || null
   }));
 }

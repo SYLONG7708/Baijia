@@ -68,7 +68,10 @@ const checks = [
   [app.includes("localOnly: isLiveMode"), "live page local-only analysis"],
   [app.includes("makeManualRound"), "manual round special flags"],
   [app.includes("manual-cycle-cell"), "manual cycle renderer"],
+  [app.includes("replayHitRate") && app.includes("復盤"), "manual replay renderer"],
   [app.includes("renderResultIcon"), "result icon renderer"],
+  [readFileSync(join(root, "src/road-breakdown.js"), "utf8").includes("buildManualReplayStats"), "manual replay analysis"],
+  [readFileSync(join(root, "src/road-breakdown.js"), "utf8").includes("calibrateRoadWithReplay"), "replay calibrated prediction"],
   [styles.includes(".side-flag-btn.active"), "special button active styling"],
   [styles.includes(".analysis-record-row"), "analysis record styling"],
   [styles.includes(".manual-cycle-cell"), "manual cycle styling"],
@@ -89,7 +92,8 @@ const checks = [
   [packageJson.scripts["data:cleanup"] === "node scripts/cleanup-target-tables.mjs", "target table cleanup script"],
   [packageJson.scripts["data:compact"] === "node scripts/compact-data.mjs", "data compaction script"],
   [packageJson.scripts["network:inspect"] === "node scripts/inspect-goodwin-network.mjs", "network inspect script"],
-  [packageJson.scripts["health:24h"] === "node scripts/check-24h-integrity.mjs", "24h health script"]
+  [packageJson.scripts["health:24h"] === "node scripts/check-24h-integrity.mjs", "24h health script"],
+  [readFileSync(join(root, "src/collector.js"), "utf8").includes("runInProgress"), "collector in-progress status"]
 ];
 
 const failed = checks.filter(([ok]) => !ok).map(([, name]) => name);

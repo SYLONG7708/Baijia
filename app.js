@@ -432,12 +432,16 @@ function renderAskChip(item) {
 function renderRoadCard(road) {
   const prediction = road.prediction || {};
   const manualCycle = road.manualCycle || {};
+  const replay = road.replay || {};
+  const replayText = Number(replay.checked || 0) > 0
+    ? `復盤 ${percent(replay.hitRate)}`
+    : "復盤 -";
   return `
     <div class="road-card compact-road-card">
       <div class="road-card-head">
         <span>${escapeHtml(road.label || "-")}</span>
         <strong>${renderResultIcon(prediction.result, prediction.label)} ${percent(prediction.rate)}</strong>
-        <small>輸入6欄 ${renderResultIcon(manualCycle.result, manualCycle.label)} ${percent(manualCycle.rate)}</small>
+        <small>輸入6欄 ${renderResultIcon(manualCycle.result, manualCycle.label)} ${percent(manualCycle.rate)} · ${escapeHtml(replayText)}</small>
       </div>
     </div>
   `;
@@ -503,6 +507,10 @@ function compactRecordDetail(record) {
   if (Number.isFinite(Number(record.manualCycleRate))) {
     const sampleText = Number(record.manualCycleSamples || 0) > 0 ? ` / ${Number(record.manualCycleSamples || 0)} 組` : "";
     parts.push(`輸入6欄 ${percent(record.manualCycleRate)}${sampleText}`);
+  }
+  if (Number(record.replayChecked || 0) > 0) {
+    parts.push(`復盤 ${percent(record.replayHitRate)} ${Number(record.replayHits || 0)}/${Number(record.replayChecked || 0)}`);
+    parts.push(`近段 ${percent(record.replayMomentumRate)}`);
   }
   if (!isLiveMode && Number.isFinite(Number(record.cycleRate))) {
     parts.push(`資料庫6欄 ${percent(record.cycleRate)}`);
