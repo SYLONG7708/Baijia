@@ -107,9 +107,12 @@ async function loadStatus() {
 
 function appendPatternResult(result) {
   if (!["banker", "player", "tie"].includes(result)) return;
-  recordPredictionCheck(result);
+  const checkedPrediction = recordPredictionCheck(result);
   state.pattern.push(result);
   renderPattern();
+  if (checkedPrediction && state.analysis) {
+    renderAnalysis();
+  }
   maybeAutoAnalyze();
 }
 
@@ -157,7 +160,8 @@ async function analyzeInput() {
       method: "POST",
       body: {
         scope: "all",
-        sequence
+        sequence,
+        manualSequence: state.pattern
       }
     });
     state.pendingPrediction = buildPendingPrediction(state.analysis, key);
@@ -173,7 +177,7 @@ async function analyzeInput() {
 }
 
 function recordPredictionCheck(actualResult) {
-  if (!state.pendingPrediction || state.pattern.length < 8) return;
+  if (!state.pendingPrediction || state.pattern.length < 8) return false;
   const prediction = state.pendingPrediction;
   const same = prediction.result === actualResult;
   state.predictionChecks.unshift({
@@ -191,6 +195,7 @@ function recordPredictionCheck(actualResult) {
   });
   state.predictionChecks = state.predictionChecks.slice(0, 8);
   state.pendingPrediction = null;
+  return true;
 }
 
 function buildPendingPrediction(analysis, basisKey) {
@@ -347,11 +352,13 @@ function renderAskChip(item) {
 
 function renderRoadCard(road) {
   const prediction = road.prediction || {};
+  const manualCycle = road.manualCycle || {};
   return `
     <div class="road-card compact-road-card">
       <div class="road-card-head">
         <span>${escapeHtml(road.label || "-")}</span>
         <strong>${renderResultIcon(prediction.result, prediction.label)} ${percent(prediction.rate)}</strong>
+        <small>輸入6欄 ${renderResultIcon(manualCycle.result, manualCycle.label)} ${percent(manualCycle.rate)}</small>
       </div>
     </div>
   `;
@@ -404,6 +411,7 @@ function renderAnalysisRecordList(records = []) {
         <div class="analysis-record-row">
           <span>${escapeHtml(record.roadLabel || "-")}</span>
           <strong>${renderResultIcon(record.result, record.label)} ${percent(record.rate)}</strong>
+          <strong class="manual-cycle-cell">${renderResultIcon(record.manualCycleResult, record.manualCycleLabel)} ${percent(record.manualCycleRate)}</strong>
           <em>${escapeHtml(compactRecordDetail(record))}</em>
         </div>
       `).join("")}
@@ -413,8 +421,12 @@ function renderAnalysisRecordList(records = []) {
 
 function compactRecordDetail(record) {
   const parts = [];
+  if (Number.isFinite(Number(record.manualCycleRate))) {
+    const sampleText = Number(record.manualCycleSamples || 0) > 0 ? ` / ${Number(record.manualCycleSamples || 0)} 組` : "";
+    parts.push(`輸入6欄 ${percent(record.manualCycleRate)}${sampleText}`);
+  }
   if (Number.isFinite(Number(record.cycleRate))) {
-    parts.push(`6欄 ${percent(record.cycleRate)}`);
+    parts.push(`資料庫6欄 ${percent(record.cycleRate)}`);
   }
   if (Number(record.cycleSamples || 0) > 0) {
     parts.push(`${Number(record.cycleSamples || 0)} 筆`);

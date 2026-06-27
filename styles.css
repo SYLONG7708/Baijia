@@ -591,6 +591,22 @@ h1 {
   font-size: 20px;
 }
 
+.road-card-head small {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.road-card-head small .result-icon {
+  min-width: 28px;
+  height: 22px;
+  font-size: 12px;
+}
+
 .road-ask-inline {
   display: grid;
   gap: 5px;
@@ -651,7 +667,7 @@ h1 {
   min-height: 44px;
   padding: 8px 10px;
   display: grid;
-  grid-template-columns: minmax(68px, 0.75fr) minmax(104px, auto) minmax(0, 1.5fr);
+  grid-template-columns: minmax(68px, 0.65fr) minmax(104px, auto) minmax(118px, auto) minmax(0, 1.5fr);
   align-items: center;
   gap: 8px;
 }
@@ -669,6 +685,10 @@ h1 {
   color: var(--gold);
   font-size: 15px;
   white-space: nowrap;
+}
+
+.analysis-record-row .manual-cycle-cell {
+  color: var(--accent);
 }
 
 .analysis-record-row em {
@@ -915,7 +935,7 @@ h1 {
   }
 
   .analysis-record-row {
-    grid-template-columns: minmax(64px, 0.7fr) minmax(98px, auto);
+    grid-template-columns: minmax(64px, 0.65fr) minmax(94px, auto) minmax(104px, auto);
   }
 
   .analysis-record-row em {

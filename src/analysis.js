@@ -10,10 +10,15 @@ const BASE_REFERENCE = {
   tie: 0.095
 };
 
-function analyzePattern({ sequence, rounds = [], tableId = "" }) {
+function analyzePattern({ sequence, manualSequence = [], rounds = [], tableId = "" }) {
   const inputRounds = Array.isArray(sequence)
     ? sequence.map((round) => normalizeRound(round)).filter(Boolean)
     : parseBulkRounds(sequence);
+  const manualRoundsRaw = Array.isArray(manualSequence) ? manualSequence : parseBulkRounds(manualSequence);
+  const manualRounds = manualRoundsRaw
+    .map((round) => normalizeRound(round))
+    .filter(Boolean);
+  const effectiveManualRounds = manualRounds.length >= inputRounds.length ? manualRounds : inputRounds;
   const pattern = inputRounds.map((round) => round.result);
   const allRounds = rounds.map(normalizeAnalysisRound).filter(Boolean);
   const scopedRounds = tableId ? allRounds.filter((round) => round.tableId === tableId) : allRounds;
@@ -38,6 +43,7 @@ function analyzePattern({ sequence, rounds = [], tableId = "" }) {
   });
   const roadBreakdown = buildRoadBreakdownAnalysis({
     inputRounds,
+    manualRounds: effectiveManualRounds,
     allRounds,
     source,
     resultRates
@@ -48,7 +54,9 @@ function analyzePattern({ sequence, rounds = [], tableId = "" }) {
     generatedAt: new Date().toISOString(),
     input: {
       length: pattern.length,
+      manualLength: effectiveManualRounds.length,
       sequence: pattern,
+      manualSequence: effectiveManualRounds.map((round) => round.result),
       labels: pattern.map((result) => RESULT_LABELS[result] || result)
     },
     dataset: {

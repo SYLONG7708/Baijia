@@ -52,6 +52,8 @@ await checkJson("analyze", "/api/analyze", (json) => {
   assert(Boolean(json.advanced?.bagua), "advanced bagua missing");
   assert(Boolean(json.roadBreakdown), "roadBreakdown block missing");
   assert((json.roadBreakdown?.roads || []).length === 5, "roadBreakdown does not contain five roads");
+  assert((json.roadBreakdown?.records || []).every((item) => item.manualCycleResult), "manual input cycle result missing");
+  assert((json.roadBreakdown?.roads || []).every((item) => item.manualCycle?.source === "manual-input-only"), "manual cycle is not marked input-only");
   assert(Boolean(json.roadBreakdown?.askRoad?.banker?.bigEyeRoad), "banker ask road missing");
   assert(Boolean(json.roadBreakdown?.askRoad?.player?.cockroachRoad), "player ask road missing");
   assert(Boolean(json.roadBreakdown?.overall?.highest), "roadBreakdown highest prediction missing");

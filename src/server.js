@@ -139,6 +139,7 @@ async function handleApi(request, response, url) {
     const scope = body.scope === "table" ? "table" : "all";
     const result = analyzePattern({
       sequence: body.sequence || body.text || [],
+      manualSequence: body.manualSequence || body.fullSequence || body.sequence || body.text || [],
       tableId: scope === "table" ? body.tableId || "" : "",
       rounds: store.getAnalysisRounds()
     });

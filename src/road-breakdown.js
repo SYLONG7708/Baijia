@@ -28,26 +28,43 @@ const ROAD_DEFINITIONS = [
 ];
 const DERIVED_ROADS = ROAD_DEFINITIONS.filter((road) => road.derived);
 
-function buildRoadBreakdownAnalysis({ inputRounds = [], allRounds = [], source = {}, resultRates = [] } = {}) {
+function buildRoadBreakdownAnalysis({ inputRounds = [], manualRounds = [], allRounds = [], source = {}, resultRates = [] } = {}) {
   const input = inputRounds.map((round) => normalizeRound(round)).filter(Boolean);
+  const manualInput = manualRounds.map((round) => normalizeRound(round)).filter(Boolean);
+  const localInput = manualInput.length >= input.length ? manualInput : input;
   const historical = groupHistories(allRounds.map(normalizeBreakdownRound).filter(Boolean));
   const roads = buildRoads(input);
   const askRoad = buildAskRoad(input);
   const cycleContext = { inputRounds: input, histories: historical, askRoad };
+  const manualAskRoad = buildAskRoad(localInput);
+  const manualCycleContext = { inputRounds: localInput, askRoad: manualAskRoad };
   const roadItems = [
-    analyzeBead(input, source, resultRates, cycleContext),
-    analyzeBigRoad(input, roads.bigRoad, cycleContext),
-    ...DERIVED_ROADS.map((definition) => analyzeDerivedRoad(definition, roads[definition.key], askRoad, cycleContext))
+    withManualCycle(analyzeBead(input, source, resultRates, cycleContext), ROAD_DEFINITIONS[0], manualCycleContext),
+    withManualCycle(analyzeBigRoad(input, roads.bigRoad, cycleContext), ROAD_DEFINITIONS[1], manualCycleContext),
+    ...DERIVED_ROADS.map((definition) => withManualCycle(
+      analyzeDerivedRoad(definition, roads[definition.key], askRoad, cycleContext),
+      definition,
+      manualCycleContext
+    ))
   ];
 
   return {
     ok: true,
     inputLength: input.length,
+    manualInputLength: localInput.length,
     historicalGroups: historical.length,
     askRoad,
+    manualAskRoad,
     roads: roadItems,
     overall: summarizeOverall(roadItems),
     records: buildRecords(roadItems)
+  };
+}
+
+function withManualCycle(road, definition, manualCycleContext) {
+  return {
+    ...road,
+    manualCycle: buildManualSixColumnCyclePrediction(definition, manualCycleContext)
   };
 }
 
@@ -264,6 +281,78 @@ function buildSixColumnCyclePrediction(definition, { inputRounds = [], histories
   };
 }
 
+function buildManualSixColumnCyclePrediction(definition, { inputRounds = [], askRoad = {} } = {}) {
+  const roads = buildRoads(inputRounds);
+  const columns = getRoadColumns(getRoadPoints(roads, definition.key), definition);
+  const activeColumn = columns.at(-1);
+  if (!activeColumn) {
+    return emptyManualCyclePrediction("輸入尚未成路");
+  }
+
+  const activeSlot = activeColumn.col % 6;
+  const byColumn = new Map(columns.map((column) => [column.col, column]));
+  const tokenScores = new Map();
+  const sideScores = { banker: 0, player: 0 };
+  const pairs = [];
+  for (const sourceColumn of columns) {
+    if (sourceColumn.col % 6 !== activeSlot) continue;
+    const targetColumn = byColumn.get(sourceColumn.col + 6);
+    if (!targetColumn || targetColumn.col > activeColumn.col) continue;
+    const similarity = scoreColumnSimilarity(activeColumn, sourceColumn);
+    const targetToken = getCycleToken(targetColumn, definition);
+    if (!targetToken || targetToken === "tie") continue;
+    const weight = round(Math.max(0.48, similarity), 4);
+    tokenScores.set(targetToken, (tokenScores.get(targetToken) || 0) + weight);
+    const side = mapCycleTokenToSide(targetToken, definition, askRoad);
+    if (SIDE_RESULTS.has(side)) sideScores[side] += weight;
+    pairs.push({
+      sourceCol: sourceColumn.col + 1,
+      targetCol: targetColumn.col + 1,
+      sourceHeight: sourceColumn.height,
+      targetHeight: targetColumn.height,
+      token: targetToken,
+      weight
+    });
+  }
+
+  if (!pairs.length) {
+    return fallbackManualCyclePrediction(definition, activeColumn, askRoad, inputRounds.length);
+  }
+
+  const tokenTotal = [...tokenScores.values()].reduce((sum, value) => sum + value, 0) || 1;
+  const tokenTop = [...tokenScores.entries()].sort((left, right) => right[1] - left[1])[0];
+  const sideTotal = sideScores.banker + sideScores.player;
+  const result = sideTotal
+    ? sideScores.banker >= sideScores.player ? "banker" : "player"
+    : mapCycleTokenToSide(tokenTop[0], definition, askRoad);
+  const dominantRate = sideTotal
+    ? Math.max(sideScores.banker, sideScores.player) / sideTotal
+    : tokenTop[1] / tokenTotal;
+  const rhythmScore = scoreManualRhythm(pairs);
+  const sampleBonus = clamp(pairs.length / 12, 0, 0.1);
+  const rateValue = SIDE_RESULTS.has(result)
+    ? clamp(0.5 + (dominantRate - 0.5) * 0.68 + rhythmScore * 0.12 + sampleBonus, 0.5, 0.88)
+    : 0.5;
+
+  return {
+    ok: true,
+    mode: "manual-six-column-cycle",
+    source: "manual-input-only",
+    inputLength: inputRounds.length,
+    slot: activeSlot + 1,
+    sourceColumn: activeColumn.col + 1,
+    result: SIDE_RESULTS.has(result) ? result : "neutral",
+    label: RESULT_LABELS[result] || "觀察",
+    token: tokenTop[0],
+    tokenLabel: formatCycleTokenLabel(tokenTop[0], definition),
+    rate: round(rateValue, 4),
+    samples: pairs.length,
+    rhythmScore: round(rhythmScore, 4),
+    read: `只看輸入 ${inputRounds.length} 手：第 ${activeSlot + 1} 欄已有 ${pairs.length} 組 6欄循環`,
+    pairs: pairs.slice(-8)
+  };
+}
+
 function mergePredictions(basePrediction, cycle) {
   const base = basePrediction || normalizePrediction({ result: "neutral", rate: 0.5, basis: "" });
   if (!cycle || !SIDE_RESULTS.has(cycle.result) || Number(cycle.samples || 0) < 3) {
@@ -292,6 +381,45 @@ function mergePredictions(basePrediction, cycle) {
     rate: clamp(0.5 + Math.max(baseEdge, cycleEdge) * 0.86, 0.5, 0.88),
     basis: winner === cycle ? cycle.read : `${base.basis}；6欄循環相反`
   });
+}
+
+function emptyManualCyclePrediction(read) {
+  return {
+    ok: false,
+    mode: "manual-six-column-cycle",
+    source: "manual-input-only",
+    inputLength: 0,
+    slot: 0,
+    sourceColumn: 0,
+    result: "neutral",
+    label: "觀察",
+    token: "",
+    tokenLabel: "-",
+    rate: 0.5,
+    samples: 0,
+    rhythmScore: 0,
+    read,
+    pairs: []
+  };
+}
+
+function fallbackManualCyclePrediction(definition, activeColumn, askRoad, inputLength) {
+  const token = getCycleToken(activeColumn, definition);
+  const side = mapCycleTokenToSide(token, definition, askRoad);
+  const rateValue = SIDE_RESULTS.has(side)
+    ? clamp(0.5 + Math.min(activeColumn.height, 6) * 0.025 + Math.min(inputLength, 36) / 720, 0.5, 0.68)
+    : 0.5;
+  return {
+    ...emptyManualCyclePrediction(`只看輸入 ${inputLength} 手：6欄循環樣本不足，先看目前欄位`),
+    inputLength,
+    slot: activeColumn.col % 6 + 1,
+    sourceColumn: activeColumn.col + 1,
+    result: SIDE_RESULTS.has(side) ? side : "neutral",
+    label: RESULT_LABELS[side] || "觀察",
+    token,
+    tokenLabel: formatCycleTokenLabel(token, definition),
+    rate: round(rateValue, 4)
+  };
 }
 
 function emptyCyclePrediction(read) {
@@ -406,6 +534,18 @@ function rowSimilarity(leftRows, rightRows) {
   return same / all.size;
 }
 
+function scoreManualRhythm(pairs) {
+  if (!pairs.length) return 0;
+  const stableHeight = pairs.filter((pair) => Math.abs(pair.targetHeight - pair.sourceHeight) <= 1).length;
+  const tokenRuns = pairs.filter((pair, index) => index === 0 || pair.token === pairs[index - 1].token).length;
+  return clamp(rate(stableHeight, pairs.length) * 0.62 + rate(tokenRuns, pairs.length) * 0.38, 0, 1);
+}
+
+function formatCycleTokenLabel(token, definition) {
+  if (definition?.derived) return token ? `${COLOR_LABELS[token] || token}路` : "-";
+  return RESULT_LABELS[token] || "-";
+}
+
 function normalizeBreakdownRound(round) {
   const normalized = normalizeRound(round);
   if (!normalized) return null;
@@ -451,6 +591,11 @@ function buildRecords(roads) {
     cycleRate: road.cycle?.rate || 0.5,
     cycleSamples: road.cycle?.samples || 0,
     cycleRead: road.cycle?.read || "",
+    manualCycleResult: road.manualCycle?.result || "neutral",
+    manualCycleLabel: road.manualCycle?.label || "觀察",
+    manualCycleRate: road.manualCycle?.rate || 0.5,
+    manualCycleSamples: road.manualCycle?.samples || 0,
+    manualCycleRead: road.manualCycle?.read || "",
     topTrend: [...(road.trends || [])].sort((left, right) => Number(right.rate || 0) - Number(left.rate || 0))[0] || null
   }));
 }
