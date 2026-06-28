@@ -98,6 +98,28 @@ if (firstAllbetTableId) {
   });
 }
 
+if (firstAllbetTableId) {
+  await checkJson("analysis-backtest", "/api/analysis/backtest", (json) => {
+    assert(json.ok === true, "analysis backtest ok is not true");
+    assert(json.table?.id === firstAllbetTableId, "analysis backtest table id mismatch");
+    assert(Number(json.sample?.checkedWindows || 0) > 0, "analysis backtest checked no windows");
+    assert(Boolean(json.summary?.currentStrategy), "analysis backtest current strategy missing");
+    assert(Boolean(json.summary?.evidenceWeighted), "analysis backtest evidence weighted missing");
+    assert(Object.keys(json.roads || {}).length === 5, "analysis backtest five road stats missing");
+    assert(Array.isArray(json.details), "analysis backtest details missing");
+  }, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      tableId: firstAllbetTableId,
+      tableCode: firstAllbetTableCode,
+      limit: 360,
+      maxChecks: 8,
+      detailLimit: 3
+    })
+  });
+}
+
 await checkJson("analyze-local-only", "/api/analyze", (json) => {
   assert(json.ok === true, "local-only analyze ok is not true");
   assert(json.dataset?.allRounds === 0, "local-only analyze read database rounds");

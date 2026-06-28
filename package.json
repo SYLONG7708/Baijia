@@ -17,6 +17,7 @@
     "health:runtime": "node scripts/check-runtime-smoke.mjs",
     "health:ui": "node scripts/check-ui-compact.mjs",
     "analysis:roads": "node scripts/analyze-road-patterns.mjs",
+    "analysis:backtest": "node scripts/backtest-analysis.mjs",
     "watch:analysis": "node scripts/run-analysis-watchdog.mjs",
     "watch:analysis:once": "node scripts/run-analysis-watchdog.mjs --once",
     "watch:analysis:bg": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-analysis-watchdog.ps1",

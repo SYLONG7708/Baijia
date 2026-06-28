@@ -6,6 +6,9 @@ const BASE_URL = process.env.BAIJIA_WATCH_BASE_URL || `http://127.0.0.1:${PORT}`
 const INTERVAL_MS = Number(process.env.BAIJIA_ANALYSIS_WATCH_INTERVAL_MS || 300000);
 const SLOW_MS = Number(process.env.BAIJIA_ANALYSIS_SLOW_MS || 1500);
 const TABLE_CODE = String(process.env.BAIJIA_WATCH_TABLE_CODE || "").trim().toUpperCase();
+const BACKTEST_CHECKS = Number(process.env.BAIJIA_WATCH_BACKTEST_CHECKS || 60);
+const REQUEST_RETRIES = Number(process.env.BAIJIA_WATCH_RETRIES || 2);
+const RETRY_DELAY_MS = Number(process.env.BAIJIA_WATCH_RETRY_DELAY_MS || 1500);
 const ONCE = process.argv.includes("--once");
 const REPORT_DIR = join(process.cwd(), "reports");
 const LATEST_PATH = join(REPORT_DIR, "analysis-watchdog-latest.json");
@@ -66,6 +69,13 @@ async function runWatchdog() {
       sequence,
       manualSequence
     }));
+    results.push(await postBacktest(`backtest-${selectedTable.tableCode || selectedTable.id}`, {
+      tableId: selectedTable.id,
+      tableCode: selectedTable.tableCode,
+      limit: 2400,
+      maxChecks: BACKTEST_CHECKS,
+      detailLimit: 8
+    }));
   } else {
     results.push({
       name: "table-selected",
@@ -103,11 +113,65 @@ async function runWatchdog() {
       failed: results.filter((item) => !item.ok).length,
       maxMs,
       slowThresholdMs: SLOW_MS,
-      slow
+      slow,
+      backtestChecks: BACKTEST_CHECKS
     },
     results,
     recommendations: buildRecommendations(results, slow)
   };
+}
+
+async function postBacktest(name, body) {
+  const startedAt = Date.now();
+  let firstError = "";
+  for (let attempt = 1; attempt <= REQUEST_RETRIES + 1; attempt += 1) {
+    const result = await postBacktestOnce(name, body, startedAt, attempt, firstError);
+    if (result.ok || attempt > REQUEST_RETRIES) return result;
+    firstError = firstError || result.error || "";
+    await sleep(RETRY_DELAY_MS);
+  }
+}
+
+async function postBacktestOnce(name, body, startedAt, attempt, firstError = "") {
+  try {
+    const response = await fetch(`${BASE_URL}/api/analysis/backtest`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    const text = await response.text();
+    const json = JSON.parse(text);
+    const ms = Date.now() - startedAt;
+    const error = validateBacktest(json);
+    return {
+      name,
+      ok: response.ok && json.ok === true && !error,
+      ms,
+      runtimeMs: Number(json.runtimeMs || 0),
+      checkedWindows: Number(json.sample?.checkedWindows || 0),
+      currentNonTieHitRate: Number(json.summary?.currentStrategy?.nonTieHitRate || 0),
+      evidenceWeightedNonTieHitRate: Number(json.summary?.evidenceWeighted?.nonTieHitRate || 0),
+      improvement: json.improvement || null,
+      bestRoad: json.summary?.bestRoad ? {
+        key: json.summary.bestRoad.key,
+        label: json.summary.bestRoad.label,
+        nonTieHitRate: Number(json.summary.bestRoad.nonTieHitRate || 0),
+        nonTieChecked: Number(json.summary.bestRoad.nonTieChecked || 0)
+      } : null,
+      attempts: attempt,
+      firstError,
+      error
+    };
+  } catch (error) {
+    return {
+      name,
+      ok: false,
+      ms: Date.now() - startedAt,
+      attempts: attempt,
+      firstError,
+      error: error.message || String(error)
+    };
+  }
 }
 
 async function getAnalysisTables() {
@@ -120,6 +184,16 @@ async function getAnalysisTables() {
 
 async function postAnalyze(name, body) {
   const startedAt = Date.now();
+  let firstError = "";
+  for (let attempt = 1; attempt <= REQUEST_RETRIES + 1; attempt += 1) {
+    const result = await postAnalyzeOnce(name, body, startedAt, attempt, firstError);
+    if (result.ok || attempt > REQUEST_RETRIES) return result;
+    firstError = firstError || result.error || "";
+    await sleep(RETRY_DELAY_MS);
+  }
+}
+
+async function postAnalyzeOnce(name, body, startedAt, attempt, firstError = "") {
   try {
     const response = await fetch(`${BASE_URL}/api/analyze`, {
       method: "POST",
@@ -149,6 +223,8 @@ async function postAnalyze(name, body) {
         label: json.roadBreakdown.overall.highest.label || "",
         rate: Number(json.roadBreakdown.overall.highest.rate || 0)
       } : null,
+      attempts: attempt,
+      firstError,
       error
     };
   } catch (error) {
@@ -156,6 +232,8 @@ async function postAnalyze(name, body) {
       name,
       ok: false,
       ms: Date.now() - startedAt,
+      attempts: attempt,
+      firstError,
       error: error.message || String(error)
     };
   }
@@ -168,6 +246,15 @@ function validateAnalysis(json = {}) {
   if (!(json.roadBreakdown.records || []).every((item) => item.manualCycleResult)) return "manual six-column cycle is missing";
   if (!(json.roadBreakdown.records || []).every((item) => Number.isFinite(Number(item.replayHitRate)))) return "replay hit rate is missing";
   if (!json.nextResult?.result) return "next result is missing";
+  return "";
+}
+
+function validateBacktest(json = {}) {
+  if (json.ok !== true) return json.error || "backtest ok is not true";
+  if (Number(json.sample?.checkedWindows || 0) <= 0) return "backtest checked no windows";
+  if (!json.summary?.currentStrategy) return "backtest current strategy summary missing";
+  if (!json.summary?.evidenceWeighted) return "backtest evidence-weighted summary missing";
+  if (!json.roads || Object.keys(json.roads).length !== 5) return "backtest five-road stats missing";
   return "";
 }
 
@@ -213,6 +300,10 @@ function buildRecommendations(results, slow) {
   }
   if (!items.length) {
     items.push("Current analysis paths are responding within the configured watchdog threshold.");
+  }
+  const backtest = results.find((item) => String(item.name || "").startsWith("backtest-"));
+  if (backtest?.improvement?.action === "candidate-improvement") {
+    items.push(backtest.improvement.read);
   }
   return items;
 }

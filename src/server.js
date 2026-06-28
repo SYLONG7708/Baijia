@@ -8,6 +8,7 @@ const { URL } = require("node:url");
 const store = require("./store");
 const { buildRoads, parseBulkRounds, summarizeBasic } = require("./roads");
 const { analyzePattern } = require("./analysis");
+const { runTableBacktest } = require("./backtest");
 
 const ROOT = path.resolve(__dirname, "..");
 const DEFAULT_PORT = Number(process.env.PORT || 4173);
@@ -85,6 +86,31 @@ async function handleApi(request, response, url) {
 
   if (method === "GET" && url.pathname === "/api/analysis/tables") {
     sendJson(response, 200, { ok: true, tables: store.getAnalysisTableOptions() });
+    return;
+  }
+
+  if (method === "POST" && url.pathname === "/api/analysis/backtest") {
+    const body = await readJsonBody(request);
+    const selectedTable = resolveAnalysisTable(body.tableId, body.tableCode);
+    if (!selectedTable) {
+      sendJson(response, 400, { ok: false, error: "Analysis table not found." });
+      return;
+    }
+    const limit = Number(body.limit || 2400);
+    const rounds = store.getAnalysisRounds({
+      tableId: selectedTable.id,
+      tableCode: selectedTable.tableCode,
+      limit
+    });
+    const result = runTableBacktest({
+      table: selectedTable,
+      rounds,
+      windowSize: Number(body.windowSize || 8),
+      maxChecks: Number(body.maxChecks || 120),
+      detailLimit: Number(body.detailLimit || 40),
+      specialThreshold: Number(body.specialThreshold || 0.12)
+    });
+    sendJson(response, 200, result);
     return;
   }
 

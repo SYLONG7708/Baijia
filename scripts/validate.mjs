@@ -16,6 +16,7 @@ const required = [
   "src/store.js",
   "src/roads.js",
   "src/analysis.js",
+  "src/backtest.js",
   "src/advanced-analysis.js",
   "src/road-breakdown.js",
   "src/collector.js",
@@ -27,6 +28,7 @@ const required = [
   "scripts/uninstall-windows-task.ps1",
   "scripts/backup-db.mjs",
   "scripts/analyze-road-patterns.mjs",
+  "scripts/backtest-analysis.mjs",
   "scripts/cleanup-target-tables.mjs",
   "scripts/compact-data.mjs",
   "scripts/check-36-completeness.mjs",
@@ -55,6 +57,7 @@ const styles = readFileSync(join(root, "styles.css"), "utf8");
 const server = readFileSync(join(root, "src/server.js"), "utf8");
 const roads = readFileSync(join(root, "src/roads.js"), "utf8");
 const roadBreakdown = readFileSync(join(root, "src/road-breakdown.js"), "utf8");
+const backtest = readFileSync(join(root, "src/backtest.js"), "utf8");
 const gitignore = readFileSync(join(root, ".gitignore"), "utf8");
 const packageJson = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 
@@ -68,6 +71,7 @@ const checks = [
   [logic.includes("Baijia Logic Guide") && logic.includes("6 欄循環") && logic.includes("時時刻刻復盤"), "zero-basic logic guide page"],
   [server.includes('["/logic.html", "logic.html"]'), "logic guide static route"],
   [server.includes("/api/analysis/tables") && server.includes("getAnalysisTableOptions"), "analysis table API"],
+  [server.includes("/api/analysis/backtest") && server.includes("runTableBacktest"), "analysis backtest API"],
   [index.includes('id="advancedAnalysis"'), "advanced analysis section"],
   [index.includes("pattern-result-btn") && index.includes('data-result="banker"'), "pattern button board"],
   [index.includes('id="savedDataCount"') && index.includes('id="sidePrediction"'), "saved data and prediction blocks"],
@@ -90,6 +94,8 @@ const checks = [
   [roadBreakdown.includes("calibrateRoadWithReplay"), "replay calibrated prediction"],
   [roadBreakdown.includes("attachRoadEvidence"), "evidence calibrated prediction"],
   [roadBreakdown.includes("classifyDirectTrend") && roadBreakdown.includes("classifyDerivedTrend"), "trend profile analysis"],
+  [roadBreakdown.includes("scoreRecommendedRoad") && roadBreakdown.includes("recommended"), "evidence-weighted recommended road"],
+  [backtest.includes("runTableBacktest") && backtest.includes("checkedWindows") && backtest.includes("SPECIAL_KEYS"), "rolling table backtest engine"],
   [readFileSync(join(root, "src/store.js"), "utf8").includes("ANALYSIS_TABLE_MAX_ROUNDS"), "bounded table analysis sampling"],
   [roads.includes("point.col - 1") && roads.includes("leftExists === aboveExists"), "formal derived-road color comparison"],
   [styles.includes(".side-flag-btn.active"), "special button active styling"],
@@ -106,6 +112,7 @@ const checks = [
   [packageJson.scripts["public:tunnel"] === "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-public-tunnel.ps1", "public tunnel script"],
   [packageJson.scripts["backup:db"] === "node scripts/backup-db.mjs", "database backup script"],
   [packageJson.scripts["analysis:roads"] === "node scripts/analyze-road-patterns.mjs", "road analysis script"],
+  [packageJson.scripts["analysis:backtest"] === "node scripts/backtest-analysis.mjs", "backtest analysis script"],
   [packageJson.scripts["watch:analysis:once"] === "node scripts/run-analysis-watchdog.mjs --once", "analysis watchdog once script"],
   [packageJson.scripts["watch:analysis:bg"] === "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-analysis-watchdog.ps1", "analysis watchdog background script"],
   [packageJson.scripts["watch:analysis:install"] === "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-analysis-watchdog-task.ps1", "analysis watchdog task install script"],
@@ -131,6 +138,7 @@ const syntaxFiles = [
   "src/roads.js",
   "src/store.js",
   "src/analysis.js",
+  "src/backtest.js",
   "src/advanced-analysis.js",
   "src/road-breakdown.js",
   "src/server.js",
@@ -139,6 +147,7 @@ const syntaxFiles = [
   "src/backup.js",
   "scripts/backup-db.mjs",
   "scripts/analyze-road-patterns.mjs",
+  "scripts/backtest-analysis.mjs",
   "scripts/cleanup-target-tables.mjs",
   "scripts/compact-data.mjs",
   "scripts/check-36-completeness.mjs",
@@ -188,7 +197,10 @@ if (process.platform === "win32") {
     "scripts/run-daemon.ps1",
     "scripts/start-public-tunnel.ps1",
     "scripts/install-windows-task.ps1",
-    "scripts/uninstall-windows-task.ps1"
+    "scripts/uninstall-windows-task.ps1",
+    "scripts/start-analysis-watchdog.ps1",
+    "scripts/install-analysis-watchdog-task.ps1",
+    "scripts/uninstall-analysis-watchdog-task.ps1"
   ];
   for (const file of powerShellFiles) {
     const target = join(root, file).replace(/'/g, "''");

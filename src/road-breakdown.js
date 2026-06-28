@@ -943,6 +943,12 @@ function buildAskForSide(inputRounds, side) {
 function summarizeOverall(roads) {
   const eligible = roads.filter((road) => ["banker", "player"].includes(road.prediction?.result));
   const highest = [...eligible].sort((left, right) => Number(right.prediction.rate || 0) - Number(left.prediction.rate || 0))[0] || null;
+  const recommended = [...eligible]
+    .map((road) => ({
+      road,
+      score: scoreRecommendedRoad(road)
+    }))
+    .sort((left, right) => right.score - left.score)[0] || null;
   const votes = { banker: 0, player: 0 };
   for (const road of eligible) {
     const weight = clamp(Number(road.prediction.rate || 0) - 0.5, 0, 0.5) + 0.01;
@@ -965,6 +971,16 @@ function summarizeOverall(roads) {
       rate: highest.prediction.rate,
       basis: highest.prediction.basis
     } : null,
+    recommended: recommended ? {
+      roadKey: recommended.road.key,
+      roadLabel: recommended.road.label,
+      result: recommended.road.prediction.result,
+      label: recommended.road.prediction.label,
+      rate: recommended.road.prediction.rate,
+      basis: recommended.road.prediction.basis,
+      score: round(recommended.score, 4),
+      strategy: "evidence-weighted"
+    } : null,
     consensus: {
       result: consensusResult,
       label: RESULT_LABELS[consensusResult] || "觀察",
@@ -978,6 +994,32 @@ function summarizeOverall(roads) {
         : "目前各路未形成可用方向。"
     }
   };
+}
+
+function scoreRecommendedRoad(road) {
+  const predictionRate = Number(road.prediction?.rate || 0.5);
+  const evidenceScore = Number(road.evidence?.score || 0);
+  const replayChecked = Number(road.replay?.checked || 0);
+  const replayHitRate = Number(road.replay?.hitRate || 0.5);
+  const replayMomentum = Number(road.replay?.momentumRate || replayHitRate || 0.5);
+  const trendScore = Number(road.trendProfile?.score || 0.5);
+  const cycleSamples = Number(road.cycle?.samples || 0);
+  const manualSamples = Number(road.manualCycle?.samples || 0);
+  const reliability = clamp(
+    0.58
+      + evidenceScore * 0.2
+      + Math.min(replayChecked, 16) * 0.006
+      + Math.min(cycleSamples, 360) * 0.00015
+      + Math.min(manualSamples, 24) * 0.002,
+    0.52,
+    0.92
+  );
+  const directionStrength = clamp(predictionRate - 0.5, 0, 0.45);
+  const replayAdjustment = replayChecked >= 4
+    ? clamp((replayHitRate - 0.5) * 0.1 + (replayMomentum - 0.5) * 0.05, -0.08, 0.08)
+    : 0;
+  const trendAdjustment = clamp((trendScore - 0.5) * 0.08, -0.04, 0.04);
+  return directionStrength * reliability + replayAdjustment + trendAdjustment;
 }
 
 function normalizePrediction({ result, rate: value, basis }) {
