@@ -4,6 +4,7 @@ data/
 logs/
 storage/
 backups/
+reports/
 .env
 .env.*
 !.env.example

@@ -40,6 +40,7 @@ try {
   await page.waitForFunction(() => document.querySelectorAll(".compact-road-card").length === 5, null, { timeout: 30000 });
 
   const afterEight = await collectMetrics(page);
+  assert(afterEight.analysisTableOptions >= 37, `analysis table options count is ${afterEight.analysisTableOptions}`);
   assert(afterEight.advancedGrid === 0, "advanced metric cards are visible");
   assert(afterEight.advancedTableRow === 0, "same/opposite detail rows are visible");
   assert(afterEight.roadRead === 0, "road detail paragraphs are visible");
@@ -162,6 +163,7 @@ async function collectMetrics(page) {
       compactRoadCards: document.querySelectorAll(".compact-road-card").length,
       roadIcons: document.querySelectorAll(".compact-road-card .result-icon").length,
       probabilityChips: document.querySelectorAll(".probability-chip").length,
+      analysisTableOptions: document.querySelectorAll("#analysisTableSelect option").length,
       checkRows: document.querySelectorAll(".prediction-check-list > div").length,
       checkIcons: document.querySelectorAll(".prediction-check-list .result-icon").length,
       recordRows: document.querySelectorAll(".analysis-record-row").length,

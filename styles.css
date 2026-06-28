@@ -262,6 +262,30 @@ h1 {
   box-shadow: 0 0 0 1px rgba(224, 184, 91, 0.45) inset;
 }
 
+.analysis-table-control {
+  display: grid;
+  gap: 5px;
+  margin: 0 0 10px;
+  max-width: 360px;
+}
+
+.analysis-table-control span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.analysis-table-control select {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #111a1f;
+  color: var(--text);
+  padding: 0 10px;
+  font-weight: 800;
+}
+
 .pattern-result-btn.banker {
   background: var(--banker);
 }

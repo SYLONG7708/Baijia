@@ -11,6 +11,9 @@ const STORAGE_DIR = process.env.BAIJIA_STORAGE_DIR || path.join(ROOT, "storage")
 const RUN_HISTORY_LIMIT = Number(process.env.COLLECT_RUN_HISTORY_LIMIT || 1200);
 const DB_WRITE_RETRIES = Number(process.env.BAIJIA_DB_WRITE_RETRIES || 8);
 const DB_WRITE_RETRY_BASE_MS = Number(process.env.BAIJIA_DB_WRITE_RETRY_BASE_MS || 80);
+const ANALYSIS_MAX_ROUNDS = Number(process.env.BAIJIA_ANALYSIS_MAX_ROUNDS || 24000);
+const ANALYSIS_TABLE_MAX_ROUNDS = Number(process.env.BAIJIA_ANALYSIS_TABLE_MAX_ROUNDS || 1800);
+const ANALYSIS_LIMIT_CAP = Number(process.env.BAIJIA_ANALYSIS_LIMIT_CAP || 60000);
 const DEFAULT_TARGET_TABLE_CODES = [
   "B201", "B202", "B203", "B219", "B220",
   "B501", "B502", "B503", "B504", "B505", "B506", "B507",
@@ -22,6 +25,8 @@ const DEFAULT_TARGET_TABLE_CODES = [
 ];
 const TARGET_TABLE_CODES = readTargetTableCodes();
 const TARGET_TABLE_CODE_SET = new Set(TARGET_TABLE_CODES);
+let dbCache = null;
+let dbCacheKey = "";
 
 function ensureStore() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -116,9 +121,16 @@ function createEmptyDb() {
 function readDb() {
   ensureStore();
   try {
+    const stat = fs.statSync(DB_PATH);
+    const cacheKey = `${stat.mtimeMs}:${stat.size}`;
+    if (dbCache && dbCacheKey === cacheKey) return dbCache;
     const parsed = JSON.parse(fs.readFileSync(DB_PATH, "utf8"));
-    return migrateDb(parsed);
+    const db = migrateDb(parsed);
+    dbCache = db;
+    dbCacheKey = cacheKey;
+    return db;
   } catch (error) {
+    if (dbCache) return dbCache;
     const backupPath = `${DB_PATH}.broken-${Date.now()}`;
     if (fs.existsSync(DB_PATH)) fs.copyFileSync(DB_PATH, backupPath);
     const db = createEmptyDb();
@@ -141,6 +153,9 @@ function writeDb(db) {
     try {
       fs.writeFileSync(tmpPath, payload, "utf8");
       fs.renameSync(tmpPath, DB_PATH);
+      const stat = fs.statSync(DB_PATH);
+      dbCache = next;
+      dbCacheKey = `${stat.mtimeMs}:${stat.size}`;
       return next;
     } catch (error) {
       lastError = error;
@@ -308,10 +323,17 @@ function getCollectorHealthSummary(hours = 24) {
   const collector = db.collector || {};
   const nowMs = Date.now();
   const intervalMs = Number(collector.runIntervalMs || 300000);
-  const thresholdMs = Math.max(300000, Math.round(intervalMs * 5));
   const windowMs = hours * 60 * 60 * 1000;
   const windowSinceMs = nowMs - windowMs;
   const recentRuns = readRunHistory(collector, windowSinceMs);
+  const maxRecentElapsedMs = recentRuns.reduce((max, item) => Math.max(max, Number(item.elapsedMs || 0)), 0);
+  const configuredGapMs = Number(process.env.BAIJIA_HEALTH_MAX_GAP_MS || 0);
+  const thresholdMs = Math.max(
+    300000,
+    Math.round(intervalMs * 5),
+    Math.round(maxRecentElapsedMs + intervalMs + 60000),
+    Number.isFinite(configuredGapMs) ? configuredGapMs : 0
+  );
   const expectedCadenceMs = thresholdMs;
   const expectedRunCount = expectedCadenceMs > 0 ? Math.max(1, Math.floor(windowMs / expectedCadenceMs)) : 0;
   const minimumRunCount = Math.max(2, Math.floor(expectedRunCount * 0.8));
@@ -447,12 +469,13 @@ function getCollectorCoverageSummary() {
 
 function listTables() {
   const db = readDb();
+  const roundStats = buildRoundStats(db.rounds || []);
   return db.tables
     .filter((table) => isDisplayCandidateTable(table))
     .map((table) => ({
       ...table,
-      rounds: db.rounds.filter((round) => round.tableId === table.id).length,
-      lastSeenAt: latestRoundAt(db.rounds.filter((round) => round.tableId === table.id)) || table.lastSeenAt || ""
+      rounds: roundStats.get(table.id)?.rounds || 0,
+      lastSeenAt: roundStats.get(table.id)?.lastSeenAt || table.lastSeenAt || ""
     }));
 }
 
@@ -624,30 +647,70 @@ function getRounds(tableId, limit = 1000) {
 }
 
 function getAllRounds() {
-  return readDb().rounds.sort(compareRounds);
+  return [...readDb().rounds].sort(compareRounds);
 }
 
-function getAnalysisRounds() {
+function getAnalysisTableOptions() {
+  const db = readDb();
+  const roundStats = buildRoundStats(db.rounds || []);
+  return getTargetBaccaratTables(db).map((table) => ({
+    id: table.id,
+    tableCode: getAllbetTableCode(table),
+    name: table.name || getAllbetTableCode(table),
+    rounds: roundStats.get(table.id)?.rounds || 0,
+    lastSeenAt: roundStats.get(table.id)?.lastSeenAt || table.lastSeenAt || ""
+  }));
+}
+
+function getAnalysisRounds(options = {}) {
   const db = readDb();
   const tableById = new Map((db.tables || []).map((table) => [table.id, table]));
-  const targetTableIds = new Set(getTargetBaccaratTables(db).map((table) => table.id));
+  const targetTables = getTargetBaccaratTables(db);
+  const targetTableIds = new Set(targetTables.map((table) => table.id));
   const manualTableIds = new Set(
     (db.tables || [])
       .filter((table) => table.provider === "manual")
       .map((table) => table.id)
   );
-  return (db.rounds || [])
-    .filter((round) => targetTableIds.has(round.tableId) || manualTableIds.has(round.tableId))
-    .map((round) => {
-      const table = tableById.get(round.tableId) || {};
-      return {
-        ...round,
-        tableCode: getAllbetTableCode(table),
-        tableName: table.name || "",
-        provider: table.provider || ""
-      };
-    })
-    .sort(compareRounds);
+  const requestedTableId = String(options.tableId || "").trim();
+  const requestedTableCode = normalizeTableCode(options.tableCode || "");
+  const selectedTable = requestedTableId
+    ? tableById.get(requestedTableId)
+    : requestedTableCode
+      ? targetTables.find((table) => getAllbetTableCode(table) === requestedTableCode)
+      : null;
+  const isTableScope = Boolean(selectedTable);
+  const limit = clampLimit(
+    Number(options.limit || 0),
+    isTableScope ? ANALYSIS_TABLE_MAX_ROUNDS : ANALYSIS_MAX_ROUNDS
+  );
+  const allowedTableIds = isTableScope
+    ? new Set([selectedTable.id])
+    : new Set([...targetTableIds, ...manualTableIds]);
+  const grouped = new Map();
+
+  for (const round of db.rounds || []) {
+    if (!allowedTableIds.has(round.tableId)) continue;
+    const table = tableById.get(round.tableId) || {};
+    const normalized = {
+      ...round,
+      tableCode: getAllbetTableCode(table),
+      tableName: table.name || "",
+      provider: table.provider || ""
+    };
+    if (!grouped.has(round.tableId)) grouped.set(round.tableId, []);
+    grouped.get(round.tableId).push(normalized);
+  }
+
+  const perTableLimit = isTableScope
+    ? limit
+    : Math.max(120, Math.ceil(limit / Math.max(1, grouped.size)));
+  const rounds = [];
+  for (const items of grouped.values()) {
+    items.sort(compareRounds);
+    rounds.push(...items.slice(-perTableLimit));
+  }
+  return rounds.sort(compareRounds);
 }
 
 function getStatus() {
@@ -827,7 +890,7 @@ function exportCsv() {
   ];
   const tableMap = new Map(db.tables.map((table) => [table.id, table]));
   const rows = [header];
-  for (const round of db.rounds.sort(compareRounds)) {
+  for (const round of [...db.rounds].sort(compareRounds)) {
     const table = tableMap.get(round.tableId) || {};
     rows.push([
       table.name || "",
@@ -863,6 +926,26 @@ function latestRoundAt(rounds) {
     const value = round.observedAt || round.createdAt || "";
     return value > latest ? value : latest;
   }, "");
+}
+
+function buildRoundStats(rounds = []) {
+  const stats = new Map();
+  for (const round of rounds) {
+    const key = round.tableId;
+    if (!key) continue;
+    const item = stats.get(key) || { rounds: 0, lastSeenAt: "" };
+    item.rounds += 1;
+    const value = round.observedAt || round.createdAt || "";
+    if (value > item.lastSeenAt) item.lastSeenAt = value;
+    stats.set(key, item);
+  }
+  return stats;
+}
+
+function clampLimit(value, fallback) {
+  const parsed = Number(value);
+  const base = Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+  return Math.max(1, Math.min(ANALYSIS_LIMIT_CAP, Math.round(base)));
 }
 
 function getNextHandNumber(rounds, tableId, shoe) {
@@ -902,6 +985,7 @@ module.exports = {
   getRounds,
   getAllRounds,
   getAnalysisRounds,
+  getAnalysisTableOptions,
   appendCollectorRunHistory,
   getCollectorHealthSummary,
   getCollectorCoverageSummary,

@@ -83,6 +83,11 @@ async function handleApi(request, response, url) {
     return;
   }
 
+  if (method === "GET" && url.pathname === "/api/analysis/tables") {
+    sendJson(response, 200, { ok: true, tables: store.getAnalysisTableOptions() });
+    return;
+  }
+
   if (method === "POST" && url.pathname === "/api/tables") {
     const body = await readJsonBody(request);
     const table = store.upsertTable(body);
@@ -140,14 +145,31 @@ async function handleApi(request, response, url) {
 
   if (method === "POST" && url.pathname === "/api/analyze") {
     const body = await readJsonBody(request);
+    const startedAt = Date.now();
     const scope = body.scope === "table" ? "table" : "all";
     const localOnly = isTruthy(body.localOnly);
+    const selectedTable = scope === "table" && !localOnly
+      ? resolveAnalysisTable(body.tableId, body.tableCode)
+      : null;
+    const analysisRounds = localOnly ? [] : store.getAnalysisRounds({
+      tableId: selectedTable?.id || (scope === "table" ? body.tableId || "" : ""),
+      tableCode: selectedTable?.tableCode || (scope === "table" ? body.tableCode || "" : ""),
+      limit: Number(body.limit || 0)
+    });
     const result = analyzePattern({
       sequence: body.sequence || body.text || [],
       manualSequence: body.manualSequence || body.fullSequence || body.sequence || body.text || [],
-      tableId: scope === "table" ? body.tableId || "" : "",
-      rounds: localOnly ? [] : store.getAnalysisRounds()
+      tableId: selectedTable?.id || (scope === "table" ? body.tableId || "" : ""),
+      rounds: analysisRounds
     });
+    result.runtime = {
+      analyzeMs: Date.now() - startedAt,
+      roundsLoaded: analysisRounds.length,
+      localOnly,
+      scope: selectedTable ? "table" : scope,
+      tableId: selectedTable?.id || (scope === "table" ? body.tableId || "" : ""),
+      tableCode: selectedTable?.tableCode || (scope === "table" ? body.tableCode || "" : "")
+    };
     sendJson(response, 200, result);
     return;
   }
@@ -274,7 +296,18 @@ function isPublicViewMode() {
 
 function isPublicApiAllowed(method, pathname) {
   if (method === "POST" && pathname === "/api/analyze") return true;
+  if (method === "GET" && pathname === "/api/analysis/tables") return true;
   return false;
+}
+
+function resolveAnalysisTable(tableId = "", tableCode = "") {
+  const id = String(tableId || "").trim();
+  const code = String(tableCode || "").trim().toUpperCase();
+  if (!id && !code) return null;
+  return store.getAnalysisTableOptions().find((table) => (
+    (id && table.id === id) ||
+    (code && table.tableCode === code)
+  )) || null;
 }
 
 function isExternalRequest(request) {

@@ -14,12 +14,21 @@ await checkJson("status", "/api/status", (json) => {
 });
 
 let firstAllbetTableId = "";
+let firstAllbetTableCode = "";
 await checkJson("tables", "/api/tables", (json) => {
   assert(json.ok === true, "tables ok is not true");
   const allbet = (json.tables || []).filter((table) => table.provider === "allbet");
   assert(allbet.length === EXPECTED_TARGET_TABLES, `api tables allbet count is ${allbet.length}`);
   firstAllbetTableId = allbet[0]?.id || "";
+  firstAllbetTableCode = allbet[0]?.tableCode || "";
   assert(Boolean(firstAllbetTableId), "no first ALLBET table id");
+});
+
+await checkJson("analysis-tables", "/api/analysis/tables", (json) => {
+  assert(json.ok === true, "analysis tables ok is not true");
+  assert((json.tables || []).length === EXPECTED_TARGET_TABLES, `analysis table count is ${(json.tables || []).length}`);
+  assert((json.tables || []).every((table) => table.id && table.tableCode), "analysis table id/code missing");
+  assert(!(JSON.stringify(json).includes("baijia-db.json")), "analysis tables leaked database path");
 });
 
 await checkJson("health-1h", "/api/health?hours=1", (json) => {
@@ -66,6 +75,28 @@ await checkJson("analyze", "/api/analyze", (json) => {
   headers: { "content-type": "application/json" },
   body: JSON.stringify({ scope: "all", sequence: ANALYSIS_SEQUENCE })
 });
+
+if (firstAllbetTableId) {
+  await checkJson("analyze-table", "/api/analyze", (json) => {
+    assert(json.ok === true, "table analyze ok is not true");
+    assert(json.dataset?.scope === "table", "table analyze scope is not table");
+    assert(json.runtime?.scope === "table", "table analyze runtime scope is not table");
+    assert(json.runtime?.tableId === firstAllbetTableId, "table analyze id mismatch");
+    assert(Number(json.runtime?.roundsLoaded || 0) > 0, "table analyze loaded no rounds");
+    assert(Number(json.runtime?.roundsLoaded || 0) <= 1800, "table analyze ignored limit");
+    assert((json.roadBreakdown?.roads || []).length === 5, "table analyze five-road block missing");
+  }, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      scope: "table",
+      tableId: firstAllbetTableId,
+      tableCode: firstAllbetTableCode,
+      limit: 1800,
+      sequence: ANALYSIS_SEQUENCE
+    })
+  });
+}
 
 await checkJson("analyze-local-only", "/api/analyze", (json) => {
   assert(json.ok === true, "local-only analyze ok is not true");

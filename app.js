@@ -16,6 +16,8 @@ const state = {
     playerPair: false,
     luckySix: false
   },
+  analysisTables: [],
+  selectedTableId: "",
   lastAnalyzedKey: "",
   pendingPrediction: null,
   predictionChecks: []
@@ -37,6 +39,7 @@ const els = {
   advancedAnalysis: document.getElementById("advancedAnalysis"),
   patternButtons: [...document.querySelectorAll(".pattern-result-btn")],
   sideFlagButtons: [...document.querySelectorAll(".side-flag-btn")],
+  analysisTableSelect: document.getElementById("analysisTableSelect"),
   patternInput: document.getElementById("patternInput"),
   undoPatternBtn: document.getElementById("undoPatternBtn"),
   clearPatternBtn: document.getElementById("clearPatternBtn"),
@@ -55,6 +58,7 @@ function init() {
   renderAnalysis();
   if (!isLiveMode) {
     loadStatus();
+    loadAnalysisTables();
     setInterval(loadStatus, 60_000);
   }
   if ("serviceWorker" in navigator) {
@@ -71,6 +75,11 @@ function bindEvents() {
   });
   els.sideFlagButtons.forEach((button) => {
     button.addEventListener("click", () => togglePendingFlag(button.dataset.flag));
+  });
+  els.analysisTableSelect?.addEventListener("change", () => {
+    state.selectedTableId = els.analysisTableSelect.value || "";
+    state.lastAnalyzedKey = "";
+    if (state.pattern.length >= 8) maybeAutoAnalyze();
   });
 
   els.undoPatternBtn.addEventListener("click", () => {
@@ -123,6 +132,30 @@ async function loadStatus() {
     if (els.statusRoundCount) els.statusRoundCount.textContent = "0 局";
     if (els.collectorMessage) els.collectorMessage.textContent = error.message;
   }
+}
+
+async function loadAnalysisTables() {
+  if (isLiveMode || !els.analysisTableSelect) return;
+  try {
+    const json = await api("/api/analysis/tables");
+    state.analysisTables = Array.isArray(json.tables) ? json.tables : [];
+    renderAnalysisTableOptions();
+  } catch (_) {
+    state.analysisTables = [];
+  }
+}
+
+function renderAnalysisTableOptions() {
+  if (!els.analysisTableSelect) return;
+  const current = els.analysisTableSelect.value || state.selectedTableId || "";
+  els.analysisTableSelect.innerHTML = `
+    <option value="">全部 36 桌</option>
+    ${state.analysisTables.map((table) => `
+      <option value="${escapeHtml(table.id)}">${escapeHtml(table.tableCode || table.name || table.id)} · ${Number(table.rounds || 0).toLocaleString("zh-TW")} 局</option>
+    `).join("")}
+  `;
+  els.analysisTableSelect.value = state.analysisTables.some((table) => table.id === current) ? current : "";
+  state.selectedTableId = els.analysisTableSelect.value || "";
 }
 
 function appendPatternResult(result) {
@@ -186,11 +219,11 @@ function maybeAutoAnalyze() {
     clearTimeout(autoAnalyzeTimer);
     return;
   }
-  const key = latest.map(roundKey).join("|");
+  const key = buildAnalysisKey(latest);
   if (key === state.lastAnalyzedKey) return;
   clearTimeout(autoAnalyzeTimer);
   autoAnalyzeTimer = setTimeout(() => {
-    if (getPatternWindow().map(roundKey).join("|") !== key) return;
+    if (buildAnalysisKey(getPatternWindow()) !== key) return;
     analyzeInput();
   }, 180);
 }
@@ -204,15 +237,18 @@ async function analyzeInput() {
     return;
   }
 
-  const key = sequence.map(roundKey).join("|");
+  const tableId = getSelectedAnalysisTableId();
+  const key = buildAnalysisKey(sequence);
   state.lastAnalyzedKey = key;
   els.nextResult.textContent = "分析中";
-  els.nextDescription.textContent = "使用最近 8 手與資料庫歷史路型比對";
+  els.nextDescription.textContent = tableId ? "使用指定桌台近期路型比對" : isLiveMode ? "只使用你輸入的手牌分析" : "使用全部 36 桌近期路型比對";
   try {
     state.analysis = await api("/api/analyze", {
       method: "POST",
       body: {
-        scope: "all",
+        scope: tableId ? "table" : "all",
+        tableId,
+        limit: tableId ? 1800 : 24000,
         localOnly: isLiveMode,
         sequence,
         manualSequence: state.pattern
@@ -228,6 +264,15 @@ async function analyzeInput() {
     els.sidePrediction.innerHTML = renderEmptyProbability();
     if (els.advancedAnalysis) els.advancedAnalysis.innerHTML = "";
   }
+}
+
+function getSelectedAnalysisTableId() {
+  if (isLiveMode) return "";
+  return els.analysisTableSelect?.value || state.selectedTableId || "";
+}
+
+function buildAnalysisKey(rounds) {
+  return `${getSelectedAnalysisTableId() || "all"}::${rounds.map(roundKey).join("|")}`;
 }
 
 function recordPredictionCheck(actualResult) {
@@ -319,7 +364,7 @@ function renderAnalysis() {
 
   const top = analysis.nextResult || { label: "-", rate: 0 };
   els.nextResult.textContent = `${top.label || "-"} ${percent(top.rate)}`;
-  els.nextDescription.textContent = "";
+  els.nextDescription.textContent = renderRuntimeText(analysis.runtime);
   els.sidePrediction.innerHTML = renderProbabilityList(analysis.fullRates || []);
   if (els.advancedAnalysis) {
     els.advancedAnalysis.innerHTML = renderAdvancedAnalysis(
@@ -328,6 +373,13 @@ function renderAnalysis() {
       state.predictionChecks
     );
   }
+}
+
+function renderRuntimeText(runtime) {
+  if (!runtime) return "";
+  if (runtime.localOnly) return `現場版 · 只用輸入資料 · ${Number(runtime.analyzeMs || 0)}ms`;
+  const scope = runtime.scope === "table" ? `指定桌 ${runtime.tableCode || ""}`.trim() : "全部 36 桌";
+  return `${scope} · ${Number(runtime.roundsLoaded || 0).toLocaleString("zh-TW")} 局樣本 · ${Number(runtime.analyzeMs || 0)}ms`;
 }
 
 function renderEmptyProbability() {

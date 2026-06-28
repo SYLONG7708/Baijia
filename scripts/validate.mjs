@@ -34,6 +34,10 @@ const required = [
   "scripts/check-data-integrity.mjs",
   "scripts/check-runtime-smoke.mjs",
   "scripts/check-ui-compact.mjs",
+  "scripts/run-analysis-watchdog.mjs",
+  "scripts/start-analysis-watchdog.ps1",
+  "scripts/install-analysis-watchdog-task.ps1",
+  "scripts/uninstall-analysis-watchdog-task.ps1",
   "scripts/inspect-goodwin-network.mjs"
 ];
 
@@ -58,10 +62,12 @@ const checks = [
   [index.includes("<main") && index.includes('id="statusRoundCount"'), "index main layout"],
   [index.includes("logic.html") && live.includes("logic.html"), "logic guide links"],
   [index.includes('id="patternInput"') && index.includes("analysis-band"), "analysis input section"],
+  [index.includes('id="analysisTableSelect"'), "analysis table selector"],
   [index.includes("side-flag-btn") && index.includes('data-flag="luckySix"'), "main special buttons"],
   [live.includes('data-mode="live"') && live.includes("side-flag-btn"), "live iPhone page"],
   [logic.includes("Baijia Logic Guide") && logic.includes("6 欄循環") && logic.includes("時時刻刻復盤"), "zero-basic logic guide page"],
   [server.includes('["/logic.html", "logic.html"]'), "logic guide static route"],
+  [server.includes("/api/analysis/tables") && server.includes("getAnalysisTableOptions"), "analysis table API"],
   [index.includes('id="advancedAnalysis"'), "advanced analysis section"],
   [index.includes("pattern-result-btn") && index.includes('data-result="banker"'), "pattern button board"],
   [index.includes('id="savedDataCount"') && index.includes('id="sidePrediction"'), "saved data and prediction blocks"],
@@ -74,6 +80,7 @@ const checks = [
   [app.includes("renderAnalysisRecordList"), "analysis record renderer"],
   [app.includes("manualSequence: state.pattern"), "full manual sequence submission"],
   [app.includes("localOnly: isLiveMode"), "live page local-only analysis"],
+  [app.includes("analysisTableSelect") && app.includes('scope: tableId ? "table" : "all"'), "table-scoped analysis client"],
   [app.includes("makeManualRound"), "manual round special flags"],
   [app.includes("manual-cycle-cell"), "manual cycle renderer"],
   [app.includes("replayHitRate") && app.includes("復盤"), "manual replay renderer"],
@@ -83,6 +90,7 @@ const checks = [
   [roadBreakdown.includes("calibrateRoadWithReplay"), "replay calibrated prediction"],
   [roadBreakdown.includes("attachRoadEvidence"), "evidence calibrated prediction"],
   [roadBreakdown.includes("classifyDirectTrend") && roadBreakdown.includes("classifyDerivedTrend"), "trend profile analysis"],
+  [readFileSync(join(root, "src/store.js"), "utf8").includes("ANALYSIS_TABLE_MAX_ROUNDS"), "bounded table analysis sampling"],
   [roads.includes("point.col - 1") && roads.includes("leftExists === aboveExists"), "formal derived-road color comparison"],
   [styles.includes(".side-flag-btn.active"), "special button active styling"],
   [styles.includes(".logic-road-grid") && styles.includes(".cycle-board"), "logic guide styling"],
@@ -93,11 +101,14 @@ const checks = [
   [styles.includes(".road-breakdown-grid"), "road breakdown styling"],
   [styles.includes(".compact-road-card"), "compact road card styling"],
   [styles.includes(".result-icon.banker"), "result icon styling"],
-  [gitignore.includes(".env.*") && gitignore.includes("data/"), "secret and data gitignore"],
+  [gitignore.includes(".env.*") && gitignore.includes("data/") && gitignore.includes("reports/"), "secret data and report gitignore"],
   [packageJson.scripts.daemon === "node src/daemon.js", "daemon script"],
   [packageJson.scripts["public:tunnel"] === "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-public-tunnel.ps1", "public tunnel script"],
   [packageJson.scripts["backup:db"] === "node scripts/backup-db.mjs", "database backup script"],
   [packageJson.scripts["analysis:roads"] === "node scripts/analyze-road-patterns.mjs", "road analysis script"],
+  [packageJson.scripts["watch:analysis:once"] === "node scripts/run-analysis-watchdog.mjs --once", "analysis watchdog once script"],
+  [packageJson.scripts["watch:analysis:bg"] === "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-analysis-watchdog.ps1", "analysis watchdog background script"],
+  [packageJson.scripts["watch:analysis:install"] === "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-analysis-watchdog-task.ps1", "analysis watchdog task install script"],
   [packageJson.scripts["health:36"] === "node scripts/check-36-completeness.mjs", "36 table health script"],
   [packageJson.scripts["health:data"] === "node scripts/check-data-integrity.mjs", "data integrity script"],
   [packageJson.scripts["health:runtime"] === "node scripts/check-runtime-smoke.mjs", "runtime smoke script"],
@@ -135,6 +146,7 @@ const syntaxFiles = [
   "scripts/check-data-integrity.mjs",
   "scripts/check-runtime-smoke.mjs",
   "scripts/check-ui-compact.mjs",
+  "scripts/run-analysis-watchdog.mjs",
   "scripts/check-24h-integrity.mjs"
 ];
 
