@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f1417" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Baijia Logic" />
+    <title>百家樂五路分析邏輯</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell logic-shell">
+      <header class="topbar logic-topbar">
+        <div>
+          <p class="eyebrow">Baijia Logic Guide</p>
+          <h1>珠盤路 / 大路 / 大眼仔 / 小路 / 蟑螂路分析邏輯</h1>
+        </div>
+        <nav class="top-actions logic-nav" aria-label="頁面切換">
+          <a class="ghost-btn nav-link" href="./">24 小時監控</a>
+          <a class="ghost-btn nav-link" href="./live.html">現場分析</a>
+        </nav>
+      </header>
+
+      <section class="logic-hero" aria-label="兩種分析模式">
+        <article>
+          <span>百家樂 24 小時監控</span>
+          <strong>讀取 36 桌歷史資料 + 你輸入的前 8 手</strong>
+          <p>用歐博 36 桌資料庫做相同路型、相近路型、跨桌同向/反向、6 欄循環比對。適合看全場資料是否穩定、哪一路目前分數最高。</p>
+        </article>
+        <article>
+          <span>現場百家樂分析</span>
+          <strong>只讀你手動輸入的牌路</strong>
+          <p>不讀歐博資料庫，不看本機歷史紀錄。每多輸入一手，就用現場牌路重新計算五路、6 欄循環、莊問路/閒問路與復盤命中率。</p>
+        </article>
+      </section>
+
+      <section class="logic-section" aria-label="零基礎先看">
+        <div class="logic-section-head">
+          <span>先看這裡</span>
+          <h2>系統到底在分析什麼</h2>
+        </div>
+        <div class="logic-steps">
+          <article>
+            <b>1</b>
+            <strong>輸入或抓取每一手結果</strong>
+            <p>每一手只先記成莊、閒、和，另外可附加莊對、閒對、幸運6。和局會進珠盤路，但大路與衍生路主要看莊閒走勢。</p>
+          </article>
+          <article>
+            <b>2</b>
+            <strong>重建五條路</strong>
+            <p>系統把同一串結果轉成珠盤路、大路、大眼仔、小路、蟑螂路。每一路看的角度不同，所以會分開給百分比。</p>
+          </article>
+          <article>
+            <b>3</b>
+            <strong>預測下一手方向</strong>
+            <p>直接路看莊閒比例、連段、跳路；衍生路先用莊問路/閒問路把紅藍轉回莊或閒，再給方向。</p>
+          </article>
+          <article>
+            <b>4</b>
+            <strong>每輸入一手就復盤</strong>
+            <p>若上一手預測閒，而你下一手輸入莊，該次就是 XX。系統會累積每一路命中率，讓後面的分析更保守。</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="logic-section" aria-label="五路分析">
+        <div class="logic-section-head">
+          <span>五條路</span>
+          <h2>每一路看的是不同規律</h2>
+        </div>
+        <div class="logic-road-grid">
+          <article>
+            <span>珠盤路</span>
+            <strong>看原始順序</strong>
+            <p>一手一格，由上到下 6 格後換欄。它最接近「時間順序」，用來看最近莊閒比例、和局是否偏多、特殊項是否集中。</p>
+            <ul>
+              <li>主要訊號：莊率、閒率、和率、最近連段。</li>
+              <li>6 欄循環：第 1 欄對第 7 欄、第 2 欄對第 8 欄，依此找相似節奏。</li>
+              <li>適合用途：確認原始牌序是否有固定欄位重複。</li>
+            </ul>
+          </article>
+          <article>
+            <span>大路</span>
+            <strong>看莊閒連跳</strong>
+            <p>同一方連開就往下排，換邊就開新欄。大路是分析連莊、連閒、單跳、雙跳、欄高規律的核心。</p>
+            <ul>
+              <li>主要訊號：目前連段長度、跳路比例、最近欄高。</li>
+              <li>6 欄循環：比較同欄位序號的欄高、開頭、結尾與主色。</li>
+              <li>適合用途：判斷跟連、反打、或先觀察。</li>
+            </ul>
+          </article>
+          <article>
+            <span>大眼仔</span>
+            <strong>看大路結構是否整齊</strong>
+            <p>大眼仔不是直接顯示莊閒，而是從大路欄位形狀推紅藍。紅通常代表結構較整齊，藍通常代表轉折或不齊。</p>
+            <ul>
+              <li>主要訊號：最近紅藍比例、紅藍連色、目前問路結果。</li>
+              <li>問路方式：假設下一手開莊、再假設下一手開閒，看哪邊會生成目標紅藍。</li>
+              <li>適合用途：輔助大路，避免只看莊閒比例。</li>
+            </ul>
+          </article>
+          <article>
+            <span>小路</span>
+            <strong>看更遠一層的欄位節奏</strong>
+            <p>小路比大眼仔更慢一點，會比較更遠的欄位關係。它不追單手，而是看目前路型是否維持節奏。</p>
+            <ul>
+              <li>主要訊號：紅藍優勢、紅藍連色、問路後莊閒哪邊較吻合。</li>
+              <li>6 欄循環：用紅藍欄位去比下一組 6 欄。</li>
+              <li>適合用途：看中段穩定度，降低短線雜訊。</li>
+            </ul>
+          </article>
+          <article>
+            <span>蟑螂路</span>
+            <strong>看最慢的深層轉折</strong>
+            <p>蟑螂路反應更慢，通常用來看深層規律是否仍同向。它不適合單獨決定下一手，但適合當最後確認。</p>
+            <ul>
+              <li>主要訊號：深層紅藍偏向、是否和大眼仔/小路同向。</li>
+              <li>問路方式：一樣用莊問路/閒問路把紅藍轉成莊閒方向。</li>
+              <li>適合用途：確認五路是否多數同向，或出現反向警告。</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="logic-section" aria-label="莊問路閒問路">
+        <div class="logic-section-head">
+          <span>問路</span>
+          <h2>大眼仔 / 小路 / 蟑螂路怎麼轉成莊或閒</h2>
+        </div>
+        <div class="logic-compare">
+          <article>
+            <strong>莊問路</strong>
+            <p>先假設下一手開莊，把這個假設放進大路，再重算大眼仔、小路、蟑螂路會出紅或藍。</p>
+          </article>
+          <article>
+            <strong>閒問路</strong>
+            <p>再假設下一手開閒，重算三條衍生路。若某一路目前偏紅，而莊問路會出紅、閒問路會出藍，該路就偏莊。</p>
+          </article>
+        </div>
+        <div class="logic-note">
+          <strong>簡單理解</strong>
+          <p>衍生路本身只給紅藍，不直接等於莊閒。系統一定先問「如果開莊會變什麼顏色」和「如果開閒會變什麼顏色」，再把紅藍偏向換算成莊/閒預測。</p>
+        </div>
+      </section>
+
+      <section class="logic-section" aria-label="六欄循環">
+        <div class="logic-section-head">
+          <span>6 欄循環</span>
+          <h2>第 1-6 欄對第 7-12 欄的邏輯</h2>
+        </div>
+        <div class="cycle-board" aria-label="6 欄循環示意">
+          <div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div>
+          <div>7</div><div>8</div><div>9</div><div>10</div><div>11</div><div>12</div>
+        </div>
+        <div class="logic-steps">
+          <article>
+            <b>A</b>
+            <strong>找目前所在欄位</strong>
+            <p>例如現在大路正在第 8 欄，8 除以 6 的位置等同第 2 欄，所以會回頭找第 2、8、14 這類同位欄。</p>
+          </article>
+          <article>
+            <b>B</b>
+            <strong>比較欄位相似度</strong>
+            <p>比較開頭、結尾、主色、欄高、落點形狀。越像，權重越高；不像就不採用。</p>
+          </article>
+          <article>
+            <b>C</b>
+            <strong>看下一組 6 欄怎麼走</strong>
+            <p>如果第 2 欄很像目前第 8 欄，就看第 8 欄當時後面的第 14 欄偏什麼，拿來推現在下一段。</p>
+          </article>
+          <article>
+            <b>D</b>
+            <strong>分成本機資料庫與輸入資料</strong>
+            <p>24 小時監控版會比對 36 桌歷史；現場版只比你自己輸入的牌路，不會讀資料庫。</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="logic-section" aria-label="復盤校正">
+        <div class="logic-section-head">
+          <span>時時刻刻復盤</span>
+          <h2>為什麼輸入越多會越會修正</h2>
+        </div>
+        <div class="logic-compare">
+          <article>
+            <strong>每一路都獨立記分</strong>
+            <p>例如第 8 手後大路預測閒，第 9 手你輸入莊，大路這次就是 XX；如果珠盤路預測莊，珠盤路就是 OK。</p>
+          </article>
+          <article>
+            <strong>輸入 6 欄也獨立記分</strong>
+            <p>如果某一路的輸入 6 欄命中率明顯比原本預測高，系統會讓輸入 6 欄接管該路方向，但百分比會保守處理。</p>
+          </article>
+        </div>
+        <div class="logic-score-grid">
+          <article><span>復盤命中率</span><strong>該路過去預測中幾次</strong></article>
+          <article><span>近段命中率</span><strong>最近 12 次是否變準或變差</strong></article>
+          <article><span>輸入6欄命中率</span><strong>只看你輸入牌路的 6 欄循環</strong></article>
+          <article><span>最高百分比</span><strong>五路中目前分數最高的一路</strong></article>
+        </div>
+      </section>
+
+      <section class="logic-section" aria-label="兩個版本差異">
+        <div class="logic-section-head">
+          <span>兩個版本差異</span>
+          <h2>24 小時監控與現場版分別怎麼用</h2>
+        </div>
+        <div class="logic-table">
+          <div><b>項目</b><b>24 小時監控</b><b>現場百家樂分析</b></div>
+          <div><span>資料來源</span><span>36 桌資料庫 + 你輸入的最近 8 手</span><span>只用你手動輸入的牌路</span></div>
+          <div><span>歷史樣本</span><span>會用相同/相近路型與跨桌資料</span><span>完全不讀歷史資料</span></div>
+          <div><span>6 欄循環</span><span>資料庫6欄 + 輸入6欄</span><span>只有輸入6欄</span></div>
+          <div><span>復盤</span><span>會看你手動輸入後的命中/失誤</span><span>現場每多一手就即時復盤</span></div>
+          <div><span>適合情境</span><span>監控全場、看資料完整性、找跨桌規律</span><span>現場手打路單、手機快速判斷</span></div>
+        </div>
+      </section>
+
+      <section class="logic-section" aria-label="品質檢查">
+        <div class="logic-section-head">
+          <span>監控品質</span>
+          <h2>24 小時監控怎麼判斷正常</h2>
+        </div>
+        <div class="logic-steps">
+          <article>
+            <b>36</b>
+            <strong>只接受 36 桌</strong>
+            <p>健康檢查會確認目標桌剛好 36 桌，不能有缺桌、重複桌、非目標桌污染。</p>
+          </article>
+          <article>
+            <b>跳</b>
+            <strong>洗牌中自動略過</strong>
+            <p>桌子若顯示洗牌中、停止下注、結算、包桌或暫不可用，會記錄成跳過，不會硬寫錯誤牌路。</p>
+          </article>
+          <article>
+            <b>新</b>
+            <strong>確認持續讀新局</strong>
+            <p>總局數、最後更新時間、runHistory、lastRunAdded 都要持續變動，才代表背景讀取仍在進行。</p>
+          </article>
+          <article>
+            <b>24</b>
+            <strong>真正 24 小時不能有間隙</strong>
+            <p>只要 24 小時窗口內仍有失敗或超過門檻的 gap，就不能稱為 24 小時完成。</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="logic-section" aria-label="重要提醒">
+        <div class="logic-note">
+          <strong>重要提醒</strong>
+          <p>百家樂每一局仍是獨立事件。這套系統做的是路型整理、歷史相似度、6 欄循環與復盤統計，不保證下一手一定命中，也不提供自動下注。</p>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

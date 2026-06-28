@@ -17,6 +17,8 @@ const STATIC_FILES = new Map([
   ["/index.html", "index.html"],
   ["/live", "live.html"],
   ["/live.html", "live.html"],
+  ["/logic", "logic.html"],
+  ["/logic.html", "logic.html"],
   ["/styles.css", "styles.css"],
   ["/app.js", "app.js"],
   ["/manifest.webmanifest", "manifest.webmanifest"],

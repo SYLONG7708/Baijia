@@ -823,6 +823,223 @@ h1 {
   color: var(--gold);
 }
 
+.nav-link {
+  display: inline-grid;
+  place-items: center;
+  min-height: 38px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.logic-shell {
+  width: min(1180px, 100%);
+}
+
+.logic-topbar {
+  align-items: flex-start;
+}
+
+.logic-nav {
+  justify-content: flex-end;
+}
+
+.logic-hero,
+.logic-compare,
+.logic-score-grid,
+.logic-road-grid,
+.logic-steps {
+  display: grid;
+  gap: 12px;
+}
+
+.logic-hero {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 14px;
+}
+
+.logic-hero article,
+.logic-section,
+.logic-steps article,
+.logic-road-grid article,
+.logic-compare article,
+.logic-score-grid article,
+.logic-note,
+.logic-table,
+.cycle-board {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(24, 32, 37, 0.96);
+}
+
+.logic-hero article {
+  padding: 16px;
+}
+
+.logic-hero span,
+.logic-section-head span,
+.logic-road-grid article > span,
+.logic-score-grid span {
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.logic-hero strong {
+  display: block;
+  margin: 8px 0;
+  color: var(--gold);
+  font-size: 22px;
+  line-height: 1.25;
+}
+
+.logic-hero p,
+.logic-section p,
+.logic-section li,
+.logic-table span {
+  color: #c3d1ce;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.logic-section {
+  margin-bottom: 14px;
+  padding: 16px;
+}
+
+.logic-section-head {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.logic-section-head h2 {
+  font-size: 24px;
+  line-height: 1.25;
+}
+
+.logic-steps {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.logic-steps article,
+.logic-compare article,
+.logic-score-grid article {
+  padding: 13px;
+}
+
+.logic-steps b {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  background: rgba(75, 195, 181, 0.15);
+  color: var(--accent);
+}
+
+.logic-steps strong,
+.logic-road-grid strong,
+.logic-compare strong,
+.logic-note strong,
+.logic-score-grid strong {
+  display: block;
+  color: var(--text);
+  font-size: 18px;
+  line-height: 1.35;
+}
+
+.logic-road-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.logic-road-grid article {
+  padding: 14px;
+}
+
+.logic-road-grid article:last-child {
+  grid-column: 1 / -1;
+}
+
+.logic-road-grid ul {
+  margin: 10px 0 0;
+  padding-left: 18px;
+}
+
+.logic-compare,
+.logic-score-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.logic-note {
+  margin-top: 12px;
+  padding: 14px;
+  background: rgba(224, 184, 91, 0.09);
+}
+
+.cycle-board {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  margin-bottom: 12px;
+  background: var(--line);
+}
+
+.cycle-board div {
+  display: grid;
+  place-items: center;
+  min-height: 54px;
+  background: #111a1f;
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.cycle-board div:nth-child(n+7) {
+  color: var(--gold);
+}
+
+.logic-score-grid article {
+  display: grid;
+  gap: 6px;
+}
+
+.logic-score-grid strong {
+  font-size: 16px;
+}
+
+.logic-table {
+  display: grid;
+  overflow: hidden;
+}
+
+.logic-table > div {
+  display: grid;
+  grid-template-columns: 0.8fr 1.3fr 1.3fr;
+  border-bottom: 1px solid var(--line);
+}
+
+.logic-table > div:last-child {
+  border-bottom: 0;
+}
+
+.logic-table b,
+.logic-table span {
+  padding: 12px;
+  border-right: 1px solid var(--line);
+}
+
+.logic-table b:last-child,
+.logic-table span:last-child {
+  border-right: 0;
+}
+
+.logic-table b {
+  color: var(--gold);
+  background: rgba(17, 26, 31, 0.9);
+}
+
 @media (max-width: 960px) {
   .summary-strip,
   .analysis-band {
@@ -853,6 +1070,12 @@ h1 {
   .summary-card {
     min-height: auto;
   }
+
+  .logic-hero,
+  .logic-road-grid,
+  .logic-steps {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 @media (max-width: 560px) {
@@ -867,6 +1090,7 @@ h1 {
   .topbar {
     align-items: flex-start;
     gap: 10px;
+    flex-direction: column;
   }
 
   .eyebrow {
@@ -987,5 +1211,68 @@ h1 {
 
   .analysis-record-row em {
     grid-column: 1 / -1;
+  }
+
+  .top-actions {
+    width: 100%;
+  }
+
+  .nav-link {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 0 10px;
+    font-size: 13px;
+  }
+
+  .logic-section {
+    padding: 12px;
+  }
+
+  .logic-section-head h2 {
+    font-size: 21px;
+  }
+
+  .logic-hero,
+  .logic-road-grid,
+  .logic-steps,
+  .logic-compare,
+  .logic-score-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .logic-road-grid article:last-child {
+    grid-column: auto;
+  }
+
+  .cycle-board {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .logic-table {
+    border: 0;
+    background: transparent;
+    gap: 10px;
+  }
+
+  .logic-table > div {
+    grid-template-columns: 1fr;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+    background: rgba(24, 32, 37, 0.96);
+  }
+
+  .logic-table > div:first-child {
+    display: none;
+  }
+
+  .logic-table b,
+  .logic-table span {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .logic-table span:last-child {
+    border-bottom: 0;
   }
 }

@@ -6,6 +6,7 @@ const root = process.cwd();
 const required = [
   "index.html",
   "live.html",
+  "logic.html",
   "styles.css",
   "app.js",
   "manifest.webmanifest",
@@ -44,16 +45,21 @@ if (missing.length) {
 
 const index = readFileSync(join(root, "index.html"), "utf8");
 const live = readFileSync(join(root, "live.html"), "utf8");
+const logic = readFileSync(join(root, "logic.html"), "utf8");
 const app = readFileSync(join(root, "app.js"), "utf8");
 const styles = readFileSync(join(root, "styles.css"), "utf8");
+const server = readFileSync(join(root, "src/server.js"), "utf8");
 const gitignore = readFileSync(join(root, ".gitignore"), "utf8");
 const packageJson = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 
 const checks = [
   [index.includes("<main") && index.includes('id="statusRoundCount"'), "index main layout"],
+  [index.includes("logic.html") && live.includes("logic.html"), "logic guide links"],
   [index.includes('id="patternInput"') && index.includes("analysis-band"), "analysis input section"],
   [index.includes("side-flag-btn") && index.includes('data-flag="luckySix"'), "main special buttons"],
   [live.includes('data-mode="live"') && live.includes("side-flag-btn"), "live iPhone page"],
+  [logic.includes("Baijia Logic Guide") && logic.includes("6 欄循環") && logic.includes("時時刻刻復盤"), "zero-basic logic guide page"],
+  [server.includes('["/logic.html", "logic.html"]'), "logic guide static route"],
   [index.includes('id="advancedAnalysis"'), "advanced analysis section"],
   [index.includes("pattern-result-btn") && index.includes('data-result="banker"'), "pattern button board"],
   [index.includes('id="savedDataCount"') && index.includes('id="sidePrediction"'), "saved data and prediction blocks"],
@@ -73,6 +79,7 @@ const checks = [
   [readFileSync(join(root, "src/road-breakdown.js"), "utf8").includes("buildManualReplayStats"), "manual replay analysis"],
   [readFileSync(join(root, "src/road-breakdown.js"), "utf8").includes("calibrateRoadWithReplay"), "replay calibrated prediction"],
   [styles.includes(".side-flag-btn.active"), "special button active styling"],
+  [styles.includes(".logic-road-grid") && styles.includes(".cycle-board"), "logic guide styling"],
   [styles.includes(".analysis-record-row"), "analysis record styling"],
   [styles.includes(".manual-cycle-cell"), "manual cycle styling"],
   [styles.includes(".probability-chip.strong"), "high probability styling"],

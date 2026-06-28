@@ -1,5 +1,5 @@
-const CACHE_NAME = "baijia-monitor-v3-20260628-road-breakdown-live-specials";
-const ASSETS = ["./", "./index.html", "./live.html", "./styles.css", "./app.js", "./manifest.webmanifest", "./icon.svg"];
+const CACHE_NAME = "baijia-monitor-v4-20260628-logic-guide";
+const ASSETS = ["./", "./index.html", "./live.html", "./logic.html", "./styles.css", "./app.js", "./manifest.webmanifest", "./icon.svg"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)));

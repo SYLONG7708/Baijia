@@ -103,8 +103,16 @@ await checkText("live-page", "/live.html", (text) => {
   assert(text.includes("幸運6"), "live page missing special buttons");
 });
 
+await checkText("logic-page", "/logic.html", (text) => {
+  assert(text.includes("Baijia Logic Guide"), "logic page missing title marker");
+  assert(text.includes("珠盤路 / 大路 / 大眼仔 / 小路 / 蟑螂路"), "logic page missing five-road heading");
+  assert(text.includes("6 欄循環"), "logic page missing six-column cycle section");
+  assert(text.includes("時時刻刻復盤"), "logic page missing replay section");
+});
+
 await checkText("service-worker", "/sw.js", (text) => {
-  assert(text.includes("road-breakdown"), "sw.js cache version was not bumped for road breakdown analysis");
+  assert(text.includes("logic-guide"), "sw.js cache version was not bumped for logic guide");
+  assert(text.includes("./logic.html"), "sw.js does not cache logic guide");
 });
 
 await checkText("csv-export", "/api/export/csv", (text) => {

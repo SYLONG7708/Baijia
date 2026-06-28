@@ -69,6 +69,12 @@ http://localhost:4173
 http://localhost:4173/live.html
 ```
 
+五路分析邏輯教學頁，零基礎說明監控版與現場版怎麼計算：
+
+```text
+http://localhost:4173/logic.html
+```
+
 ## 公開網路觀看
 
 若要讓 iPhone 或外部網路直接觀看，不需要連同一個 Wi-Fi，可啟動公開 tunnel：
@@ -90,6 +96,12 @@ storage/baijia-public-tunnel.url
 
 ```text
 https://你的公開網址/live.html
+```
+
+公開分析邏輯教學頁：
+
+```text
+https://你的公開網址/logic.html
 ```
 
 ## 24 小時常駐

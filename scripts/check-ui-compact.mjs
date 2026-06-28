@@ -110,7 +110,19 @@ try {
   assertNoOverflow(liveMetrics, "live-mobile");
   await live.screenshot({ path: join(OUT_DIR, "dashboard-live-iphone-health.png"), fullPage: true });
 
-  results.push({ name: "compact-ui", ok: true, afterEight, afterNine, mobile, live: liveMetrics });
+  const logic = await context.newPage();
+  await logic.setViewportSize({ width: 390, height: 844 });
+  await logic.goto(`${BASE_URL}/logic.html?logicSmoke=${Date.now()}`, { waitUntil: "networkidle" });
+  const logicMetrics = await collectLogicMetrics(logic);
+  assert(logicMetrics.hasTitle, "logic page title is missing");
+  assert(logicMetrics.roadCards === 5, `logic road card count is ${logicMetrics.roadCards}`);
+  assert(logicMetrics.sections >= 7, `logic section count is ${logicMetrics.sections}`);
+  assert(logicMetrics.hasCycle, "logic page six-column section is missing");
+  assert(logicMetrics.hasReplay, "logic page replay section is missing");
+  assertNoOverflow(logicMetrics, "logic-mobile");
+  await logic.screenshot({ path: join(OUT_DIR, "dashboard-logic-guide-mobile.png"), fullPage: true });
+
+  results.push({ name: "compact-ui", ok: true, afterEight, afterNine, mobile, live: liveMetrics, logic: logicMetrics });
   await context.close();
 } catch (error) {
   errors.push(error.message || String(error));
@@ -127,7 +139,8 @@ const report = {
   screenshots: [
     "output/playwright/dashboard-compact-ui-health.png",
     "output/playwright/dashboard-compact-ui-health-mobile.png",
-    "output/playwright/dashboard-live-iphone-health.png"
+    "output/playwright/dashboard-live-iphone-health.png",
+    "output/playwright/dashboard-logic-guide-mobile.png"
   ]
 };
 
@@ -159,6 +172,21 @@ async function collectMetrics(page) {
       clientWidth: document.documentElement.clientWidth,
       text: advancedText,
       checkText
+    };
+  });
+}
+
+async function collectLogicMetrics(page) {
+  return page.evaluate(() => {
+    const text = document.body.innerText || "";
+    return {
+      hasTitle: text.includes("珠盤路 / 大路 / 大眼仔 / 小路 / 蟑螂路分析邏輯"),
+      hasCycle: text.includes("6 欄循環"),
+      hasReplay: text.includes("時時刻刻復盤"),
+      roadCards: document.querySelectorAll(".logic-road-grid article").length,
+      sections: document.querySelectorAll(".logic-section").length,
+      scrollWidth: document.documentElement.scrollWidth,
+      clientWidth: document.documentElement.clientWidth
     };
   });
 }
