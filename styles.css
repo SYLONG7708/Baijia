@@ -977,6 +977,11 @@ h1 {
   background: rgba(224, 184, 91, 0.09);
 }
 
+.logic-note a {
+  color: var(--gold);
+  font-weight: 800;
+}
+
 .cycle-board {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));

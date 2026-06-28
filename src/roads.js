@@ -245,11 +245,13 @@ function canStartDerived(point, offset) {
 
 function deriveColor(point, offset, grid, heights) {
   if (point.row === 0) {
-    const left = heights.get(point.col - offset) || 0;
+    const left = heights.get(point.col - 1) || 0;
     const compare = heights.get(point.col - offset - 1) || 0;
     return left === compare ? "red" : "blue";
   }
-  return grid.has(cellKey(point.col - offset, point.row)) ? "red" : "blue";
+  const leftExists = grid.has(cellKey(point.col - offset, point.row));
+  const aboveExists = grid.has(cellKey(point.col - offset, point.row - 1));
+  return leftExists === aboveExists ? "red" : "blue";
 }
 
 function buildDragonRoad(events) {
@@ -381,5 +383,6 @@ module.exports = {
   parseBulkRounds,
   buildRoads,
   buildBigRoad,
+  buildDerivedRoad,
   summarizeBasic
 };

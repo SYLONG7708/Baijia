@@ -46,7 +46,7 @@ function buildRoadBreakdownAnalysis({ inputRounds = [], manualRounds = [], allRo
   }).map((road) => calibrateRoadWithReplay({
     ...road,
     replay: replay.byRoad[road.key] || emptyReplayRoad(road.key, road.label)
-  }));
+  })).map(attachRoadEvidence);
 
   return {
     ok: true,
@@ -100,12 +100,14 @@ function analyzeBead(rounds, source, resultRates, cycleContext) {
   const prediction = mergePredictions(basePrediction, cycle);
   const nonTie = rounds.filter((round) => SIDE_RESULTS.has(round.result));
   const current = currentStreak(nonTie);
+  const trendProfile = classifyDirectTrend(nonTie, counts);
 
   return {
     key: "bead",
     label: "珠盤路",
     prediction,
     cycle,
+    trendProfile,
     trends: [
       trend("莊比例", rate(counts.banker, total), `${counts.banker}/${rounds.length}`),
       trend("閒比例", rate(counts.player, total), `${counts.player}/${rounds.length}`),
@@ -149,12 +151,14 @@ function analyzeBigRoad(rounds, bigRoad, cycleContext) {
 
   const cycle = buildSixColumnCyclePrediction(ROAD_DEFINITIONS[1], cycleContext);
   const prediction = mergePredictions(normalizePrediction({ result, rate: predictionRate, basis }), cycle);
+  const trendProfile = classifyDirectTrend(nonTie, counts, heights);
 
   return {
     key: "bigRoad",
     label: "大路",
     prediction,
     cycle,
+    trendProfile,
     trends: [
       trend("跳路比例", alternationRate, `${countAlternations(nonTie)} 次轉向`),
       trend("連段強度", current.rate, current.side ? `${RESULT_LABELS[current.side]} ${current.length} 連` : "無"),
@@ -195,6 +199,7 @@ function analyzeDerivedRoad(definition, road, askRoad, cycleContext) {
   });
   const cycle = buildSixColumnCyclePrediction(definition, cycleContext);
   const prediction = mergePredictions(basePrediction, cycle);
+  const trendProfile = classifyDerivedTrend(definition, recent, dominantColor, dominantRate, lastColor, colorStreak, bankerAsk, playerAsk, result);
 
   return {
     key: definition.key,
@@ -205,6 +210,7 @@ function analyzeDerivedRoad(definition, road, askRoad, cycleContext) {
       banker: bankerAsk,
       player: playerAsk
     },
+    trendProfile,
     trends: [
       trend("紅路比例", rate(red, Math.max(total, 1)), `${red}/${total}`),
       trend("藍路比例", rate(blue, Math.max(total, 1)), `${blue}/${total}`),
@@ -774,6 +780,112 @@ function calibrateRoadWithReplay(road) {
   };
 }
 
+function attachRoadEvidence(road) {
+  const evidence = buildEvidenceGrade(road);
+  const prediction = road.prediction || {};
+  if (!SIDE_RESULTS.has(prediction.result)) {
+    return { ...road, evidence };
+  }
+  const safeRate = clamp(Number(prediction.rate || 0.5), 0.5, evidence.cap);
+  const capped = safeRate < Number(prediction.rate || 0.5) - 0.0001;
+  return {
+    ...road,
+    evidence,
+    prediction: capped
+      ? normalizePrediction({
+        result: prediction.result,
+        rate: safeRate,
+        basis: `${prediction.basis || ""}${prediction.basis ? "；" : ""}證據${evidence.label}，上限 ${formatPercent(evidence.cap)}`
+      })
+      : prediction
+  };
+}
+
+function buildEvidenceGrade(road) {
+  const cycleSamples = Number(road.cycle?.samples || 0);
+  const manualSamples = Number(road.manualCycle?.samples || 0);
+  const replayChecked = Number(road.replay?.checked || 0);
+  const cycleScore = clamp(Math.log1p(cycleSamples) / Math.log1p(240), 0, 1);
+  const manualScore = clamp(Math.log1p(manualSamples) / Math.log1p(12), 0, 1);
+  const replayScore = clamp(Math.log1p(replayChecked) / Math.log1p(18), 0, 1);
+  const score = clamp(cycleScore * 0.72 + manualScore * 0.1 + replayScore * 0.18, 0, 1);
+  const label = score >= 0.72 ? "高" : score >= 0.38 ? "中" : "低";
+  return {
+    label,
+    score: round(score),
+    cap: round(0.66 + score * 0.26),
+    cycleSamples,
+    manualSamples,
+    replayChecked,
+    read: `證據${label}：資料庫6欄 ${cycleSamples}、輸入6欄 ${manualSamples}、復盤 ${replayChecked}`
+  };
+}
+
+function classifyDirectTrend(rounds = [], counts = countResults(rounds), heights = []) {
+  const nonTie = rounds.filter((round) => SIDE_RESULTS.has(round.result));
+  const current = currentStreak(nonTie);
+  const alternationRate = calcAlternationRate(nonTie);
+  const sequence = nonTie.slice(-8).map((round) => round.result);
+  const totalSides = Math.max(counts.banker + counts.player, 1);
+  const biasSide = counts.banker >= counts.player ? "banker" : "player";
+  const biasRate = Math.max(counts.banker, counts.player) / totalSides;
+  const heightScore = scoreHeights(heights);
+
+  if (current.length >= 4) {
+    return trendProfile("長龍延續", current.side, clamp(0.58 + current.length * 0.045, 0.58, 0.82), `${RESULT_LABELS[current.side]} ${current.length} 連`);
+  }
+  if (alternationRate >= 0.72) {
+    return trendProfile("單跳轉向", oppositeSide(nonTie.at(-1)?.result), clamp(0.56 + (alternationRate - 0.5) * 0.5, 0.56, 0.78), `轉向 ${formatPercent(alternationRate)}`);
+  }
+  if (isDoubleJumpSequence(sequence)) {
+    return trendProfile("雙跳節奏", nonTie.at(-1)?.result, 0.64, "近段呈雙跳");
+  }
+  if (heightScore >= 0.72 && heights.length >= 4) {
+    return trendProfile("欄高穩定", nonTie.at(-1)?.result || "neutral", clamp(heightScore, 0.55, 0.76), heights.join("-"));
+  }
+  if (biasRate >= 0.62) {
+    return trendProfile(`${RESULT_LABELS[biasSide]}偏向`, biasSide, clamp(biasRate, 0.55, 0.74), `${counts.banker}/${counts.player}`);
+  }
+  return trendProfile("混合觀察", "neutral", 0.5, "尚未形成單一節奏");
+}
+
+function classifyDerivedTrend(definition, recent, dominantColor, dominantRate, lastColor, colorStreak, bankerAsk, playerAsk, result) {
+  const askRead = `莊${formatAsk(bankerAsk)} / 閒${formatAsk(playerAsk)}`;
+  if (dominantColor && colorStreak >= 4) {
+    const label = dominantColor === "red" ? "紅路延續" : "藍路轉折";
+    return trendProfile(label, result, clamp(0.55 + colorStreak * 0.04, 0.55, 0.78), `${COLOR_LABELS[dominantColor]} ${colorStreak} 連，${askRead}`);
+  }
+  if (dominantRate >= 0.68) {
+    const label = dominantColor === "red" ? "整齊偏強" : "轉折偏強";
+    return trendProfile(label, result, clamp(dominantRate, 0.55, 0.76), `${definition.label} ${COLOR_LABELS[dominantColor]} ${formatPercent(dominantRate)}`);
+  }
+  if (SIDE_RESULTS.has(result)) {
+    return trendProfile("問路吻合", result, 0.58, askRead);
+  }
+  return trendProfile(recent.length ? "紅藍分歧" : "未成路", "neutral", 0.5, askRead);
+}
+
+function trendProfile(label, result, score, read) {
+  const safeResult = SIDE_RESULTS.has(result) ? result : "neutral";
+  return {
+    label,
+    result: safeResult,
+    resultLabel: RESULT_LABELS[safeResult] || "觀察",
+    score: round(clamp(score, 0, 1)),
+    read: read || ""
+  };
+}
+
+function isDoubleJumpSequence(sequence = []) {
+  const tail = sequence.slice(-6);
+  if (tail.length < 6) return false;
+  for (let index = 0; index < tail.length; index += 2) {
+    if (tail[index] !== tail[index + 1]) return false;
+    if (index >= 2 && tail[index] === tail[index - 2]) return false;
+  }
+  return true;
+}
+
 function buildRecords(roads) {
   return (roads || []).map((road) => ({
     roadKey: road.key,
@@ -795,6 +907,10 @@ function buildRecords(roads) {
     replayHitRate: road.replay?.hitRate || 0.5,
     replayMomentumRate: road.replay?.momentumRate || 0.5,
     replayRead: road.replay?.read || "",
+    evidenceLabel: road.evidence?.label || "低",
+    evidenceScore: road.evidence?.score || 0,
+    evidenceRead: road.evidence?.read || "",
+    trendProfile: road.trendProfile || null,
     topTrend: [...(road.trends || [])].sort((left, right) => Number(right.rate || 0) - Number(left.rate || 0))[0] || null
   }));
 }

@@ -504,6 +504,12 @@ function renderAnalysisRecordList(records = []) {
 
 function compactRecordDetail(record) {
   const parts = [];
+  if (record.trendProfile?.label) {
+    parts.push(`${record.trendProfile.label} ${percent(record.trendProfile.score)}`);
+  }
+  if (record.evidenceLabel) {
+    parts.push(`證據${record.evidenceLabel}`);
+  }
   if (Number.isFinite(Number(record.manualCycleRate))) {
     const sampleText = Number(record.manualCycleSamples || 0) > 0 ? ` / ${Number(record.manualCycleSamples || 0)} 組` : "";
     parts.push(`輸入6欄 ${percent(record.manualCycleRate)}${sampleText}`);

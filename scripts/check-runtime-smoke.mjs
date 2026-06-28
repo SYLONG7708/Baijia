@@ -55,6 +55,8 @@ await checkJson("analyze", "/api/analyze", (json) => {
   assert((json.roadBreakdown?.records || []).every((item) => item.manualCycleResult), "manual input cycle result missing");
   assert((json.roadBreakdown?.roads || []).every((item) => item.manualCycle?.source === "manual-input-only"), "manual cycle is not marked input-only");
   assert((json.roadBreakdown?.roads || []).every((item) => item.replay?.source === "manual-input-replay"), "manual replay stats missing");
+  assert((json.roadBreakdown?.roads || []).every((item) => item.evidence?.label), "evidence grade missing");
+  assert((json.roadBreakdown?.roads || []).every((item) => item.trendProfile?.label), "trend profile missing");
   assert(json.roadBreakdown?.manualReplay?.source === "manual-input-replay", "manual replay summary missing");
   assert(Boolean(json.roadBreakdown?.askRoad?.banker?.bigEyeRoad), "banker ask road missing");
   assert(Boolean(json.roadBreakdown?.askRoad?.player?.cockroachRoad), "player ask road missing");
@@ -71,6 +73,8 @@ await checkJson("analyze-local-only", "/api/analyze", (json) => {
   assert(json.input?.manualLength === 10, "local-only manual length mismatch");
   assert((json.roadBreakdown?.records || []).every((item) => item.manualCycleResult), "local-only manual cycle result missing");
   assert((json.roadBreakdown?.records || []).every((item) => Number.isFinite(Number(item.replayHitRate))), "local-only replay rate missing");
+  assert((json.roadBreakdown?.records || []).every((item) => item.evidenceLabel), "local-only evidence label missing");
+  assert((json.roadBreakdown?.records || []).every((item) => item.trendProfile?.label), "local-only trend profile missing");
   assert(json.roadBreakdown?.manualReplay?.inputLength === 10, "local-only manual replay input length mismatch");
 }, {
   method: "POST",

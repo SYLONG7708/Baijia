@@ -49,6 +49,8 @@ const logic = readFileSync(join(root, "logic.html"), "utf8");
 const app = readFileSync(join(root, "app.js"), "utf8");
 const styles = readFileSync(join(root, "styles.css"), "utf8");
 const server = readFileSync(join(root, "src/server.js"), "utf8");
+const roads = readFileSync(join(root, "src/roads.js"), "utf8");
+const roadBreakdown = readFileSync(join(root, "src/road-breakdown.js"), "utf8");
 const gitignore = readFileSync(join(root, ".gitignore"), "utf8");
 const packageJson = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 
@@ -75,9 +77,13 @@ const checks = [
   [app.includes("makeManualRound"), "manual round special flags"],
   [app.includes("manual-cycle-cell"), "manual cycle renderer"],
   [app.includes("replayHitRate") && app.includes("復盤"), "manual replay renderer"],
+  [app.includes("evidenceLabel") && app.includes("證據"), "evidence renderer"],
   [app.includes("renderResultIcon"), "result icon renderer"],
-  [readFileSync(join(root, "src/road-breakdown.js"), "utf8").includes("buildManualReplayStats"), "manual replay analysis"],
-  [readFileSync(join(root, "src/road-breakdown.js"), "utf8").includes("calibrateRoadWithReplay"), "replay calibrated prediction"],
+  [roadBreakdown.includes("buildManualReplayStats"), "manual replay analysis"],
+  [roadBreakdown.includes("calibrateRoadWithReplay"), "replay calibrated prediction"],
+  [roadBreakdown.includes("attachRoadEvidence"), "evidence calibrated prediction"],
+  [roadBreakdown.includes("classifyDirectTrend") && roadBreakdown.includes("classifyDerivedTrend"), "trend profile analysis"],
+  [roads.includes("point.col - 1") && roads.includes("leftExists === aboveExists"), "formal derived-road color comparison"],
   [styles.includes(".side-flag-btn.active"), "special button active styling"],
   [styles.includes(".logic-road-grid") && styles.includes(".cycle-board"), "logic guide styling"],
   [styles.includes(".analysis-record-row"), "analysis record styling"],
@@ -138,6 +144,31 @@ for (const file of syntaxFiles) {
     console.error(result.stderr || result.stdout);
     process.exit(result.status || 1);
   }
+}
+
+const roadRuleCheck = spawnSync(process.execPath, ["-e", `
+const { buildDerivedRoad } = require("./src/roads");
+const base = [
+  { result: "banker", col: 0, row: 0, roundIndex: 0 },
+  { result: "banker", col: 0, row: 1, roundIndex: 1 },
+  { result: "player", col: 1, row: 0, roundIndex: 2 },
+  { result: "banker", col: 2, row: 0, roundIndex: 3 },
+  { result: "player", col: 3, row: 0, roundIndex: 4 },
+  { result: "banker", col: 4, row: 0, roundIndex: 5 },
+  { result: "banker", col: 4, row: 2, roundIndex: 6 }
+];
+const small = buildDerivedRoad(base, 2, "small").points;
+const cockroach = buildDerivedRoad(base, 3, "cockroach").points;
+const smallNewColumn = small.find((point) => point.sourceCol === 3 && point.sourceRow === 0);
+const smallSameColumn = small.find((point) => point.sourceCol === 4 && point.sourceRow === 2);
+const cockroachNewColumn = cockroach.find((point) => point.sourceCol === 4 && point.sourceRow === 0);
+if (smallNewColumn?.color !== "blue") throw new Error("small-road new-column comparison should be blue");
+if (smallSameColumn?.color !== "red") throw new Error("small-road same-column comparison should be red when both comparison cells match empty");
+if (cockroachNewColumn?.color !== "blue") throw new Error("cockroach-road new-column comparison should be blue");
+`], { encoding: "utf8", cwd: root });
+if (roadRuleCheck.status !== 0) {
+  console.error(roadRuleCheck.stderr || roadRuleCheck.stdout);
+  process.exit(roadRuleCheck.status || 1);
 }
 
 if (process.platform === "win32") {
