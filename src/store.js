@@ -3,6 +3,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { normalizeRound, parseBulkRounds } = require("./roads");
+const { compareChronologicalRounds } = require("./round-sequences");
 
 const ROOT = path.resolve(__dirname, "..");
 const DATA_DIR = process.env.BAIJIA_DATA_DIR || path.join(ROOT, "data");
@@ -289,6 +290,10 @@ function readAnalysisSnapshot() {
       && String(version.analysisVersion) !== String(payload.analysisVersion)
     ) {
       return null;
+    }
+    if (!payload.__chronologicalRounds) {
+      payload.rounds = [...(payload.rounds || [])].sort(compareRounds);
+      Object.defineProperty(payload, "__chronologicalRounds", { value: true });
     }
     analysisSnapshotCache = { key, value: payload };
     return payload;
@@ -1227,12 +1232,7 @@ function exportCsv() {
 }
 
 function compareRounds(a, b) {
-  const shoeCompare = String(a.shoe || "").localeCompare(String(b.shoe || ""));
-  if (a.tableId === b.tableId && shoeCompare !== 0) return shoeCompare;
-  const handA = Number(a.handNumber || 0);
-  const handB = Number(b.handNumber || 0);
-  if (a.tableId === b.tableId && handA !== handB) return handA - handB;
-  return String(a.observedAt || a.createdAt || "").localeCompare(String(b.observedAt || b.createdAt || ""));
+  return compareChronologicalRounds(a, b);
 }
 
 function latestRoundAt(rounds) {

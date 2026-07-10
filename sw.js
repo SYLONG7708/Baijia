@@ -1,4 +1,4 @@
-const CACHE_NAME = "baijia-monitor-v18-20260710-ensemble-calibrated";
+const CACHE_NAME = "baijia-monitor-v19-20260711-trend-repair";
 const ASSETS = [
   "./",
   "./index.html",

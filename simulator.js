@@ -20,7 +20,7 @@ const ladders = {
   double: [1, 2, 4, 8, 16]
 };
 
-const storageKey = "baijia-advisor-v5-ensemble-calibrated";
+const storageKey = "baijia-advisor-v6-trend-repair";
 const legacyStorageKeys = ["baijia-simulator-v1", "baijia-advisor-v2", "baijia-advisor-v3-no-switch"];
 const windowSize = 8;
 const apiTimeoutMs = 15_000;
@@ -384,7 +384,7 @@ function pickBetDecision(analysis) {
           rate: Number(forced.rate || 0),
           source: forced.qualityPassed
             ? `品質通過 · ${forced.source || "quality-gate"}`
-            : `每局方向估計 · ${forced.source || "online-ensemble"}`,
+            : `路型趨勢 · ${forced.trendSource || directionModeLabel(forced.mode)}`,
           conservativeNote: buildForcedDecisionNote(forced),
           fiveStep: forced.risk || null,
           sourceType: forced.qualityPassed ? "quality-gate" : "always-direction-estimate"
@@ -426,7 +426,13 @@ function pickBetDecision(analysis) {
 function buildForcedDecisionNote(forced) {
   const risk = forced?.risk || null;
   const notes = [forced?.read || "每把方向"];
-  notes.push(`含佣金期望 ${formatSignedRate(forced?.expectedValue || 0)}`);
+  notes.push(`綜合方向EV ${formatSignedRate(forced?.expectedValue || 0)}`);
+  if (forced?.probabilityResult) {
+    notes.push(`AI機率 ${labels[forced.probabilityResult] || "-"}${formatRate(forced.probabilityRate || 0.5)}`);
+  }
+  if (forced?.economicResult) {
+    notes.push(`佣金EV較優 ${labels[forced.economicResult] || "-"}${formatSignedRate(forced.economicExpectedValue || 0)}`);
+  }
   if (!forced?.qualityPassed) notes.push("未通過樣本外品質門檻");
   if (risk?.samples) {
     notes.push(`5注 完成${formatRate(risk.completionRate)} / 自然${formatRate(risk.baselineCompletionRate)} / 超額${formatSignedRate(risk.completionLift)} / ${Number(risk.samples || 0)}樣本`);
@@ -470,10 +476,22 @@ function buildAdvisorConservativeNote(analysis) {
 function buildEnsembleNote(ensemble) {
   if (!ensemble) return "";
   const validation = ensemble.validation || {};
-  const direction = ensemble.directional || {};
+  const direction = ensemble.probabilityDirection || ensemble.directional || {};
+  const economic = ensemble.economicPreference || direction;
   const quality = validation.approved ? "通過" : "未通過";
   const drift = ensemble.drift?.detected ? " / 漂移降權" : "";
-  return `集成${quality} ${direction.label || "-"}${formatRate(direction.rate || 0.5)} / EV${formatSignedRate(direction.expectedValue || 0)} / Brier lift ${Number(validation.pairedBrierLift || 0).toFixed(5)}${drift}`;
+  return `AI${quality} 機率${direction.label || "-"}${formatRate(direction.rate || 0.5)} / EV較優${economic.label || "-"}${formatSignedRate(economic.expectedValue || 0)} / Brier lift ${Number(validation.pairedBrierLift || 0).toFixed(5)}${drift}`;
+}
+
+function directionModeLabel(mode) {
+  const labelsByMode = {
+    quality: "品質通過",
+    "validated-ensemble": "驗證 AI",
+    "trend-ai-agree": "五路與 AI 同向",
+    "trend-composite": "五路投票趨勢",
+    "probability-baseline": "機率基準"
+  };
+  return labelsByMode[mode] || "路型綜合";
 }
 
 function buildFiveStepNote(fiveStep) {

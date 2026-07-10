@@ -2,6 +2,7 @@
 
 const { wilsonLowerBound } = require("./accuracy-metrics");
 const { normalizeRound } = require("./roads");
+const { groupRoundSequences } = require("./round-sequences");
 
 const SIDE_RESULTS = new Set(["banker", "player"]);
 const BASE_BANKER_RATE = 0.5068;
@@ -81,9 +82,13 @@ function buildEnsembleBrain({
   const spread = weightedSpread(predictions, model.weights, rawBankerRate);
   const uncertainty = clamp(spread + 0.5 / Math.sqrt(Math.max(25, validation.checks)), 0.015, 0.18);
   const economics = buildEconomics(bankerRate, uncertainty);
-  const directional = economics.banker.expectedValue >= economics.player.expectedValue
+  const probabilityDirection = bankerRate >= 0.5
     ? buildDirection("banker", bankerRate, economics.banker)
     : buildDirection("player", 1 - bankerRate, economics.player);
+  const economicPreference = economics.banker.expectedValue >= economics.player.expectedValue
+    ? buildDirection("banker", bankerRate, economics.banker)
+    : buildDirection("player", 1 - bankerRate, economics.player);
+  const directional = probabilityDirection;
   const action = validation.approved
     && !drift.detected
     && directional.conservativeExpectedValue >= MIN_CURRENT_EV
@@ -96,7 +101,7 @@ function buildEnsembleBrain({
   return {
     ok: true,
     source: "leakage-safe-online-ensemble",
-    modelVersion: "ensemble-v1",
+    modelVersion: "ensemble-v2",
     action,
     result: action === "advise" ? directional.result : "neutral",
     label: action === "advise" ? directional.label : "觀察",
@@ -108,6 +113,8 @@ function buildEnsembleBrain({
     shrinkage: round(shrinkage),
     uncertainty: round(uncertainty),
     directional,
+    probabilityDirection,
+    economicPreference,
     economics,
     validation,
     drift,
@@ -141,13 +148,7 @@ function buildTrainingEvents(historyGroups, allRounds, maxTrainingRounds) {
 }
 
 function groupRounds(rounds) {
-  const groups = new Map();
-  for (const round of Array.isArray(rounds) ? rounds : []) {
-    const key = `${round?.tableId || "table"}::${round?.shoe || "shoe"}`;
-    if (!groups.has(key)) groups.set(key, { key, tableId: round?.tableId || "", rounds: [] });
-    groups.get(key).rounds.push(round);
-  }
-  return [...groups.values()];
+  return groupRoundSequences(rounds, { minimumLength: 1 });
 }
 
 function normalizeTrainingRound(round, groupKey, groupIndex, fallbackOrder) {

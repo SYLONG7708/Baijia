@@ -433,7 +433,7 @@ function buildPendingPrediction(analysis, basisKey) {
         rate: forced.rate,
         source: forced.qualityPassed
           ? `品質通過 · ${forced.source || "quality-gate"}`
-          : `每局方向估計 · ${forced.source || "online-ensemble"}`,
+          : `路型趨勢 · ${forced.trendSource || directionModeLabel(forced.mode)}`,
         basisKey
       };
     }
@@ -526,7 +526,7 @@ function renderAnalysis() {
   }
 
   const top = getDisplayPrediction(analysis);
-  els.nextResult.textContent = `${top.label || "-"} ${percent(top.rate)}`;
+  els.nextResult.textContent = `${top.label || "-"}${top.metricLabel ? ` · ${top.metricLabel}` : ""} ${percent(top.rate)}`;
   els.nextDescription.textContent = renderDecisionSummaryText(analysis);
   els.sidePrediction.innerHTML = renderProbabilityList(analysis.fullRates || []);
   if (els.advancedAnalysis) {
@@ -544,14 +544,15 @@ function getDisplayPrediction(analysis) {
   const profile = analysis?.decisionProfile;
   if (profile) {
     if (profile.action === "advise" && ["banker", "player"].includes(profile.result)) {
-      return profile;
+      return { ...profile, metricLabel: "品質通過" };
     }
     const forced = profile.forced || null;
     if (forced && ["banker", "player"].includes(forced.result)) {
       return {
         result: forced.result,
         label: forced.label || labels[forced.result],
-        rate: forced.rate || 0.5
+        rate: forced.rate || 0.5,
+        metricLabel: "趨勢強度"
       };
     }
     return {
@@ -569,8 +570,12 @@ function renderDecisionSummaryText(analysis) {
   const runtimeText = renderRuntimeText(analysis?.runtime);
   const profile = analysis?.decisionProfile;
   if (!profile) return runtimeText;
-  const forcedText = profile.action === "advise" ? "品質通過" : profile.forced ? "僅方向估計" : "觀察";
-  return `${runtimeText} · ${forcedText} · ${profile.levelLabel || "-"} ${percent(profile.score)}`;
+  const forcedText = profile.action === "advise"
+    ? "品質通過"
+    : profile.forced
+      ? directionModeLabel(profile.forced.mode)
+      : "觀察";
+  return `${runtimeText} · ${forcedText} · 趨勢強度非命中保證 · ${profile.levelLabel || "-"} ${percent(profile.score)}`;
 }
 
 function renderRuntimeText(runtime) {
@@ -626,33 +631,52 @@ function renderDecisionProfile(profile) {
   const action = profile.action === "advise" ? "品質通過" : "未證明優勢";
   const forced = profile.forced || null;
   const selected = profile.selected || {};
+  const trend = profile.trend || selected;
   const ensemble = profile.ensemble || null;
   const validation = ensemble?.validation || null;
-  const direction = ensemble?.directional || forced || null;
+  const probability = ensemble?.probabilityDirection || ensemble?.directional || null;
+  const economic = ensemble?.economicPreference || null;
+  const headline = profile.action === "advise" ? profile : forced || profile;
+  const note = [forced?.read, profile.read || selected.label].filter(Boolean).join(" ");
   return `
     <article class="advanced-panel decision-profile-panel">
       <div class="advanced-header">
         <span>決策品質</span>
-        <strong>${escapeHtml(action)} ${renderResultIcon(profile.result, profile.label)} ${percent(profile.score)}</strong>
+        <strong>${escapeHtml(action)} ${renderResultIcon(headline.result, headline.label)} ${percent(headline.rate || profile.score)}</strong>
       </div>
       <div class="decision-quality-grid">
         <div><span>等級</span><b>${escapeHtml(profile.levelLabel || "-")}</b></div>
         ${profile.adaptive?.profile ? `<div><span>策略腦</span><b>${escapeHtml(profile.adaptive.profile.label || profile.adaptive.profile.key || "-")}</b></div>` : ""}
         <div><span>一致度</span><b>${percent(profile.agreement)}</b></div>
-        ${forced ? `<div><span>每局方向估計</span><b>${renderResultIcon(forced.result, forced.label)} ${percent(forced.rate)}</b></div>` : ""}
-        ${direction ? `<div><span>含佣金期望</span><b>${formatSignedPct(direction.expectedValue || 0)}</b></div>` : ""}
+        ${forced ? `<div><span>綜合方向</span><b>${renderResultIcon(forced.result, forced.label)} ${percent(forced.rate)} · ${escapeHtml(directionModeLabel(forced.mode))}</b></div>` : ""}
+        ${trend?.result ? `<div><span>路型主訊號</span><b>${renderResultIcon(trend.result, trend.resultLabel || trend.label)} ${percent(trend.rate)} · ${escapeHtml(trend.label || trend.trendSource || "五路投票")}</b></div>` : ""}
+        ${probability ? `<div><span>AI最高機率</span><b>${renderResultIcon(probability.result, probability.label)} ${percent(probability.rate)}</b></div>` : ""}
+        ${economic ? `<div><span>佣金 EV 較優</span><b>${renderResultIcon(economic.result, economic.label)} ${formatSignedPct(economic.expectedValue || 0)}</b></div>` : ""}
+        ${forced ? `<div><span>綜合方向 EV</span><b>${formatSignedPct(forced.expectedValue || 0)}</b></div>` : ""}
         ${validation ? `<div><span>樣本外驗證</span><b>${validation.approved ? "通過" : "未通過"} · ${Number(validation.checks || 0).toLocaleString("zh-TW")} 局</b></div>` : ""}
         ${validation ? `<div><span>Brier lift</span><b>${formatSignedNumber(validation.pairedBrierLift)} / 下限 ${formatSignedNumber(validation.pairedBrierLiftLower)}</b></div>` : ""}
         ${ensemble?.dominantExpert ? `<div><span>主導專家</span><b>${escapeHtml(ensemble.dominantExpert.label || ensemble.dominantExpert.key || "-")} ${percent(ensemble.dominantExpert.weight)}</b></div>` : ""}
+        ${ensemble?.regime ? `<div><span>目前規律</span><b>${escapeHtml(ensemble.regime.label || "-")} · 連續 ${Number(ensemble.regime.streak || 0)}</b></div>` : ""}
         ${ensemble?.drift ? `<div><span>模型漂移</span><b>${ensemble.drift.detected ? "已降權" : "未偵測"}</b></div>` : ""}
         <div><span>數據</span><b>${escapeHtml(compactDisplayText(profile.sample?.read || "-"))}</b></div>
         <div><span>證據</span><b>${escapeHtml(profile.evidence?.read || "-")}</b></div>
         ${profile.fiveStep?.available ? `<div><span>5注對照</span><b>${percent(profile.fiveStep.completionRate)} / 自然 ${percent(profile.fiveStep.baselineCompletionRate)} / 超額 ${formatSignedPct(profile.fiveStep.completionLift)}</b></div>` : ""}
         ${profile.evidence?.calibration ? `<div><span>保守下限</span><b>${percent(profile.evidence.calibration.nonTieWilsonLower)} / ${formatSignedPct(profile.evidence.calibration.lowerEdgeVsBaseline)}</b></div>` : ""}
       </div>
-      <p class="advanced-note">${escapeHtml(compactDisplayText(profile.read || selected.label || "-"))}</p>
+      <p class="advanced-note">${escapeHtml(compactDisplayText(note || "-"))}</p>
     </article>
   `;
+}
+
+function directionModeLabel(mode) {
+  const labelsByMode = {
+    quality: "品質通過",
+    "validated-ensemble": "驗證 AI",
+    "trend-ai-agree": "五路與 AI 同向",
+    "trend-composite": "五路投票趨勢",
+    "probability-baseline": "機率基準"
+  };
+  return labelsByMode[mode] || "路型綜合";
 }
 
 function formatSignedNumber(value) {

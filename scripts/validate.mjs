@@ -78,6 +78,7 @@ const adaptiveBrain = readFileSync(join(root, "src/adaptive-brain.js"), "utf8");
 const accuracyMetrics = readFileSync(join(root, "src/accuracy-metrics.js"), "utf8");
 const fiveStepRisk = readFileSync(join(root, "src/five-step-risk.js"), "utf8");
 const ensembleBrain = readFileSync(join(root, "src/ensemble-brain.js"), "utf8");
+const roundSequences = readFileSync(join(root, "src/round-sequences.js"), "utf8");
 const cardModel = readFileSync(join(root, "src/card-model.js"), "utf8");
 const roadBreakdown = readFileSync(join(root, "src/road-breakdown.js"), "utf8");
 const backtest = readFileSync(join(root, "src/backtest.js"), "utf8");
@@ -139,6 +140,9 @@ const checks = [
   [accuracyMetrics.includes("wilsonLowerBound") && accuracyMetrics.includes("selectionScore") && accuracyMetrics.includes("lowerEdgeVsBaseline"), "conservative accuracy metrics"],
   [fiveStepRisk.includes("buildFiveStepRisk") && fiveStepRisk.includes("evaluateFiveStepOutcome") && fiveStepRisk.includes("completionWilsonLower"), "five-step risk gate"],
   [ensembleBrain.includes("buildEnsembleBrain") && ensembleBrain.includes("prequential-walk-forward") && ensembleBrain.includes("pairedBrierLiftLower"), "leakage-safe online ensemble"],
+  [ensembleBrain.includes("probabilityDirection") && ensembleBrain.includes("economicPreference"), "separate probability and commission directions"],
+  [roundSequences.includes("groupRoundSequences") && roundSequences.includes("startsNewInferredSession"), "chronological inferred shoe sessions"],
+  [decisionProfile.includes("trend-composite") && decisionProfile.includes("trendResult") && decisionProfile.includes("probabilityResult"), "trend-first unvalidated direction"],
   [fiveStepRisk.includes("fiveStepNaturalBaseline") && fiveStepRisk.includes("completionLowerLift"), "five-step natural baseline comparison"],
   [decisionProfile.includes("buildDecisionProfile") && decisionProfile.includes("decision-quality-gate") && decisionProfile.includes("observe"), "decision quality gate"],
   [adaptiveBrain.includes("buildAdaptiveBrain") && adaptiveBrain.includes("adaptive-strategy-brain") && adaptiveBrain.includes("recentMaxConsecutiveFailures"), "adaptive strategy brain and consecutive five-step guard"],

@@ -6,6 +6,7 @@ const { buildDecisionProfile } = require("./decision-profile");
 const { compareOutcomeStats, enrichOutcomeStat, THEORETICAL_BANKER_RATE } = require("./accuracy-metrics");
 const { evaluateFiveStepOutcome, fiveStepNaturalBaseline } = require("./five-step-risk");
 const { RESULT_LABELS, normalizeRound } = require("./roads");
+const { compareChronologicalRounds, groupRoundSequences } = require("./round-sequences");
 
 const RESULT_KEYS = ["banker", "player", "tie"];
 const SIDE_KEYS = ["banker", "player"];
@@ -150,15 +151,11 @@ function normalizeBacktestRound(round) {
 }
 
 function buildCandidates(rounds, windowSize) {
-  const groups = new Map();
-  for (const round of rounds) {
-    const key = round.shoe || "shoe";
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(round);
-  }
   const candidates = [];
-  for (const [shoe, shoeRounds] of groups.entries()) {
-    const sorted = [...shoeRounds].sort(compareRounds);
+  const groups = groupRoundSequences(rounds, { minimumLength: windowSize + 1 });
+  for (const group of groups) {
+    const shoe = group.shoe || group.key;
+    const sorted = group.rounds;
     for (let index = windowSize; index < sorted.length; index += 1) {
       candidates.push({
         shoe,
@@ -672,15 +669,7 @@ function stripInternalFields(round) {
 }
 
 function compareRounds(a, b) {
-  if (a.tableId === b.tableId && a.shoe === b.shoe) {
-    const handA = Number(a.handNumber || 0);
-    const handB = Number(b.handNumber || 0);
-    if (handA !== handB) return handA - handB;
-  }
-  const timeA = Date.parse(a.observedAt || a.createdAt || "");
-  const timeB = Date.parse(b.observedAt || b.createdAt || "");
-  if (Number.isFinite(timeA) && Number.isFinite(timeB) && timeA !== timeB) return timeA - timeB;
-  return String(a.id || "").localeCompare(String(b.id || ""));
+  return compareChronologicalRounds(a, b);
 }
 
 function round(value, digits = 4) {

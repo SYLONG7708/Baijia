@@ -83,5 +83,34 @@ test("ensemble refuses a quality claim without validation data", () => {
   assert.equal(result.action, "observe");
   assert.equal(result.validation.approved, false);
   assert.ok(["banker", "player"].includes(result.directional.result));
+  assert.ok(result.directional.rate >= 0.5);
+  assert.equal(result.directional.result, result.bankerRate >= 0.5 ? "banker" : "player");
   assert.ok(result.directional.expectedValue < 0);
+});
+
+test("probability direction is not replaced by the less-negative commission EV side", () => {
+  let state = 2;
+  const startedAt = Date.parse("2026-01-01T00:00:00Z");
+  const rounds = Array.from({ length: 700 }, (_, index) => {
+    state = (state * 1664525 + 1013904223) >>> 0;
+    return {
+      tableId: "T1",
+      shoe: `S${Math.floor(index / 70)}`,
+      handNumber: index % 70 + 1,
+      result: state / 2 ** 32 < 0.5 ? "banker" : "player",
+      observedAt: new Date(startedAt + index * 1000).toISOString()
+    };
+  });
+
+  const result = buildEnsembleBrain({
+    inputRounds: rounds.slice(-8),
+    allRounds: rounds,
+    tableId: "T1"
+  });
+
+  assert.ok(result.bankerRate >= 0.5 && result.bankerRate < 0.506329);
+  assert.equal(result.probabilityDirection.result, "banker");
+  assert.equal(result.directional.result, "banker");
+  assert.equal(result.economicPreference.result, "player");
+  assert.ok(result.directional.rate >= 0.5);
 });

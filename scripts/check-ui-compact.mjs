@@ -146,7 +146,29 @@ try {
   assertNoOverflow(logicMetrics, "logic-mobile");
   await logic.screenshot({ path: join(OUT_DIR, "dashboard-logic-guide-mobile.png"), fullPage: true });
 
-  results.push({ name: "compact-ui", ok: true, afterEight, afterNine, mobile, live: liveMetrics, logic: logicMetrics });
+  const advisor = await context.newPage();
+  advisor.on("console", (message) => {
+    if (message.type() === "error") errors.push(`advisor console: ${message.text()}`);
+  });
+  advisor.on("pageerror", (error) => errors.push(`advisor pageerror: ${error.message}`));
+  await advisor.setViewportSize({ width: 390, height: 844 });
+  await advisor.goto(`${BASE_URL}/simulator.html?advisorSmoke=${Date.now()}`, { waitUntil: "networkidle" });
+  for (const result of SEQUENCE) {
+    await advisor.click(`[data-manual-result="${result}"]`);
+  }
+  await advisor.waitForFunction(() => {
+    const text = document.querySelector("#manualAdvice")?.textContent || "";
+    return text && !text.includes("等待") && text !== "分析中";
+  }, null, { timeout: 30000 });
+  const advisorMetrics = await collectAdvisorMetrics(advisor);
+  assert(advisorMetrics.sequenceCount === 8, `advisor sequence count is ${advisorMetrics.sequenceCount}`);
+  assert(/[莊閒]/.test(advisorMetrics.advice), "advisor direction is missing");
+  assert(/路型趨勢|品質通過/.test(advisorMetrics.meta), "advisor is not using the trend/quality source");
+  assert(!advisorMetrics.meta.includes("online-ensemble"), "advisor exposes the old ensemble-only source");
+  assertNoOverflow(advisorMetrics, "advisor-mobile");
+  await advisor.screenshot({ path: join(OUT_DIR, "advisor-trend-health-mobile.png"), fullPage: true });
+
+  results.push({ name: "compact-ui", ok: true, afterEight, afterNine, mobile, live: liveMetrics, logic: logicMetrics, advisor: advisorMetrics });
   await context.close();
 } catch (error) {
   errors.push(error.message || String(error));
@@ -164,7 +186,8 @@ const report = {
     "output/playwright/dashboard-compact-ui-health.png",
     "output/playwright/dashboard-compact-ui-health-mobile.png",
     "output/playwright/dashboard-live-iphone-health.png",
-    "output/playwright/dashboard-logic-guide-mobile.png"
+    "output/playwright/dashboard-logic-guide-mobile.png",
+    "output/playwright/advisor-trend-health-mobile.png"
   ]
 };
 
@@ -226,6 +249,16 @@ async function collectLogicMetrics(page) {
       clientWidth: document.documentElement.clientWidth
     };
   });
+}
+
+async function collectAdvisorMetrics(page) {
+  return page.evaluate(() => ({
+    advice: document.querySelector("#manualAdvice")?.textContent || "",
+    meta: document.querySelector("#manualAdviceMeta")?.textContent || "",
+    sequenceCount: document.querySelectorAll("#manualSequence .sequence-chip").length,
+    scrollWidth: document.documentElement.scrollWidth,
+    clientWidth: document.documentElement.clientWidth
+  }));
 }
 
 function assert(condition, message) {

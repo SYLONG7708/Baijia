@@ -233,12 +233,20 @@ async function postAnalyzeOnce(name, body, startedAt, attempt, firstError = "") 
         rate: Number(json.decisionProfile.rate || 0),
         score: Number(json.decisionProfile.score || 0),
         level: json.decisionProfile.level || "",
-        agreement: Number(json.decisionProfile.agreement || 0)
+        agreement: Number(json.decisionProfile.agreement || 0),
+        forced: json.decisionProfile.forced ? {
+          result: json.decisionProfile.forced.result || "",
+          rate: Number(json.decisionProfile.forced.rate || 0),
+          mode: json.decisionProfile.forced.mode || "",
+          trend: json.decisionProfile.forced.trendResult || "",
+          probability: json.decisionProfile.forced.probabilityResult || ""
+        } : null
       } : null,
       ensemble: json.ensembleBrain ? {
         action: json.ensembleBrain.action || "",
-        direction: json.ensembleBrain.directional?.result || "",
-        rate: Number(json.ensembleBrain.directional?.rate || 0),
+        direction: (json.ensembleBrain.probabilityDirection || json.ensembleBrain.directional)?.result || "",
+        rate: Number((json.ensembleBrain.probabilityDirection || json.ensembleBrain.directional)?.rate || 0),
+        economicPreference: json.ensembleBrain.economicPreference?.result || "",
         validationChecks: Number(json.ensembleBrain.validation?.checks || 0),
         validationApproved: Boolean(json.ensembleBrain.validation?.approved),
         brierSkill: Number(json.ensembleBrain.validation?.brierSkill || 0),
@@ -290,6 +298,11 @@ function validateAnalysis(json = {}) {
   if (json.ensembleBrain?.source !== "leakage-safe-online-ensemble") return "online ensemble is missing";
   if (json.ensembleBrain?.validation?.leakageSafe !== true) return "ensemble leakage-safe validation is missing";
   if (!json.ensembleBrain?.directional?.result) return "ensemble every-hand direction is missing";
+  if (Number(json.ensembleBrain?.directional?.rate || 0) < 0.5) return "ensemble direction is below 50 percent";
+  if (json.ensembleBrain?.probabilityDirection?.result !== json.ensembleBrain?.directional?.result) return "ensemble probability direction is inconsistent";
+  if (!json.ensembleBrain?.economicPreference?.result) return "ensemble economic preference is missing";
+  if (!json.decisionProfile?.forced?.trendResult) return "composite trend direction is missing";
+  if (!json.decisionProfile?.forced?.probabilityResult) return "composite AI probability direction is missing";
   if ((json.ensembleBrain?.experts || []).length !== 18) return "ensemble expert set is incomplete";
   if (!Number.isFinite(Number(json.fiveStepRisk?.baselineCompletionRate))) return "five-step natural baseline is missing";
   if (json.cardModel?.usable !== true) return "eight-deck card model is not active";

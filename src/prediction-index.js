@@ -1,6 +1,7 @@
 "use strict";
 
 const { normalizeRound } = require("./roads");
+const { compareChronologicalRounds, groupRoundSequences } = require("./round-sequences");
 
 const RESULT_KEYS = ["banker", "player", "tie"];
 const MIN_NGRAM = Number(process.env.BAIJIA_NGRAM_MIN || 3);
@@ -18,7 +19,7 @@ function buildPredictionIndex(rounds = [], options = {}) {
   const normalized = rounds
     .map(normalizeIndexRound)
     .filter(Boolean)
-    .sort(compareRounds);
+    .sort(compareChronologicalRounds);
   const histories = groupHistories(normalized);
   const byLength = new Map();
 
@@ -74,26 +75,7 @@ function normalizeIndexRound(round) {
 }
 
 function groupHistories(rounds) {
-  const groups = new Map();
-  for (const round of rounds) {
-    const key = `${round.tableId || "unknown"}::${round.shoe || "shoe"}`;
-    if (!groups.has(key)) {
-      groups.set(key, {
-        key,
-        tableId: round.tableId || "",
-        tableCode: round.tableCode || "",
-        tableName: round.tableName || "",
-        rounds: []
-      });
-    }
-    groups.get(key).rounds.push(round);
-  }
-  return [...groups.values()]
-    .map((group) => ({
-      ...group,
-      rounds: group.rounds.sort(compareRounds)
-    }))
-    .filter((group) => group.rounds.length >= 2);
+  return groupRoundSequences(rounds, { minimumLength: 2 });
 }
 
 function createSummary(length) {
@@ -136,18 +118,6 @@ function encodeResults(items = []) {
     return RESULT_TOKENS[result] || "";
   });
   return values.every(Boolean) ? values.join("") : "";
-}
-
-function compareRounds(a, b) {
-  if (a.tableId === b.tableId && a.shoe === b.shoe) {
-    const handA = Number(a.handNumber || 0);
-    const handB = Number(b.handNumber || 0);
-    if (handA !== handB) return handA - handB;
-  }
-  const timeA = Date.parse(a.observedAt || a.createdAt || "");
-  const timeB = Date.parse(b.observedAt || b.createdAt || "");
-  if (Number.isFinite(timeA) && Number.isFinite(timeB) && timeA !== timeB) return timeA - timeB;
-  return String(a.id || "").localeCompare(String(b.id || ""));
 }
 
 function clampInteger(value, fallback, min, max) {

@@ -1,6 +1,7 @@
 "use strict";
 
 const { normalizeRound } = require("./roads");
+const { compareChronologicalRounds } = require("./round-sequences");
 
 const DIRECTIONAL_RESULTS = new Set(["banker", "player"]);
 const RESULT_LABELS = {
@@ -366,13 +367,7 @@ function resultChar(roundItem) {
 }
 
 function compareRounds(a, b) {
-  const timeA = Date.parse(a.observedAt || a.createdAt || "");
-  const timeB = Date.parse(b.observedAt || b.createdAt || "");
-  if (Number.isFinite(timeA) && Number.isFinite(timeB) && timeA !== timeB) return timeA - timeB;
-  const handA = Number(a.handNumber || 0);
-  const handB = Number(b.handNumber || 0);
-  if (a.tableId === b.tableId && handA !== handB) return handA - handB;
-  return String(a.id || "").localeCompare(String(b.id || ""));
+  return compareChronologicalRounds(a, b);
 }
 
 function normalizeTableCode(value) {

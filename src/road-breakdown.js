@@ -1,6 +1,7 @@
 "use strict";
 
 const { normalizeRound, buildRoads } = require("./roads");
+const { groupRoundSequences } = require("./round-sequences");
 
 const SIDE_RESULTS = new Set(["banker", "player"]);
 const RESULT_LABELS = {
@@ -599,25 +600,7 @@ function normalizeBreakdownRound(round) {
 }
 
 function groupHistories(rounds) {
-  const groups = new Map();
-  for (const roundItem of rounds) {
-    const key = `${roundItem.tableId || roundItem.tableCode || "unknown"}::${roundItem.shoe || "shoe"}`;
-    if (!groups.has(key)) {
-      groups.set(key, {
-        tableId: roundItem.tableId || "",
-        tableCode: roundItem.tableCode || "",
-        tableName: roundItem.tableName || "",
-        rounds: []
-      });
-    }
-    groups.get(key).rounds.push(roundItem);
-  }
-  return [...groups.values()]
-    .map((group) => ({
-      ...group,
-      rounds: group.rounds.sort(compareRounds)
-    }))
-    .filter((group) => group.rounds.length >= 12);
+  return groupRoundSequences(rounds, { minimumLength: 12 });
 }
 
 function normalizeHistoryGroups(groups = []) {
@@ -1178,18 +1161,6 @@ function lastPointForRound(points, roundIndex) {
 
 function oppositeSide(side) {
   return side === "banker" ? "player" : "banker";
-}
-
-function compareRounds(a, b) {
-  const handA = Number(a.handNumber || 0);
-  const handB = Number(b.handNumber || 0);
-  if ((a.tableId || a.tableCode) === (b.tableId || b.tableCode) && a.shoe === b.shoe && handA !== handB) {
-    return handA - handB;
-  }
-  const timeA = Date.parse(a.observedAt || a.createdAt || "");
-  const timeB = Date.parse(b.observedAt || b.createdAt || "");
-  if (Number.isFinite(timeA) && Number.isFinite(timeB) && timeA !== timeB) return timeA - timeB;
-  return String(a.id || "").localeCompare(String(b.id || ""));
 }
 
 function normalizeTableCode(value) {

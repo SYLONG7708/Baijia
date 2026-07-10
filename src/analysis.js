@@ -8,6 +8,7 @@ const { buildPredictionIndex, queryPredictionIndex } = require("./prediction-ind
 const { buildDecisionProfile } = require("./decision-profile");
 const { buildFiveStepRisk } = require("./five-step-risk");
 const { buildEnsembleBrain } = require("./ensemble-brain");
+const { groupRoundSequences } = require("./round-sequences");
 
 const BASE_REFERENCE = {
   banker: 0.5068,
@@ -65,9 +66,10 @@ function analyzePattern({ sequence, manualSequence = [], rounds = [], tableId = 
     allRounds,
     tableId
   });
-  const fiveStepTarget = ensembleBrain?.directional?.result
+  const fiveStepTarget = (ensembleBrain?.validation?.approved ? ensembleBrain?.directional?.result : "")
     || roadBreakdown?.overall?.preferred?.result
     || roadBreakdown?.overall?.recommended?.result
+    || ensembleBrain?.directional?.result
     || topResult.result;
   const fiveStepRisk = buildFiveStepRisk({
     inputRounds: effectiveManualRounds,
@@ -159,28 +161,7 @@ function normalizeAnalysisRound(round) {
 }
 
 function groupHistoryObjects(rounds) {
-  const groups = new Map();
-  for (const round of rounds) {
-    const key = `${round.tableId || "unknown"}::${round.shoe || "shoe"}`;
-    if (!groups.has(key)) {
-      groups.set(key, {
-        tableId: round.tableId || "",
-        tableCode: round.tableCode || "",
-        tableName: round.tableName || "",
-        rounds: []
-      });
-    }
-    const group = groups.get(key);
-    if (!group.tableCode && round.tableCode) group.tableCode = round.tableCode;
-    if (!group.tableName && round.tableName) group.tableName = round.tableName;
-    group.rounds.push(round);
-  }
-  return [...groups.values()]
-    .map((group) => ({
-      ...group,
-      rounds: group.rounds.sort(compareRounds)
-    }))
-    .filter((group) => group.rounds.length >= 2);
+  return groupRoundSequences(rounds, { minimumLength: 2 });
 }
 
 function collectMatches(histories, pattern, length) {
@@ -518,13 +499,6 @@ function isSlope(values) {
 function isOneTwoPattern(values) {
   const tail = values.slice(-4);
   return tail.every((value) => value === 1 || value === 2) && new Set(tail).size === 2;
-}
-
-function compareRounds(a, b) {
-  const handA = Number(a.handNumber || 0);
-  const handB = Number(b.handNumber || 0);
-  if (a.tableId === b.tableId && a.shoe === b.shoe && handA !== handB) return handA - handB;
-  return String(a.observedAt || a.createdAt || "").localeCompare(String(b.observedAt || b.createdAt || ""));
 }
 
 function formatPercent(value) {

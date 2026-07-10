@@ -126,17 +126,18 @@ function collectCandidates(analysis = {}) {
   const records = Array.isArray(analysis.roadBreakdown?.records) ? analysis.roadBreakdown.records : [];
   const advanced = analysis.advanced?.synthesis || {};
   const ensemble = analysis.ensembleBrain || null;
+  const ensembleDirection = ensemble?.probabilityDirection || ensemble?.directional || null;
   const output = [];
 
-  if (SIDE_RESULTS.has(ensemble?.directional?.result)) {
+  if (SIDE_RESULTS.has(ensembleDirection?.result)) {
     addCandidate(output, {
-      ...ensemble.directional,
-      rate: ensemble.directional.rate,
+      ...ensembleDirection,
+      rate: ensembleDirection.rate,
       basis: ensemble.read || "無洩漏線上集成",
       validationApproved: Boolean(ensemble.validation?.approved),
       modelValidation: ensemble.validation || null,
-      expectedValue: ensemble.directional.expectedValue,
-      conservativeExpectedValue: ensemble.directional.conservativeExpectedValue
+      expectedValue: ensembleDirection.expectedValue,
+      conservativeExpectedValue: ensembleDirection.conservativeExpectedValue
     }, {
       key: "onlineEnsemble",
       label: "線上多專家集成",

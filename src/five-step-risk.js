@@ -2,6 +2,7 @@
 
 const { wilsonLowerBound } = require("./accuracy-metrics");
 const { normalizeRound } = require("./roads");
+const { compareChronologicalRounds, groupRoundSequences } = require("./round-sequences");
 
 const SIDE_RESULTS = new Set(["banker", "player"]);
 const DEFAULT_MAX_BETS = 5;
@@ -209,16 +210,10 @@ function normalizeGroups(historyGroups, allRounds) {
   if (Array.isArray(historyGroups) && historyGroups.length) {
     return historyGroups.map((group) => ({
       ...group,
-      rounds: normalizeInput(group.rounds).sort(compareRounds)
+      rounds: normalizeInput(group.rounds).sort(compareChronologicalRounds)
     })).filter((group) => group.rounds.length);
   }
-  const groups = new Map();
-  for (const round of normalizeInput(allRounds)) {
-    const key = `${round.tableId || "table"}::${round.shoe || "shoe"}`;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(round);
-  }
-  return [...groups.entries()].map(([key, rounds]) => ({ key, rounds: rounds.sort(compareRounds) }));
+  return groupRoundSequences(normalizeInput(allRounds), { minimumLength: 1 });
 }
 
 function normalizeInput(rounds) {
@@ -312,12 +307,6 @@ function maxStatusRun(items = [], status = "") {
     }
   }
   return max;
-}
-
-function compareRounds(left, right) {
-  const shoeCompare = String(left.shoe || "").localeCompare(String(right.shoe || ""));
-  if (shoeCompare) return shoeCompare;
-  return Number(left.handNumber || 0) - Number(right.handNumber || 0);
 }
 
 function scoreByLog(value, target) {

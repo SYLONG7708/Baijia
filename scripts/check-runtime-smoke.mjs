@@ -91,6 +91,11 @@ await checkJson("analyze", "/api/analyze", (json) => {
   assert(json.ensembleBrain?.validation?.leakageSafe === true, "ensemble leakage-safe validation missing");
   assert((json.ensembleBrain?.experts || []).length === 18, "ensemble expert set incomplete");
   assert(["banker", "player"].includes(json.ensembleBrain?.directional?.result), "ensemble direction missing");
+  assert(Number(json.ensembleBrain?.directional?.rate || 0) >= 0.5, "ensemble direction is below 50 percent");
+  assert(json.ensembleBrain?.probabilityDirection?.result === json.ensembleBrain?.directional?.result, "probability direction alias mismatch");
+  assert(["banker", "player"].includes(json.ensembleBrain?.economicPreference?.result), "economic preference missing");
+  assert(["banker", "player"].includes(json.decisionProfile?.forced?.trendResult), "forced trend direction missing");
+  assert(["banker", "player"].includes(json.decisionProfile?.forced?.probabilityResult), "forced AI probability direction missing");
   assert(Number.isFinite(Number(json.fiveStepRisk?.baselineCompletionRate)), "five-step natural baseline missing");
   assert(json.cardModel?.usable === true, "card model is not active");
   assert(Number(json.cardModel?.seenCards || 0) > 0, "card model saw no cards");
@@ -199,7 +204,7 @@ await checkText("logic-page", "/logic.html", (text) => {
 });
 
 await checkText("service-worker", "/sw.js", (text) => {
-  assert(text.includes("ensemble-calibrated"), "sw.js cache version was not bumped for current analysis config");
+  assert(text.includes("trend-repair"), "sw.js cache version was not bumped for current trend repair");
   assert(text.includes("./logic.html"), "sw.js does not cache logic guide");
   assert(text.includes("./simulator.html") && text.includes("./simulator.js"), "sw.js does not cache advisor assets");
 });

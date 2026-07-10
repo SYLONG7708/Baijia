@@ -15,7 +15,6 @@ const ADVISE_MIN_SIGNAL_RATE = Number(process.env.BAIJIA_ADVISE_MIN_SIGNAL_RATE 
 const ADVISE_MIN_LOWER_EDGE = Number(process.env.BAIJIA_ADVISE_MIN_LOWER_EDGE || -0.005);
 const ADVISE_MIN_FIVE_STEP_WILSON_LOWER = Number(process.env.BAIJIA_ADVISE_MIN_FIVE_STEP_WILSON_LOWER || 0.74);
 const ADVISE_MAX_FIVE_STEP_FAILURE_RATE = Number(process.env.BAIJIA_ADVISE_MAX_FIVE_STEP_FAILURE_RATE || 0);
-const FORCE_PRIMARY_MIN_SCORE = Number(process.env.BAIJIA_FORCE_PRIMARY_MIN_SCORE || 0.6);
 const FORCE_BANKER_RATE = Number(process.env.BAIJIA_FORCE_BANKER_RATE || 0.5068);
 const RESULT_LABELS = {
   banker: "莊",
@@ -105,10 +104,18 @@ function buildDecisionProfile(analysis = {}) {
     sample,
     evidence,
     fiveStep,
+    trend: selected ? {
+      ...summarizeCandidate(selected),
+      agreement: round(agreement),
+      score
+    } : null,
     forced,
     ensemble: ensemble ? {
       action: ensemble.action || "observe",
       directional: ensemble.directional || null,
+      probabilityDirection: ensemble.probabilityDirection || ensemble.directional || null,
+      economicPreference: ensemble.economicPreference || null,
+      economics: ensemble.economics || null,
       validation: ensemble.validation || null,
       drift: ensemble.drift || null,
       regime: ensemble.regime || null,
@@ -134,8 +141,23 @@ function buildDecisionProfile(analysis = {}) {
 }
 
 function buildForcedEveryHandProfile({ action, result, rate, score, adaptive, ensemble, selected, agreement }) {
+  const ensembleDirection = ensemble?.probabilityDirection || ensemble?.directional || null;
+  const economicPreference = ensemble?.economicPreference || null;
+  const adaptiveSelected = adaptive?.selected || null;
+  const trendCandidate = SIDE_RESULTS.has(selected?.result)
+    ? selected
+    : SIDE_RESULTS.has(adaptiveSelected?.result)
+      ? adaptiveSelected
+      : null;
+  const trendResult = SIDE_RESULTS.has(trendCandidate?.result) ? trendCandidate.result : "neutral";
+  const trendRate = clamp(Number(trendCandidate?.rate || 0.5), 0.5, 0.95);
+  const probabilityResult = SIDE_RESULTS.has(ensembleDirection?.result) ? ensembleDirection.result : "neutral";
+  const probabilityRate = clamp(Number(ensembleDirection?.rate || 0.5), 0.5, 1);
+  const validationApproved = Boolean(ensemble?.validation?.approved && !ensemble?.drift?.detected);
+
   if (action === "advise" && SIDE_RESULTS.has(result)) {
     const risk = adaptive?.riskByResult?.[result] || adaptive?.selected?.risk || null;
+    const economics = economicsForResult(ensemble, result);
     return {
       action: "direction",
       mode: "quality",
@@ -146,8 +168,16 @@ function buildForcedEveryHandProfile({ action, result, rate, score, adaptive, en
       agreement: round(agreement || 0),
       source: "quality-gate",
       qualityPassed: true,
-      expectedValue: Number(ensemble?.directional?.expectedValue || 0),
-      conservativeExpectedValue: Number(ensemble?.directional?.conservativeExpectedValue || 0),
+      expectedValue: Number(economics?.expectedValue || 0),
+      conservativeExpectedValue: Number(economics?.conservativeExpectedValue || 0),
+      validationApproved,
+      trendResult,
+      trendRate: round(trendRate),
+      trendSource: trendCandidate?.label || "",
+      probabilityResult,
+      probabilityRate: round(probabilityRate),
+      economicResult: economicPreference?.result || "neutral",
+      economicExpectedValue: Number(economicPreference?.expectedValue || 0),
       primaryResult: result,
       primaryScore: round(score || 0),
       reverseResult: oppositeResult(result),
@@ -156,50 +186,85 @@ function buildForcedEveryHandProfile({ action, result, rate, score, adaptive, en
     };
   }
 
-  const ensembleDirection = ensemble?.directional || null;
-  const adaptiveSelected = adaptive?.selected || null;
-  const primary = SIDE_RESULTS.has(ensembleDirection?.result)
-    ? ensembleDirection.result
-    : SIDE_RESULTS.has(adaptiveSelected?.result)
-    ? adaptiveSelected.result
-    : SIDE_RESULTS.has(selected?.result)
-      ? selected.result
-      : "banker";
-  const primaryScore = Number(ensemble?.validation?.approved ? 1 : adaptiveSelected?.score ?? score ?? 0);
-  const primaryRate = Number(ensembleDirection?.rate ?? adaptiveSelected?.rate ?? selected?.rate ?? 0.5);
-  const usePrimary = primaryScore >= FORCE_PRIMARY_MIN_SCORE;
-  const useEnsemble = SIDE_RESULTS.has(ensembleDirection?.result);
-  const forcedResult = useEnsemble ? ensembleDirection.result : usePrimary ? primary : "banker";
-  const forcedRisk = adaptive?.riskByResult?.[forcedResult] || (forcedResult === primary ? adaptiveSelected?.risk : null) || null;
-  const forcedRate = useEnsemble
-    ? Number(ensembleDirection.rate || 0.5)
-    : forcedResult === "banker" && !usePrimary
-    ? FORCE_BANKER_RATE
-    : clamp(0.5 + (primaryRate - 0.5) * (0.35 + clamp(primaryScore, 0, 1) * 0.35), 0.505, 0.78);
+  const useValidatedEnsemble = validationApproved && SIDE_RESULTS.has(probabilityResult);
+  const useTrend = SIDE_RESULTS.has(trendResult);
+  const forcedResult = useValidatedEnsemble
+    ? probabilityResult
+    : useTrend
+      ? trendResult
+      : SIDE_RESULTS.has(probabilityResult)
+        ? probabilityResult
+        : "banker";
+  const trendScore = clamp(Number(score ?? adaptiveSelected?.score ?? 0), 0, 1);
+  const primaryScore = useValidatedEnsemble ? 1 : useTrend ? trendScore : 0;
+  const ensembleAgrees = SIDE_RESULTS.has(probabilityResult) && probabilityResult === forcedResult;
+  const forcedRisk = adaptive?.riskByResult?.[forcedResult]
+    || (forcedResult === adaptiveSelected?.result ? adaptiveSelected?.risk : null)
+    || null;
+  const trendStrength = clamp(
+    0.5 + Math.max(0, trendRate - 0.5) * (0.28 + trendScore * 0.32) + (ensembleAgrees ? 0.01 : 0),
+    0.5,
+    0.72
+  );
+  const forcedRate = useValidatedEnsemble
+    ? probabilityRate
+    : useTrend
+      ? trendStrength
+      : forcedResult === "banker"
+        ? FORCE_BANKER_RATE
+        : probabilityRate;
+  const economics = economicsForResult(ensemble, forcedResult);
+  const mode = useValidatedEnsemble
+    ? "validated-ensemble"
+    : useTrend
+      ? ensembleAgrees ? "trend-ai-agree" : "trend-composite"
+      : "probability-baseline";
+  const source = useValidatedEnsemble
+    ? "validated-online-ensemble"
+    : useTrend
+      ? `trend:${trendCandidate?.key || "composite"}`
+      : "probability-baseline";
 
   return {
     action: "direction",
-    mode: useEnsemble ? "online-ensemble" : usePrimary ? "primary-score" : "banker-balance",
+    mode,
     result: forcedResult,
     label: RESULT_LABELS[forcedResult] || forcedResult,
     rate: round(forcedRate),
     score: round(primaryScore),
     agreement: round(agreement || adaptiveSelected?.agreement || 0),
-    source: useEnsemble ? "online-ensemble-direction" : usePrimary ? "every-hand-primary" : "every-hand-banker-balance",
+    source,
     qualityPassed: false,
-    expectedValue: Number(ensembleDirection?.expectedValue || 0),
-    conservativeExpectedValue: Number(ensembleDirection?.conservativeExpectedValue || 0),
-    validationApproved: Boolean(ensemble?.validation?.approved),
-    primaryResult: primary,
+    expectedValue: Number(economics?.expectedValue || 0),
+    conservativeExpectedValue: Number(economics?.conservativeExpectedValue || 0),
+    validationApproved,
+    trendResult,
+    trendRate: round(trendRate),
+    trendSource: trendCandidate?.label || "",
+    probabilityResult,
+    probabilityRate: round(probabilityRate),
+    economicResult: economicPreference?.result || "neutral",
+    economicExpectedValue: Number(economicPreference?.expectedValue || 0),
+    primaryResult: forcedResult,
     primaryScore: round(primaryScore),
-    reverseResult: oppositeResult(primary),
+    reverseResult: oppositeResult(forcedResult),
     risk: summarizeForcedRisk(forcedRisk),
-    read: useEnsemble
-      ? "每局方向估計：使用無洩漏線上集成；品質閘門未通過，不代表已證明優勢。"
-      : usePrimary
-        ? "每局方向估計：主策略分數達標，但品質閘門未通過。"
-        : "每局方向估計：資料不足時使用莊方理論基準，不代表獲利訊號。"
+    read: useValidatedEnsemble
+      ? "每局方向估計：AI 樣本外驗證已通過，使用最高機率方向；期望值仍須另看。"
+      : useTrend
+        ? ensembleAgrees
+          ? "每局方向估計：五路投票趨勢與 AI 機率同向；品質閘門未通過，不代表已證明優勢。"
+          : "每局方向估計：五路投票趨勢與 AI 機率衝突；保留路型趨勢，AI 機率另列對照。"
+        : "每局方向估計：沒有可用路型時才使用理論機率基準，不代表獲利訊號。"
   };
+}
+
+function economicsForResult(ensemble, result) {
+  if (!SIDE_RESULTS.has(result)) return null;
+  return ensemble?.economics?.[result]
+    || ((ensemble?.probabilityDirection || ensemble?.directional)?.result === result
+      ? ensemble?.probabilityDirection || ensemble?.directional
+      : null);
 }
 
 function summarizeForcedRisk(risk = null) {
@@ -229,11 +294,12 @@ function collectCandidates(analysis) {
   const cardTop = analysis?.cardModel?.top || null;
   const adaptive = analysis?.adaptiveBrain || null;
   const ensemble = analysis?.ensembleBrain || null;
+  const ensembleDirection = ensemble?.probabilityDirection || ensemble?.directional || null;
   const candidates = [];
-  if (SIDE_RESULTS.has(ensemble?.directional?.result)) {
+  if (SIDE_RESULTS.has(ensembleDirection?.result)) {
     const validation = ensemble.validation || {};
     addCandidate(candidates, {
-      ...ensemble.directional,
+      ...ensembleDirection,
       basis: ensemble.read || "無洩漏線上集成"
     }, "online-ensemble", "線上多專家集成", validation.approved ? 1.55 : 0.78, validation.approved
       ? 0.92

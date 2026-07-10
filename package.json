@@ -15,6 +15,7 @@
     "health:36": "node scripts/check-36-completeness.mjs",
     "health:data": "node scripts/check-data-integrity.mjs",
     "health:runtime": "node scripts/check-runtime-smoke.mjs",
+    "health:directions": "node scripts/check-direction-diversity.mjs",
     "health:ui": "node scripts/check-ui-compact.mjs",
     "analysis:roads": "node scripts/analyze-road-patterns.mjs",
     "analysis:backtest": "node scripts/backtest-analysis.mjs",
