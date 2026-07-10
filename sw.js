@@ -1,5 +1,17 @@
-const CACHE_NAME = "baijia-monitor-v4-20260628-logic-guide";
-const ASSETS = ["./", "./index.html", "./live.html", "./logic.html", "./styles.css", "./app.js", "./manifest.webmanifest", "./icon.svg"];
+const CACHE_NAME = "baijia-monitor-v18-20260710-ensemble-calibrated";
+const ASSETS = [
+  "./",
+  "./index.html",
+  "./live.html",
+  "./logic.html",
+  "./simulator.html",
+  "./styles.css",
+  "./simulator.css",
+  "./app.js",
+  "./simulator.js",
+  "./manifest.webmanifest",
+  "./icon.svg"
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)));
@@ -8,13 +20,33 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
-      .then(() => self.clients.claim())
+    caches.keys().then((keys) => {
+      const staleKeys = keys.filter((key) => key !== CACHE_NAME);
+      const shouldReloadAdvisor = staleKeys.length > 0;
+      return Promise.all(staleKeys.map((key) => caches.delete(key)))
+        .then(() => self.clients.claim())
+        .then(() => (shouldReloadAdvisor ? self.clients.matchAll({ type: "window", includeUncontrolled: true }) : []))
+        .then((clients) => Promise.all(clients.map((client) => {
+          const url = new URL(client.url);
+          if (url.pathname.endsWith("/simulator.html") || url.pathname.endsWith("/index.html") || url.pathname.endsWith("/live.html") || url.pathname === "/") {
+            return client.navigate(client.url).catch(() => null);
+          }
+          return null;
+        })));
+    })
   );
 });
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   if (new URL(event.request.url).pathname.startsWith("/api/")) return;
-  event.respondWith(caches.match(event.request).then((cached) => cached || fetch(event.request)));
+  event.respondWith(
+    fetch(event.request)
+      .then((response) => {
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)).catch(() => {});
+        return response;
+      })
+      .catch(() => caches.match(event.request))
+  );
 });

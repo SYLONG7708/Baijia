@@ -9,7 +9,7 @@
     <title>百家樂現場分析</title>
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=20260710-ensemble-calibrated" />
   </head>
   <body data-mode="live">
     <main class="app-shell live-shell">
@@ -37,6 +37,54 @@
             <button class="side-flag-btn playerPair" data-flag="playerPair" type="button">閒對</button>
             <button class="side-flag-btn luckySix" data-flag="luckySix" type="button">幸運6</button>
           </div>
+          <div class="card-input-panel" aria-label="點數牌面輸入">
+            <div class="card-side-input banker-card-input">
+              <div class="card-side-head">
+                <b>莊牌</b>
+                <span data-card-summary="banker">未輸入</span>
+              </div>
+              <div class="card-rank-grid">
+                <button data-card-side="banker" data-card-rank="1" type="button">1</button>
+                <button data-card-side="banker" data-card-rank="2" type="button">2</button>
+                <button data-card-side="banker" data-card-rank="3" type="button">3</button>
+                <button data-card-side="banker" data-card-rank="4" type="button">4</button>
+                <button data-card-side="banker" data-card-rank="5" type="button">5</button>
+                <button data-card-side="banker" data-card-rank="6" type="button">6</button>
+                <button data-card-side="banker" data-card-rank="7" type="button">7</button>
+                <button data-card-side="banker" data-card-rank="8" type="button">8</button>
+                <button data-card-side="banker" data-card-rank="9" type="button">9</button>
+                <button data-card-side="banker" data-card-rank="10" type="button">10</button>
+                <button data-card-side="banker" data-card-rank="J" type="button">J</button>
+                <button data-card-side="banker" data-card-rank="Q" type="button">Q</button>
+                <button data-card-side="banker" data-card-rank="K" type="button">K</button>
+                <button class="card-pair-btn" data-card-pair="banker" type="button">對子</button>
+                <button class="card-clear-btn" data-card-clear="banker" type="button">清</button>
+              </div>
+            </div>
+            <div class="card-side-input player-card-input">
+              <div class="card-side-head">
+                <b>閒牌</b>
+                <span data-card-summary="player">未輸入</span>
+              </div>
+              <div class="card-rank-grid">
+                <button data-card-side="player" data-card-rank="1" type="button">1</button>
+                <button data-card-side="player" data-card-rank="2" type="button">2</button>
+                <button data-card-side="player" data-card-rank="3" type="button">3</button>
+                <button data-card-side="player" data-card-rank="4" type="button">4</button>
+                <button data-card-side="player" data-card-rank="5" type="button">5</button>
+                <button data-card-side="player" data-card-rank="6" type="button">6</button>
+                <button data-card-side="player" data-card-rank="7" type="button">7</button>
+                <button data-card-side="player" data-card-rank="8" type="button">8</button>
+                <button data-card-side="player" data-card-rank="9" type="button">9</button>
+                <button data-card-side="player" data-card-rank="10" type="button">10</button>
+                <button data-card-side="player" data-card-rank="J" type="button">J</button>
+                <button data-card-side="player" data-card-rank="Q" type="button">Q</button>
+                <button data-card-side="player" data-card-rank="K" type="button">K</button>
+                <button class="card-pair-btn" data-card-pair="player" type="button">對子</button>
+                <button class="card-clear-btn" data-card-clear="player" type="button">清</button>
+              </div>
+            </div>
+          </div>
           <textarea id="patternInput" readonly placeholder="莊 閒 莊 和 閒 莊 閒 莊"></textarea>
           <div class="pattern-tools">
             <span id="patternCount">0 手</span>
@@ -62,6 +110,6 @@
       </section>
     </main>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=20260710-ensemble-calibrated"></script>
   </body>
 </html>

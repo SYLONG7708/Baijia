@@ -7,6 +7,11 @@ const labels = {
   luckySix: "幸運6"
 };
 
+const cardRanks = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+const cardValues = { "1": 1, "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9, "10": 0, J: 0, Q: 0, K: 0 };
+const cardSideNames = { banker: "莊", player: "閒" };
+const apiTimeoutMs = 15_000;
+
 const state = {
   status: null,
   analysis: null,
@@ -15,6 +20,10 @@ const state = {
     bankerPair: false,
     playerPair: false,
     luckySix: false
+  },
+  pendingCards: {
+    banker: [],
+    player: []
   },
   analysisTables: [],
   selectedTableId: "",
@@ -39,6 +48,10 @@ const els = {
   advancedAnalysis: document.getElementById("advancedAnalysis"),
   patternButtons: [...document.querySelectorAll(".pattern-result-btn")],
   sideFlagButtons: [...document.querySelectorAll(".side-flag-btn")],
+  cardButtons: [...document.querySelectorAll("[data-card-rank]")],
+  cardPairButtons: [...document.querySelectorAll("[data-card-pair]")],
+  cardClearButtons: [...document.querySelectorAll("[data-card-clear]")],
+  cardSummaries: Object.fromEntries([...document.querySelectorAll("[data-card-summary]")].map((item) => [item.dataset.cardSummary, item])),
   analysisTableSelect: document.getElementById("analysisTableSelect"),
   patternInput: document.getElementById("patternInput"),
   undoPatternBtn: document.getElementById("undoPatternBtn"),
@@ -54,6 +67,7 @@ init();
 function init() {
   bindEvents();
   renderPendingFlags();
+  renderPendingCards();
   renderPattern();
   renderAnalysis();
   if (!isLiveMode) {
@@ -75,6 +89,15 @@ function bindEvents() {
   });
   els.sideFlagButtons.forEach((button) => {
     button.addEventListener("click", () => togglePendingFlag(button.dataset.flag));
+  });
+  els.cardButtons.forEach((button) => {
+    button.addEventListener("click", () => addPendingCard(button.dataset.cardSide, button.dataset.cardRank));
+  });
+  els.cardPairButtons.forEach((button) => {
+    button.addEventListener("click", () => applyPendingPair(button.dataset.cardPair));
+  });
+  els.cardClearButtons.forEach((button) => {
+    button.addEventListener("click", () => clearPendingCardSide(button.dataset.cardClear));
   });
   els.analysisTableSelect?.addEventListener("change", () => {
     state.selectedTableId = els.analysisTableSelect.value || "";
@@ -101,6 +124,7 @@ function bindEvents() {
   els.clearPatternBtn.addEventListener("click", () => {
     state.pattern = [];
     resetPendingFlags();
+    resetPendingCards();
     state.analysis = null;
     state.lastAnalyzedKey = "";
     state.pendingPrediction = null;
@@ -163,6 +187,7 @@ function appendPatternResult(result) {
   const checkedPrediction = recordPredictionCheck(result);
   state.pattern.push(makeManualRound(result));
   resetPendingFlags();
+  resetPendingCards();
   renderPattern();
   if (checkedPrediction && state.analysis) {
     renderAnalysis();
@@ -185,6 +210,14 @@ function resetPendingFlags() {
   renderPendingFlags();
 }
 
+function resetPendingCards() {
+  state.pendingCards = {
+    banker: [],
+    player: []
+  };
+  renderPendingCards();
+}
+
 function renderPendingFlags() {
   els.sideFlagButtons.forEach((button) => {
     const active = Boolean(state.pendingFlags[button.dataset.flag]);
@@ -193,13 +226,104 @@ function renderPendingFlags() {
   });
 }
 
+function addPendingCard(side, rank) {
+  if (!["banker", "player"].includes(side)) return;
+  const normalized = normalizeCardRank(rank);
+  if (!normalized) return;
+  const cards = state.pendingCards[side].slice(0, 3);
+  if (cards.length >= 3) cards.shift();
+  cards.push(normalized);
+  state.pendingCards[side] = cards;
+  syncPairFlagFromCards(side);
+  renderPendingCards();
+}
+
+function applyPendingPair(side) {
+  if (!["banker", "player"].includes(side)) return;
+  const cards = state.pendingCards[side].slice(0, 3);
+  if (cards.length >= 1) {
+    state.pendingCards[side] = [cards[0], cards[0], ...cards.slice(2)].slice(0, 3);
+  }
+  const flag = side === "banker" ? "bankerPair" : "playerPair";
+  state.pendingFlags[flag] = true;
+  renderPendingFlags();
+  renderPendingCards();
+}
+
+function clearPendingCardSide(side) {
+  if (!["banker", "player"].includes(side)) return;
+  state.pendingCards[side] = [];
+  const flag = side === "banker" ? "bankerPair" : "playerPair";
+  state.pendingFlags[flag] = false;
+  renderPendingFlags();
+  renderPendingCards();
+}
+
+function syncPairFlagFromCards(side) {
+  const flag = side === "banker" ? "bankerPair" : "playerPair";
+  const cards = state.pendingCards[side] || [];
+  if (cards.length >= 2) state.pendingFlags[flag] = isPair(cards);
+  renderPendingFlags();
+}
+
+function renderPendingCards() {
+  for (const side of ["banker", "player"]) {
+    const cards = state.pendingCards[side] || [];
+    const points = cardPoints(cards);
+    const text = cards.length
+      ? `${cards.join(" ")} · ${points}點${isPair(cards) ? " · 對子" : ""}`
+      : "未輸入";
+    if (els.cardSummaries[side]) els.cardSummaries[side].textContent = text;
+  }
+  els.cardPairButtons.forEach((button) => {
+    const side = button.dataset.cardPair;
+    const active = side === "banker" ? state.pendingFlags.bankerPair : state.pendingFlags.playerPair;
+    button.classList.toggle("active", Boolean(active));
+    button.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+}
+
 function makeManualRound(result) {
+  const bankerCards = (state.pendingCards.banker || []).slice(0, 3);
+  const playerCards = (state.pendingCards.player || []).slice(0, 3);
+  const bankerPoints = cardPoints(bankerCards);
+  const playerPoints = cardPoints(playerCards);
+  const bankerPair = Boolean(state.pendingFlags.bankerPair) || isPair(bankerCards);
+  const playerPair = Boolean(state.pendingFlags.playerPair) || isPair(playerCards);
+  const luckySix = Boolean(state.pendingFlags.luckySix) || (result === "banker" && bankerPoints === 6);
   return {
     result,
-    bankerPair: Boolean(state.pendingFlags.bankerPair),
-    playerPair: Boolean(state.pendingFlags.playerPair),
-    luckySix: Boolean(state.pendingFlags.luckySix)
+    bankerPair,
+    playerPair,
+    luckySix,
+    bankerCards,
+    playerCards,
+    bankerPoints,
+    playerPoints
   };
+}
+
+function normalizeCardRank(value) {
+  const key = String(value || "").trim().toUpperCase();
+  if (key === "A" || key === "ACE" || key === "01") return "1";
+  if (key === "T") return "10";
+  return cardRanks.includes(key) ? key : "";
+}
+
+function cardPoints(cards = []) {
+  if (!cards.length) return null;
+  return cards.reduce((sum, rank) => sum + (cardValues[normalizeCardRank(rank)] || 0), 0) % 10;
+}
+
+function isPair(cards = []) {
+  return cards.length >= 2 && cards[0] === cards[1];
+}
+
+function formatCardSide(side, cards = [], points = null) {
+  const filtered = (Array.isArray(cards) ? cards : []).map(normalizeCardRank).filter(Boolean);
+  if (!filtered.length) return "";
+  const value = Number.isFinite(Number(points)) ? Number(points) : cardPoints(filtered);
+  return `${cardSideNames[side]}[${filtered.join(",")}:${value}]`;
 }
 
 function renderPattern() {
@@ -241,15 +365,15 @@ async function analyzeInput() {
   const key = buildAnalysisKey(sequence);
   state.lastAnalyzedKey = key;
   els.nextResult.textContent = "分析中";
-  els.nextDescription.textContent = tableId ? "使用指定桌台近期路型比對" : isLiveMode ? "只使用你輸入的手牌分析" : "使用全部 36 桌近期路型比對";
+  els.nextDescription.textContent = tableId ? "使用指定桌台近期路型比對" : "使用全部 36 桌近期路型比對";
   try {
     state.analysis = await api("/api/analyze", {
       method: "POST",
       body: {
         scope: tableId ? "table" : "all",
         tableId,
-        limit: tableId ? 1800 : 24000,
-        localOnly: isLiveMode,
+        limit: tableId ? 1200 : 7200,
+        localOnly: false,
         sequence,
         manualSequence: state.pattern
       }
@@ -298,10 +422,41 @@ function recordPredictionCheck(actualResult) {
 }
 
 function buildPendingPrediction(analysis, basisKey) {
+  const profile = analysis?.decisionProfile;
+  if (profile) {
+    if (profile.action !== "advise" || !["banker", "player"].includes(profile.result)) {
+      const forced = profile.forced || null;
+      if (!forced || !["banker", "player"].includes(forced.result)) return null;
+      return {
+        result: forced.result,
+        label: forced.label || labels[forced.result],
+        rate: forced.rate,
+        source: forced.qualityPassed
+          ? `品質通過 · ${forced.source || "quality-gate"}`
+          : `每局方向估計 · ${forced.source || "online-ensemble"}`,
+        basisKey
+      };
+    }
+    return {
+      result: profile.result,
+      label: profile.label,
+      rate: profile.rate,
+      source: `${profile.levelLabel || "品質"} · ${profile.source || "quality-gate"}`,
+      basisKey
+    };
+  }
+  const preferred = analysis?.roadBreakdown?.overall?.preferred;
   const highest = analysis?.roadBreakdown?.overall?.highest;
   const consensus = analysis?.roadBreakdown?.overall?.consensus;
   const next = analysis?.nextResult;
-  const candidate = ["banker", "player"].includes(highest?.result)
+  const candidate = ["banker", "player"].includes(preferred?.result)
+    ? {
+      result: preferred.result,
+      label: preferred.label,
+      rate: preferred.rate,
+      source: preferred.roadLabel || preferred.strategy || "五路統整"
+    }
+    : ["banker", "player"].includes(highest?.result)
     ? {
       result: highest.result,
       label: highest.label,
@@ -319,7 +474,7 @@ function buildPendingPrediction(analysis, basisKey) {
         result: next?.result || "neutral",
         label: next?.label || "-",
         rate: next?.rate || 0,
-        source: "歷史樣本"
+        source: "歷史資料"
       };
   return {
     ...candidate,
@@ -338,7 +493,11 @@ function roundKey(round) {
     result,
     item.bankerPair ? "BP" : "",
     item.playerPair ? "PP" : "",
-    item.luckySix ? "L6" : ""
+    item.luckySix ? "L6" : "",
+    (item.bankerCards || []).join("-"),
+    (item.playerCards || []).join("-"),
+    item.bankerPoints !== null && item.bankerPoints !== undefined && Number.isFinite(Number(item.bankerPoints)) ? `B${item.bankerPoints}` : "",
+    item.playerPoints !== null && item.playerPoints !== undefined && Number.isFinite(Number(item.playerPoints)) ? `P${item.playerPoints}` : ""
   ].filter(Boolean).join("+");
 }
 
@@ -349,6 +508,10 @@ function formatManualRound(round) {
   if (item.bankerPair) extra.push(labels.bankerPair);
   if (item.playerPair) extra.push(labels.playerPair);
   if (item.luckySix) extra.push(labels.luckySix);
+  const bankerCards = formatCardSide("banker", item.bankerCards, item.bankerPoints);
+  const playerCards = formatCardSide("player", item.playerCards, item.playerPoints);
+  if (bankerCards) extra.push(bankerCards);
+  if (playerCards) extra.push(playerCards);
   return [labels[result] || result, ...extra].filter(Boolean).join("+");
 }
 
@@ -362,24 +525,59 @@ function renderAnalysis() {
     return;
   }
 
-  const top = analysis.nextResult || { label: "-", rate: 0 };
+  const top = getDisplayPrediction(analysis);
   els.nextResult.textContent = `${top.label || "-"} ${percent(top.rate)}`;
-  els.nextDescription.textContent = renderRuntimeText(analysis.runtime);
+  els.nextDescription.textContent = renderDecisionSummaryText(analysis);
   els.sidePrediction.innerHTML = renderProbabilityList(analysis.fullRates || []);
   if (els.advancedAnalysis) {
     els.advancedAnalysis.innerHTML = renderAdvancedAnalysis(
+      analysis.decisionProfile,
       analysis.advanced,
       analysis.roadBreakdown,
+      analysis.cardModel,
       state.predictionChecks
     );
   }
+}
+
+function getDisplayPrediction(analysis) {
+  const profile = analysis?.decisionProfile;
+  if (profile) {
+    if (profile.action === "advise" && ["banker", "player"].includes(profile.result)) {
+      return profile;
+    }
+    const forced = profile.forced || null;
+    if (forced && ["banker", "player"].includes(forced.result)) {
+      return {
+        result: forced.result,
+        label: forced.label || labels[forced.result],
+        rate: forced.rate || 0.5
+      };
+    }
+    return {
+      result: "neutral",
+      label: "觀察",
+      rate: profile.score || 0.5
+    };
+  }
+  const preferred = analysis?.roadBreakdown?.overall?.preferred;
+  if (["banker", "player"].includes(preferred?.result)) return preferred;
+  return analysis?.nextResult || { label: "-", rate: 0 };
+}
+
+function renderDecisionSummaryText(analysis) {
+  const runtimeText = renderRuntimeText(analysis?.runtime);
+  const profile = analysis?.decisionProfile;
+  if (!profile) return runtimeText;
+  const forcedText = profile.action === "advise" ? "品質通過" : profile.forced ? "僅方向估計" : "觀察";
+  return `${runtimeText} · ${forcedText} · ${profile.levelLabel || "-"} ${percent(profile.score)}`;
 }
 
 function renderRuntimeText(runtime) {
   if (!runtime) return "";
   if (runtime.localOnly) return `現場版 · 只用輸入資料 · ${Number(runtime.analyzeMs || 0)}ms`;
   const scope = runtime.scope === "table" ? `指定桌 ${runtime.tableCode || ""}`.trim() : "全部 36 桌";
-  return `${scope} · ${Number(runtime.roundsLoaded || 0).toLocaleString("zh-TW")} 局樣本 · ${Number(runtime.analyzeMs || 0)}ms`;
+  return `${scope} · ${Number(runtime.roundsLoaded || 0).toLocaleString("zh-TW")} 局 · ${Number(runtime.analyzeMs || 0)}ms`;
 }
 
 function renderEmptyProbability() {
@@ -413,11 +611,74 @@ function renderProbabilityList(items = []) {
   }).join("");
 }
 
-function renderAdvancedAnalysis(advanced, roadBreakdown, checks = []) {
-  if (!advanced && !roadBreakdown) return "";
+function renderAdvancedAnalysis(decisionProfile, advanced, roadBreakdown, cardModel, checks = []) {
+  if (!decisionProfile && !advanced && !roadBreakdown) return "";
   return `
+    ${renderDecisionProfile(decisionProfile)}
     ${renderRoadBreakdown(roadBreakdown, advanced)}
+    ${renderCardModel(cardModel)}
     ${renderPredictionChecks(checks, roadBreakdown)}
+  `;
+}
+
+function renderDecisionProfile(profile) {
+  if (!profile) return "";
+  const action = profile.action === "advise" ? "品質通過" : "未證明優勢";
+  const forced = profile.forced || null;
+  const selected = profile.selected || {};
+  const ensemble = profile.ensemble || null;
+  const validation = ensemble?.validation || null;
+  const direction = ensemble?.directional || forced || null;
+  return `
+    <article class="advanced-panel decision-profile-panel">
+      <div class="advanced-header">
+        <span>決策品質</span>
+        <strong>${escapeHtml(action)} ${renderResultIcon(profile.result, profile.label)} ${percent(profile.score)}</strong>
+      </div>
+      <div class="decision-quality-grid">
+        <div><span>等級</span><b>${escapeHtml(profile.levelLabel || "-")}</b></div>
+        ${profile.adaptive?.profile ? `<div><span>策略腦</span><b>${escapeHtml(profile.adaptive.profile.label || profile.adaptive.profile.key || "-")}</b></div>` : ""}
+        <div><span>一致度</span><b>${percent(profile.agreement)}</b></div>
+        ${forced ? `<div><span>每局方向估計</span><b>${renderResultIcon(forced.result, forced.label)} ${percent(forced.rate)}</b></div>` : ""}
+        ${direction ? `<div><span>含佣金期望</span><b>${formatSignedPct(direction.expectedValue || 0)}</b></div>` : ""}
+        ${validation ? `<div><span>樣本外驗證</span><b>${validation.approved ? "通過" : "未通過"} · ${Number(validation.checks || 0).toLocaleString("zh-TW")} 局</b></div>` : ""}
+        ${validation ? `<div><span>Brier lift</span><b>${formatSignedNumber(validation.pairedBrierLift)} / 下限 ${formatSignedNumber(validation.pairedBrierLiftLower)}</b></div>` : ""}
+        ${ensemble?.dominantExpert ? `<div><span>主導專家</span><b>${escapeHtml(ensemble.dominantExpert.label || ensemble.dominantExpert.key || "-")} ${percent(ensemble.dominantExpert.weight)}</b></div>` : ""}
+        ${ensemble?.drift ? `<div><span>模型漂移</span><b>${ensemble.drift.detected ? "已降權" : "未偵測"}</b></div>` : ""}
+        <div><span>數據</span><b>${escapeHtml(compactDisplayText(profile.sample?.read || "-"))}</b></div>
+        <div><span>證據</span><b>${escapeHtml(profile.evidence?.read || "-")}</b></div>
+        ${profile.fiveStep?.available ? `<div><span>5注對照</span><b>${percent(profile.fiveStep.completionRate)} / 自然 ${percent(profile.fiveStep.baselineCompletionRate)} / 超額 ${formatSignedPct(profile.fiveStep.completionLift)}</b></div>` : ""}
+        ${profile.evidence?.calibration ? `<div><span>保守下限</span><b>${percent(profile.evidence.calibration.nonTieWilsonLower)} / ${formatSignedPct(profile.evidence.calibration.lowerEdgeVsBaseline)}</b></div>` : ""}
+      </div>
+      <p class="advanced-note">${escapeHtml(compactDisplayText(profile.read || selected.label || "-"))}</p>
+    </article>
+  `;
+}
+
+function formatSignedNumber(value) {
+  const number = Number(value || 0);
+  return `${number >= 0 ? "+" : ""}${number.toFixed(5)}`;
+}
+
+function renderCardModel(cardModel) {
+  if (!cardModel?.usable) return "";
+  const rates = Array.isArray(cardModel.rates) ? cardModel.rates : [];
+  return `
+    <article class="advanced-panel card-model-panel">
+      <div class="advanced-header">
+        <span>8 副牌點數</span>
+        <strong>${escapeHtml(cardModel.top?.label || "-")} ${percent(cardModel.top?.rate)}</strong>
+      </div>
+      <div class="card-model-grid">
+        ${rates.map((item) => `
+          <div>
+            <span>${escapeHtml(item.label || labels[item.key] || item.key)}</span>
+            <b>${percent(item.rate)}</b>
+          </div>
+        `).join("")}
+      </div>
+      <p class="card-model-read">已輸入 ${Number(cardModel.seenCards || 0)} 張，剩餘 ${Number(cardModel.remainingCards || 0)} 張。</p>
+    </article>
   `;
 }
 
@@ -437,13 +698,14 @@ function renderRoadBreakdown(roadBreakdown, advanced) {
   if (!roadBreakdown) return "";
   const overall = roadBreakdown.overall || {};
   const highest = overall.highest || {};
+  const preferred = overall.preferred || highest;
   const consensus = overall.consensus || {};
   const synthesis = advanced?.synthesis || {};
   return `
     <article class="advanced-panel road-breakdown-panel road-score-panel">
       <div class="advanced-header">
         <span>進階交叉分析</span>
-        <strong>${escapeHtml(highest.roadLabel || synthesis.label || "-")} ${renderResultIcon(highest.result || consensus.result, highest.label || consensus.label)} ${percent(highest.rate || consensus.rate || synthesis.confidence)}</strong>
+        <strong>${escapeHtml(preferred.roadLabel || synthesis.label || "-")} ${renderResultIcon(preferred.result || consensus.result, preferred.label || consensus.label)} ${percent(preferred.rate || consensus.rate || synthesis.confidence)}</strong>
       </div>
       <div class="road-breakdown-grid compact-road-grid">
         ${(roadBreakdown.roads || []).map(renderRoadCard).join("")}
@@ -608,21 +870,35 @@ function renderTableMatches(items = [], key) {
   }).join("");
 }
 
+function compactDisplayText(value) {
+  return String(value || "").replace(/樣本/g, "數據");
+}
+
 async function api(path, options = {}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), Number(options.timeoutMs || apiTimeoutMs));
   const init = {
     method: options.method || "GET",
-    headers: { "content-type": "application/json" }
+    headers: { "content-type": "application/json" },
+    signal: controller.signal
   };
   if (options.body !== undefined) init.body = JSON.stringify(options.body);
 
-  const response = await fetch(path, init);
-  const text = await response.text();
-  const payload = text ? safeJson(text) : {};
-  if (!response.ok) {
-    const message = payload?.error || payload?.detail || text || response.statusText || "API request failed";
-    throw new Error(`${init.method} ${path} HTTP ${response.status}: ${message}`);
+  try {
+    const response = await fetch(path, init);
+    const text = await response.text();
+    const payload = text ? safeJson(text) : {};
+    if (!response.ok) {
+      const message = payload?.error || payload?.detail || text || response.statusText || "API request failed";
+      throw new Error(`${init.method} ${path} HTTP ${response.status}: ${message}`);
+    }
+    return payload || {};
+  } catch (error) {
+    if (error.name === "AbortError") throw new Error("API 請求逾時，請稍後再分析。");
+    throw error;
+  } finally {
+    clearTimeout(timeout);
   }
-  return payload || {};
 }
 
 function safeJson(text) {
@@ -640,6 +916,11 @@ function percent(value) {
 function formatSigned(value) {
   const number = Number(value || 0);
   return `${number >= 0 ? "+" : ""}${number.toFixed(3)}`;
+}
+
+function formatSignedPct(value) {
+  const number = Number(value || 0) * 100;
+  return `${number >= 0 ? "+" : ""}${number.toFixed(1)}%`;
 }
 
 function sourceLabel(type) {

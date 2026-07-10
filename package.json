@@ -18,21 +18,26 @@
     "health:ui": "node scripts/check-ui-compact.mjs",
     "analysis:roads": "node scripts/analyze-road-patterns.mjs",
     "analysis:backtest": "node scripts/backtest-analysis.mjs",
+    "analysis:logic-report": "node scripts/report-logic-hit-rates.mjs",
+    "logic:update": "node scripts/report-logic-hit-rates.mjs --checks 60 --limit 1800",
     "watch:analysis": "node scripts/run-analysis-watchdog.mjs",
     "watch:analysis:once": "node scripts/run-analysis-watchdog.mjs --once",
     "watch:analysis:bg": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-analysis-watchdog.ps1",
     "watch:analysis:install": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-analysis-watchdog-task.ps1",
     "watch:analysis:uninstall": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/uninstall-analysis-watchdog-task.ps1",
+    "public:check": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-public-tunnel.ps1",
+    "public:watchdog:install": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-public-tunnel-watchdog-task.ps1",
+    "public:watchdog:uninstall": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/uninstall-public-tunnel-watchdog-task.ps1",
     "backup:db": "node scripts/backup-db.mjs",
     "public:tunnel": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-public-tunnel.ps1",
     "data:cleanup": "node scripts/cleanup-target-tables.mjs",
     "data:compact": "node scripts/compact-data.mjs",
     "task:install": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-windows-task.ps1",
     "task:uninstall": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/uninstall-windows-task.ps1",
-    "test": "node scripts/validate.mjs"
+    "test:unit": "node --test test/*.test.js",
+    "test": "node scripts/validate.mjs && node --test test/*.test.js"
   },
   "devDependencies": {
-    "http-server": "^14.1.1",
     "playwright": "^1.61.0"
   },
   "engines": {

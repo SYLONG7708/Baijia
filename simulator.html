@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f1417" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Baijia Advisor" />
+    <title>百家樂下注提醒工具</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="simulator.css?v=20260710-ensemble-calibrated" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Baijia Advisor</p>
+          <h1>百家樂下注提醒工具</h1>
+        </div>
+        <div class="top-actions">
+          <a class="ghost-btn nav-link" href="./index.html">監控</a>
+          <a class="ghost-btn nav-link" href="./logic.html">分析邏輯</a>
+          <a class="ghost-btn nav-link" href="./live.html">現場版</a>
+          <span id="serverBadge" class="status-pill">連線中</span>
+          <button id="refreshBtn" class="icon-btn" type="button" title="重新整理" aria-label="重新整理">↻</button>
+        </div>
+      </header>
+
+      <section class="summary-strip" aria-label="總覽">
+        <article class="summary-card">
+          <span>歷史資料</span>
+          <strong id="historyRoundCount">0 局</strong>
+          <p><span id="historyTableCount">0 桌</span> · <span id="historyUpdateAt">-</span></p>
+        </article>
+        <article class="summary-card">
+          <span>提醒盈虧</span>
+          <strong id="manualUnits">0.00 注</strong>
+          <p>勝率 <span id="manualHitRate">0.0%</span> · 注數 <span id="manualBetCount">0</span></p>
+        </article>
+        <article class="summary-card">
+          <span>目前桌台</span>
+          <strong id="currentTableName">-</strong>
+          <p>第 <span id="manualStep">1</span> 注 · 籌碼 <span id="manualStake">1</span></p>
+        </article>
+        <article class="summary-card">
+          <span>資料狀態</span>
+          <strong id="loadedTables">0 桌</strong>
+          <p>每局方向估計；未通過品質門檻不代表優勢</p>
+        </article>
+      </section>
+
+      <section class="advisor-layout" aria-label="下注提醒">
+        <article class="panel manual-panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Manual Advisor</p>
+              <h2>手動輸入與下一注提醒</h2>
+            </div>
+            <button id="clearManualBtn" class="ghost-btn small" type="button">清空</button>
+          </div>
+
+          <div class="settings-grid">
+            <label>
+              <span>分析桌台</span>
+              <select id="manualTableSelect">
+                <option value="">全部 36 桌</option>
+              </select>
+            </label>
+            <label>
+              <span>基本注</span>
+              <input id="baseStakeInput" type="number" min="0.1" step="0.1" value="1" />
+            </label>
+            <label>
+              <span>5 注階梯</span>
+              <select id="ladderSelect">
+                <option value="flat">平注 1/1/1/1/1</option>
+                <option value="soft">溫和 1/1/2/3/5</option>
+                <option value="double">倍壓 1/2/4/8/16</option>
+              </select>
+            </label>
+            <label>
+              <span>莊贏賠率</span>
+              <input id="bankerPayoutInput" type="number" min="0.5" max="1.2" step="0.01" value="0.95" />
+            </label>
+          </div>
+
+          <div class="result-buttons" aria-label="手動輸入結果">
+            <button class="result-btn banker" data-manual-result="banker" type="button">莊</button>
+            <button class="result-btn player" data-manual-result="player" type="button">閒</button>
+            <button class="result-btn tie" data-manual-result="tie" type="button">和</button>
+          </div>
+
+          <div class="manual-tools">
+            <span id="manualCount">0 手</span>
+            <button id="undoManualBtn" class="ghost-btn small" type="button">退一手</button>
+            <button id="analyzeManualBtn" class="primary-btn" type="button">分析下一注</button>
+          </div>
+
+          <div id="manualSequence" class="sequence-strip" aria-label="手動結果"></div>
+
+          <div class="advice-card">
+            <span>下一注提醒</span>
+            <strong id="manualAdvice">等待 8 手</strong>
+            <p id="manualAdviceMeta">顯示樣本外驗證、含佣金期望與 5 注自然基準</p>
+          </div>
+
+          <div id="ladderBoard" class="ladder-board" aria-label="5 注進度"></div>
+        </article>
+
+        <article class="panel data-panel">
+          <div class="panel-head compact">
+            <div>
+              <p class="eyebrow">Records</p>
+              <h2>紀錄與匯出</h2>
+            </div>
+            <div class="button-row tight">
+              <button id="exportJsonBtn" class="ghost-btn small" type="button">JSON</button>
+              <button id="exportCsvBtn" class="ghost-btn small" type="button">CSV</button>
+            </div>
+          </div>
+          <div class="metric-grid">
+            <div>
+              <span>成功注</span>
+              <strong id="manualWinCount">0</strong>
+            </div>
+            <div>
+              <span>失敗注</span>
+              <strong id="manualLossCount">0</strong>
+            </div>
+            <div>
+              <span>失敗組</span>
+              <strong id="manualFailedSets">0</strong>
+            </div>
+            <div>
+              <span>推和</span>
+              <strong id="manualPushCount">0</strong>
+            </div>
+          </div>
+          <div id="eventLog" class="event-log" aria-label="執行紀錄"></div>
+        </article>
+      </section>
+    </main>
+
+    <script src="simulator.js?v=20260710-ensemble-calibrated"></script>
+  </body>
+</html>

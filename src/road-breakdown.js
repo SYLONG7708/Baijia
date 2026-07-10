@@ -30,11 +30,13 @@ const DERIVED_ROADS = ROAD_DEFINITIONS.filter((road) => road.derived);
 const REPLAY_MIN_INPUT = 8;
 const REPLAY_MAX_CHECKS = 48;
 
-function buildRoadBreakdownAnalysis({ inputRounds = [], manualRounds = [], allRounds = [], source = {}, resultRates = [] } = {}) {
+function buildRoadBreakdownAnalysis({ inputRounds = [], manualRounds = [], allRounds = [], historicalGroups = null, source = {}, resultRates = [] } = {}) {
   const input = inputRounds.map((round) => normalizeRound(round)).filter(Boolean);
   const manualInput = manualRounds.map((round) => normalizeRound(round)).filter(Boolean);
   const localInput = manualInput.length >= input.length ? manualInput : input;
-  const historical = groupHistories(allRounds.map(normalizeBreakdownRound).filter(Boolean));
+  const historical = Array.isArray(historicalGroups)
+    ? normalizeHistoryGroups(historicalGroups)
+    : groupHistories(allRounds.map(normalizeBreakdownRound).filter(Boolean));
   const askRoad = buildAskRoad(input);
   const manualAskRoad = buildAskRoad(localInput);
   const replay = buildManualReplayStats(localInput);
@@ -234,8 +236,7 @@ function buildSixColumnCyclePrediction(definition, { inputRounds = [], histories
   const sideScores = { banker: 0, player: 0 };
   const matches = [];
   for (const history of histories) {
-    const historyRoads = buildRoads(history.rounds);
-    const columns = getRoadColumns(getRoadPoints(historyRoads, definition.key), definition);
+    const columns = getHistoryRoadColumns(history, definition);
     if (columns.length < 7) continue;
     const byColumn = new Map(columns.map((column) => [column.col, column]));
     for (const source of columns) {
@@ -513,6 +514,21 @@ function getRoadColumns(points, definition) {
     });
 }
 
+function getHistoryRoadColumns(history, definition) {
+  if (!history || !definition) return [];
+  if (!history._roadCache) {
+    history._roadCache = {
+      roads: buildRoads(history.rounds || []),
+      columns: new Map()
+    };
+  }
+  if (!history._roadCache.columns.has(definition.key)) {
+    const points = getRoadPoints(history._roadCache.roads, definition.key);
+    history._roadCache.columns.set(definition.key, getRoadColumns(points, definition));
+  }
+  return history._roadCache.columns.get(definition.key) || [];
+}
+
 function getPointToken(point, definition) {
   if (definition.derived) return point.color || point.result || "";
   return point.result || "";
@@ -600,6 +616,19 @@ function groupHistories(rounds) {
     .map((group) => ({
       ...group,
       rounds: group.rounds.sort(compareRounds)
+    }))
+    .filter((group) => group.rounds.length >= 12);
+}
+
+function normalizeHistoryGroups(groups = []) {
+  return groups
+    .map((group) => ({
+      tableId: group.tableId || "",
+      tableCode: group.tableCode || "",
+      tableName: group.tableName || "",
+      rounds: (group.rounds || [])
+        .map(normalizeBreakdownRound)
+        .filter(Boolean)
     }))
     .filter((group) => group.rounds.length >= 12);
 }
@@ -992,8 +1021,54 @@ function summarizeOverall(roads) {
       read: highest
         ? `最高百分比：${highest.label} ${highest.prediction.label} ${formatPercent(highest.prediction.rate)}。`
         : "目前各路未形成可用方向。"
-    }
+    },
+    preferred: buildPreferredOverall({
+      consensusResult,
+      consensusRate,
+      votes,
+      recommended,
+      highest
+    })
   };
+}
+
+function buildPreferredOverall({ consensusResult, consensusRate, votes, recommended, highest }) {
+  if (SIDE_RESULTS.has(consensusResult)) {
+    return {
+      result: consensusResult,
+      label: RESULT_LABELS[consensusResult] || RESULT_LABELS.neutral,
+      rate: round(consensusRate, 4),
+      votes: {
+        banker: round(votes?.banker || 0, 4),
+        player: round(votes?.player || 0, 4)
+      },
+      basis: "five-road consensus",
+      strategy: "five-road-consensus"
+    };
+  }
+  if (SIDE_RESULTS.has(recommended?.road?.prediction?.result)) {
+    return {
+      roadKey: recommended.road.key,
+      roadLabel: recommended.road.label,
+      result: recommended.road.prediction.result,
+      label: recommended.road.prediction.label,
+      rate: recommended.road.prediction.rate,
+      basis: recommended.road.prediction.basis,
+      strategy: "evidence-weighted"
+    };
+  }
+  if (SIDE_RESULTS.has(highest?.prediction?.result)) {
+    return {
+      roadKey: highest.key,
+      roadLabel: highest.label,
+      result: highest.prediction.result,
+      label: highest.prediction.label,
+      rate: highest.prediction.rate,
+      basis: highest.prediction.basis,
+      strategy: "highest-road"
+    };
+  }
+  return null;
 }
 
 function scoreRecommendedRoad(road) {

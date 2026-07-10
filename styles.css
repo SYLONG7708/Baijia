@@ -262,6 +262,121 @@ h1 {
   box-shadow: 0 0 0 1px rgba(224, 184, 91, 0.45) inset;
 }
 
+.card-input-panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 10px;
+}
+
+.card-side-input {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #111a1f;
+  padding: 8px;
+}
+
+.banker-card-input {
+  border-color: rgba(224, 77, 85, 0.45);
+}
+
+.player-card-input {
+  border-color: rgba(63, 149, 232, 0.45);
+}
+
+.card-side-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+
+.card-side-head b {
+  font-size: 14px;
+  color: var(--text);
+}
+
+.card-side-head span {
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: 900;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.card-rank-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.card-rank-grid button {
+  min-width: 0;
+  min-height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #162229;
+  color: var(--text);
+  padding: 0 4px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.card-rank-grid button:hover,
+.card-rank-grid button.active {
+  border-color: rgba(224, 184, 91, 0.85);
+  background: rgba(224, 184, 91, 0.15);
+  color: #ffd37a;
+}
+
+.card-pair-btn {
+  grid-column: span 2;
+}
+
+.card-clear-btn {
+  color: var(--muted) !important;
+}
+
+.card-model-panel {
+  padding: 12px;
+}
+
+.card-model-grid {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.card-model-grid div {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #111a1f;
+  min-height: 46px;
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  padding: 7px;
+}
+
+.card-model-grid span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.card-model-grid b {
+  color: var(--gold);
+  font-size: 16px;
+}
+
+.card-model-read {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .analysis-table-control {
   display: grid;
   gap: 5px;
@@ -495,6 +610,37 @@ h1 {
   color: var(--muted);
   font-size: 13px;
   line-height: 1.45;
+}
+
+.decision-quality-grid {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.decision-quality-grid div {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #111a1f;
+  padding: 10px;
+  min-height: 62px;
+  display: grid;
+  align-content: space-between;
+  gap: 6px;
+}
+
+.decision-quality-grid span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.decision-quality-grid b {
+  color: var(--gold);
+  font-size: 14px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .road-breakdown-panel,
@@ -1088,6 +1234,7 @@ h1 {
   }
 
   .road-summary,
+  .decision-quality-grid,
   .ask-road-grid {
     grid-template-columns: 1fr 1fr;
   }
@@ -1199,6 +1346,7 @@ h1 {
 
   .road-summary,
   .ask-road-grid,
+  .decision-quality-grid,
   .road-breakdown-grid {
     grid-template-columns: 1fr;
   }
@@ -1232,6 +1380,18 @@ h1 {
   .side-flag-btn {
     min-height: 40px;
     font-size: 14px;
+  }
+
+  .card-input-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .card-rank-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .card-model-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .analysis-record-row {

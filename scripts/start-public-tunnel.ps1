@@ -74,6 +74,6 @@ if (-not $publicUrl) {
   throw "Timed out waiting for public tunnel URL. See $TunnelLog and $TunnelErr"
 }
 
-Set-Content -Path $TunnelUrlFile -Value $publicUrl -Encoding utf8
+Set-Content -Path $TunnelUrlFile -Value $publicUrl -Encoding ascii
 Write-Output "Baijia public URL: $publicUrl"
 Write-Output "Tunnel PID: $($process.Id)"

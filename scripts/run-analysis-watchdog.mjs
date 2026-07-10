@@ -7,6 +7,10 @@ const INTERVAL_MS = Number(process.env.BAIJIA_ANALYSIS_WATCH_INTERVAL_MS || 3000
 const SLOW_MS = Number(process.env.BAIJIA_ANALYSIS_SLOW_MS || 1500);
 const TABLE_CODE = String(process.env.BAIJIA_WATCH_TABLE_CODE || "").trim().toUpperCase();
 const BACKTEST_CHECKS = Number(process.env.BAIJIA_WATCH_BACKTEST_CHECKS || 60);
+const ANALYZE_ALL_LIMIT = Number(process.env.BAIJIA_WATCH_ANALYZE_ALL_LIMIT || 7200);
+const ANALYZE_TABLE_LIMIT = Number(process.env.BAIJIA_WATCH_ANALYZE_TABLE_LIMIT || 1200);
+const BACKTEST_HISTORY_LIMIT = Number(process.env.BAIJIA_WATCH_BACKTEST_HISTORY_LIMIT || 480);
+const BACKTEST_MANUAL_HISTORY_LIMIT = Number(process.env.BAIJIA_WATCH_BACKTEST_MANUAL_HISTORY_LIMIT || 8);
 const REQUEST_RETRIES = Number(process.env.BAIJIA_WATCH_RETRIES || 2);
 const RETRY_DELAY_MS = Number(process.env.BAIJIA_WATCH_RETRY_DELAY_MS || 1500);
 const ONCE = process.argv.includes("--once");
@@ -15,16 +19,16 @@ const LATEST_PATH = join(REPORT_DIR, "analysis-watchdog-latest.json");
 const LOG_PATH = join(REPORT_DIR, "analysis-watchdog.ndjson");
 
 const manualSequence = parseManualSequence(process.env.BAIJIA_WATCH_SEQUENCE) || [
-  { result: "banker", bankerPair: true },
-  { result: "player" },
-  { result: "banker", luckySix: true },
-  { result: "banker" },
-  { result: "player", playerPair: true },
-  { result: "tie" },
-  { result: "banker" },
-  { result: "player" },
-  { result: "banker", bankerPair: true },
-  { result: "player", luckySix: true }
+  { result: "banker", bankerPair: true, bankerCards: ["8", "8"], playerCards: ["K", "5"], bankerPoints: 6, playerPoints: 5 },
+  { result: "player", bankerCards: ["4", "Q"], playerCards: ["7", "2"], bankerPoints: 4, playerPoints: 9 },
+  { result: "banker", luckySix: true, bankerCards: ["3", "3"], playerCards: ["10", "5"], bankerPoints: 6, playerPoints: 5 },
+  { result: "banker", bankerCards: ["9", "1"], playerCards: ["2", "6"], bankerPoints: 0, playerPoints: 8 },
+  { result: "player", playerPair: true, bankerCards: ["5", "K"], playerCards: ["6", "6"], bankerPoints: 5, playerPoints: 2 },
+  { result: "tie", bankerCards: ["7", "2"], playerCards: ["4", "5"], bankerPoints: 9, playerPoints: 9 },
+  { result: "banker", bankerCards: ["1", "5"], playerCards: ["2", "3"], bankerPoints: 6, playerPoints: 5 },
+  { result: "player", bankerCards: ["J", "4"], playerCards: ["8", "1"], bankerPoints: 4, playerPoints: 9 },
+  { result: "banker", bankerPair: true, bankerCards: ["2", "2"], playerCards: ["3", "K"], bankerPoints: 4, playerPoints: 3 },
+  { result: "player", bankerCards: ["6", "Q"], playerCards: ["9", "K"], bankerPoints: 6, playerPoints: 9 }
 ];
 const sequence = manualSequence.slice(-8);
 
@@ -55,7 +59,7 @@ async function runWatchdog() {
 
   results.push(await postAnalyze("all-36-recent", {
     scope: "all",
-    limit: 24000,
+    limit: ANALYZE_ALL_LIMIT,
     sequence,
     manualSequence
   }));
@@ -65,16 +69,18 @@ async function runWatchdog() {
       scope: "table",
       tableId: selectedTable.id,
       tableCode: selectedTable.tableCode,
-      limit: 1800,
+      limit: ANALYZE_TABLE_LIMIT,
       sequence,
       manualSequence
     }));
     results.push(await postBacktest(`backtest-${selectedTable.tableCode || selectedTable.id}`, {
       tableId: selectedTable.id,
       tableCode: selectedTable.tableCode,
-      limit: 2400,
+      limit: ANALYZE_TABLE_LIMIT,
       maxChecks: BACKTEST_CHECKS,
-      detailLimit: 8
+      detailLimit: 8,
+      historyLimit: BACKTEST_HISTORY_LIMIT,
+      manualHistoryLimit: BACKTEST_MANUAL_HISTORY_LIMIT
     }));
   } else {
     results.push({
@@ -105,7 +111,8 @@ async function runWatchdog() {
       manualLength: manualSequence.length,
       hasBankerPair: manualSequence.some((round) => round.bankerPair),
       hasPlayerPair: manualSequence.some((round) => round.playerPair),
-      hasLuckySix: manualSequence.some((round) => round.luckySix)
+      hasLuckySix: manualSequence.some((round) => round.luckySix),
+      hasCards: manualSequence.some((round) => (round.bankerCards || []).length || (round.playerCards || []).length)
     },
     summary: {
       tests: results.length,
@@ -151,6 +158,8 @@ async function postBacktestOnce(name, body, startedAt, attempt, firstError = "")
       checkedWindows: Number(json.sample?.checkedWindows || 0),
       currentNonTieHitRate: Number(json.summary?.currentStrategy?.nonTieHitRate || 0),
       evidenceWeightedNonTieHitRate: Number(json.summary?.evidenceWeighted?.nonTieHitRate || 0),
+      cardModelNonTieHitRate: Number(json.summary?.cardModel?.nonTieHitRate || 0),
+      cardModelChecked: Number(json.summary?.cardModel?.checked || 0),
       improvement: json.improvement || null,
       bestRoad: json.summary?.bestRoad ? {
         key: json.summary.bestRoad.key,
@@ -217,11 +226,39 @@ async function postAnalyzeOnce(name, body, startedAt, attempt, firstError = "") 
         label: json.nextResult.label,
         rate: Number(json.nextResult.rate || 0)
       } : null,
+      decision: json.decisionProfile ? {
+        action: json.decisionProfile.action || "",
+        result: json.decisionProfile.result || "",
+        label: json.decisionProfile.label || "",
+        rate: Number(json.decisionProfile.rate || 0),
+        score: Number(json.decisionProfile.score || 0),
+        level: json.decisionProfile.level || "",
+        agreement: Number(json.decisionProfile.agreement || 0)
+      } : null,
+      ensemble: json.ensembleBrain ? {
+        action: json.ensembleBrain.action || "",
+        direction: json.ensembleBrain.directional?.result || "",
+        rate: Number(json.ensembleBrain.directional?.rate || 0),
+        validationChecks: Number(json.ensembleBrain.validation?.checks || 0),
+        validationApproved: Boolean(json.ensembleBrain.validation?.approved),
+        brierSkill: Number(json.ensembleBrain.validation?.brierSkill || 0),
+        drift: Boolean(json.ensembleBrain.drift?.detected)
+      } : null,
       highestRoad: json.roadBreakdown?.overall?.highest ? {
         road: json.roadBreakdown.overall.highest.roadLabel || "",
         result: json.roadBreakdown.overall.highest.result || "",
         label: json.roadBreakdown.overall.highest.label || "",
         rate: Number(json.roadBreakdown.overall.highest.rate || 0)
+      } : null,
+      cardModel: json.cardModel ? {
+        usable: Boolean(json.cardModel.usable),
+        seenCards: Number(json.cardModel.seenCards || 0),
+        remainingCards: Number(json.cardModel.remainingCards || 0),
+        top: json.cardModel.top ? {
+          result: json.cardModel.top.result,
+          label: json.cardModel.top.label,
+          rate: Number(json.cardModel.top.rate || 0)
+        } : null
       } : null,
       attempts: attempt,
       firstError,
@@ -246,6 +283,18 @@ function validateAnalysis(json = {}) {
   if (!(json.roadBreakdown.records || []).every((item) => item.manualCycleResult)) return "manual six-column cycle is missing";
   if (!(json.roadBreakdown.records || []).every((item) => Number.isFinite(Number(item.replayHitRate)))) return "replay hit rate is missing";
   if (!json.nextResult?.result) return "next result is missing";
+  if (!json.decisionProfile?.action) return "decision profile is missing";
+  if (!["advise", "observe"].includes(json.decisionProfile.action)) return "decision profile action is invalid";
+  if (!Number.isFinite(Number(json.decisionProfile.score))) return "decision profile score is missing";
+  if (!json.decisionProfile?.sample || !json.decisionProfile?.evidence) return "decision profile sample/evidence blocks are missing";
+  if (json.ensembleBrain?.source !== "leakage-safe-online-ensemble") return "online ensemble is missing";
+  if (json.ensembleBrain?.validation?.leakageSafe !== true) return "ensemble leakage-safe validation is missing";
+  if (!json.ensembleBrain?.directional?.result) return "ensemble every-hand direction is missing";
+  if ((json.ensembleBrain?.experts || []).length !== 18) return "ensemble expert set is incomplete";
+  if (!Number.isFinite(Number(json.fiveStepRisk?.baselineCompletionRate))) return "five-step natural baseline is missing";
+  if (json.cardModel?.usable !== true) return "eight-deck card model is not active";
+  if (Number(json.cardModel?.seenCards || 0) <= 0) return "card model did not count any input cards";
+  if ((json.cardModel?.rates || []).length !== 6) return "card model six probability rates are missing";
   return "";
 }
 
@@ -254,6 +303,9 @@ function validateBacktest(json = {}) {
   if (Number(json.sample?.checkedWindows || 0) <= 0) return "backtest checked no windows";
   if (!json.summary?.currentStrategy) return "backtest current strategy summary missing";
   if (!json.summary?.evidenceWeighted) return "backtest evidence-weighted summary missing";
+  if (!json.summary?.onlineEnsemble) return "backtest online ensemble summary missing";
+  if (!Number.isFinite(Number(json.summary.onlineEnsemble.roiLower95))) return "backtest ROI lower bound missing";
+  if (!Number.isFinite(Number(json.summary.onlineEnsemble.brierScore))) return "backtest Brier score missing";
   if (!json.roads || Object.keys(json.roads).length !== 5) return "backtest five-road stats missing";
   return "";
 }

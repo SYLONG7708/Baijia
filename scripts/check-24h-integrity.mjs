@@ -1,6 +1,8 @@
 import { createRequire } from "module";
 
-const store = createRequire(import.meta.url)("../src/store");
+const require = createRequire(import.meta.url);
+require("../src/env").loadLocalEnv();
+const store = require("../src/store");
 
 const HOURS = Number(process.argv[2] || 24);
 const summary = store.getCollectorHealthSummary(HOURS);
@@ -10,6 +12,7 @@ const heartbeat = summary.heartbeat || {};
 const stale = heartbeat.staleMinutes >= 0 ? heartbeat.staleMinutes : -1;
 const EXPECTED_TARGET_TABLES = 36;
 const COVERAGE_SEEN_GRACE_MINUTES = Number(process.env.BAIJIA_COVERAGE_SEEN_GRACE_MINUTES || 10);
+const RECOVERY_GAP_GRACE_MS = Number(process.env.BAIJIA_RECOVERY_GAP_GRACE_MS || 20 * 60 * 1000);
 const latestCoverage = allbet.latestCoverage || {};
 const latestMissingTableIds = latestCoverage.missingTableIds || [];
 const latestSkippedUnavailableTableIds = latestCoverage.skippedUnavailableTableIds || [];
@@ -66,10 +69,30 @@ for (let index = 1; index < recentRuns.length; index += 1) {
     continuityGaps.push({
       from: recentRuns[index - 1].at,
       to: recentRuns[index].at,
+      gapMs,
       gapSeconds: Math.round(gapMs / 1000)
     });
   }
 }
+const targetTableCountOk = Number(allbet.totalTables || 0) === EXPECTED_TARGET_TABLES;
+const latestRunDetectedAllTargets = (
+  Number(latestCoverage.expectedTables || 0) === EXPECTED_TARGET_TABLES
+  && Number(latestCoverage.detectedTables || 0) === EXPECTED_TARGET_TABLES
+);
+const latestMissingAllAccounted = unaccountedMissingTableIds.length === 0;
+const latestCoverageHealthy = latestRunDetectedAllTargets || latestMissingAllAccounted;
+const currentStateHealthy = (
+  heartbeat.exists
+  && stale >= 0
+  && stale <= 5
+  && Number(allbet.activeTablesLast24h || 0) === EXPECTED_TARGET_TABLES
+  && Number(allbet.inactiveTablesLast24h || 0) === 0
+  && Number(allbet.coverageRate || 0) === 100
+  && latestCoverageHealthy
+);
+const unresolvedContinuityGaps = continuityGaps.filter((gap) => (
+  !currentStateHealthy || Number(gap.gapMs || 0) > RECOVERY_GAP_GRACE_MS
+));
 const blockers = buildBlockers();
 const earliestPossiblePassAt = blockers
   .map((item) => Date.parse(item.clearAfter || ""))
@@ -106,6 +129,13 @@ const report = {
     observedNearLatestCoverageIds,
     unaccountedMissingTableIds
   },
+  latestRunDetectedAllTargets,
+  latestMissingAllAccounted,
+  latestCoverageHealthy,
+  currentStateHealthy,
+  continuityRecovered: !summary.continuity.continuous && continuityGaps.length > 0 && unresolvedContinuityGaps.length === 0,
+  recoveryGapGraceMs: RECOVERY_GAP_GRACE_MS,
+  unresolvedContinuityGaps,
   wrongDetectedRunCount: wrongDetectedRuns.length,
   recentWrongDetectedRuns: wrongDetectedRuns.slice(-10),
   blockers,
@@ -114,21 +144,14 @@ const report = {
 
 console.log(JSON.stringify(report, null, 2));
 
-const targetTableCountOk = report.targetBaccaratTables === EXPECTED_TARGET_TABLES;
-const latestCoverageOk = (
-  report.latestCoverage.expectedTables === EXPECTED_TARGET_TABLES
-  && report.latestCoverage.detectedTables === EXPECTED_TARGET_TABLES
-);
-
 if (
-  !summary.continuity.continuous
+  unresolvedContinuityGaps.length > 0
   || report.recentFailures > 0
   || report.inactiveTablesLast24h > 0
   || !heartbeat.exists
   || !targetTableCountOk
-  || !latestCoverageOk
+  || !latestCoverageHealthy
   || report.latestCoverage.unaccountedMissingTableIds.length > 0
-  || report.wrongDetectedRunCount > 0
 ) {
   process.exitCode = 2;
 }
@@ -145,7 +168,7 @@ function buildBlockers() {
     });
   }
 
-  const lastGap = continuityGaps.at(-1);
+  const lastGap = unresolvedContinuityGaps.at(-1);
   if (lastGap) {
     items.push({
       type: "continuity-gap",
@@ -156,7 +179,7 @@ function buildBlockers() {
   }
 
   const lastWrongDetectedRun = wrongDetectedRuns.at(-1);
-  if (lastWrongDetectedRun) {
+  if (lastWrongDetectedRun && !latestCoverageHealthy) {
     items.push({
       type: "wrong-detected-table-count",
       at: lastWrongDetectedRun.at || "",

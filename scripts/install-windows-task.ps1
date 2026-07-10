@@ -16,7 +16,7 @@ $Triggers = @(
   (New-ScheduledTaskTrigger -AtLogOn),
   (New-ScheduledTaskTrigger -AtStartup)
 )
-$Principal = New-ScheduledTaskPrincipal -UserId $UserId -LogonType Interactive -RunLevel Limited
+$Principal = New-ScheduledTaskPrincipal -UserId $UserId -LogonType Interactive -RunLevel Highest
 $Settings = New-ScheduledTaskSettingsSet `
   -AllowStartIfOnBatteries `
   -Hidden `
@@ -36,5 +36,6 @@ Register-ScheduledTask `
   -Force | Out-Null
 
 Write-Host "Created task: $TaskName"
+Write-Host "Runs at startup and logon. BaijiaPublicTunnelWatchdog provides the 5-minute self-start guard."
 Write-Host "Start manually: Start-ScheduledTask -TaskName $TaskName"
 Write-Host "Remove: powershell -NoProfile -ExecutionPolicy Bypass -File `"$ProjectRoot\scripts\uninstall-windows-task.ps1`""

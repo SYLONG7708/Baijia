@@ -6,6 +6,16 @@ const PORT = Number(process.env.PORT || 4173);
 const BASE_URL = process.env.BAIJIA_SMOKE_BASE_URL || `http://127.0.0.1:${PORT}`;
 const OUT_DIR = join(process.cwd(), "output", "playwright");
 const SEQUENCE = ["banker", "player", "banker", "banker", "player", "tie", "banker", "player"];
+const CARD_INPUTS = [
+  { banker: ["8", "8"], player: ["K", "5"] },
+  { banker: ["4", "Q"], player: ["7", "2"] },
+  { banker: ["3", "3"], player: ["10", "5"] },
+  { banker: ["9", "1"], player: ["2", "6"] },
+  { banker: ["5", "K"], player: ["6", "6"] },
+  { banker: ["7", "2"], player: ["4", "5"] },
+  { banker: ["1", "5"], player: ["2", "3"] },
+  { banker: ["J", "4"], player: ["8", "1"] }
+];
 const SPECIAL_FLAGS = {
   0: ["bankerPair"],
   2: ["luckySix"],
@@ -31,6 +41,7 @@ try {
 
   await page.goto(`${BASE_URL}/?compactUiSmoke=${Date.now()}`, { waitUntil: "networkidle" });
   for (const [index, result] of SEQUENCE.entries()) {
+    await inputCards(page, CARD_INPUTS[index]);
     for (const flag of SPECIAL_FLAGS[index] || []) {
       await page.click(`.side-flag-btn[data-flag="${flag}"]`);
     }
@@ -50,6 +61,10 @@ try {
   assert(afterEight.roadIcons >= 5, `road result icons count is ${afterEight.roadIcons}`);
   assert(afterEight.recordRows === 5, `analysis record row count is ${afterEight.recordRows}`);
   assert(afterEight.manualCycleCells === 5, `manual cycle cell count is ${afterEight.manualCycleCells}`);
+  assert(afterEight.cardInputPanels === 1, `card input panel count is ${afterEight.cardInputPanels}`);
+  assert(afterEight.cardRankButtons === 26, `card rank button count is ${afterEight.cardRankButtons}`);
+  assert(afterEight.cardModelPanels === 1, `card model panel count is ${afterEight.cardModelPanels}`);
+  assert(afterEight.cardModelChips === 6, `card model chip count is ${afterEight.cardModelChips}`);
   assert(afterEight.text.includes("輸入6欄"), "manual input cycle label is missing");
   assert(afterEight.text.includes("復盤"), "manual replay label is missing");
   assert(afterEight.text.includes("證據"), "evidence label is missing");
@@ -58,7 +73,8 @@ try {
   assert(afterEight.patternText.includes("幸運6"), "lucky six input is missing");
   assert(afterEight.probabilityChips === 6, `probability chip count is ${afterEight.probabilityChips}`);
   assert(afterEight.percentCount >= 8, `compact percentage count is ${afterEight.percentCount}`);
-  assert(!afterEight.text.includes("樣本"), "sample text is visible in compact analysis");
+  assert(afterEight.text.includes("樣本外驗證"), "ensemble walk-forward validation is missing");
+  assert(!/完全相同樣本|相近樣本|全庫樣本/.test(afterEight.text), "verbose sample detail is visible in compact analysis");
   assert(!afterEight.text.includes("同向桌"), "cross-table detail label is visible");
   assert(!afterEight.text.includes("反向桌"), "opposite-table detail label is visible");
   assertNoOverflow(afterEight, "desktop");
@@ -92,6 +108,7 @@ try {
   await live.setViewportSize({ width: 390, height: 844 });
   await live.goto(`${BASE_URL}/live.html?compactUiSmoke=${Date.now()}`, { waitUntil: "networkidle" });
   for (const [index, result] of SEQUENCE.entries()) {
+    await inputCards(live, CARD_INPUTS[index]);
     for (const flag of SPECIAL_FLAGS[index] || []) {
       await live.click(`.side-flag-btn[data-flag="${flag}"]`);
     }
@@ -105,6 +122,10 @@ try {
   assert(!liveMetrics.text.includes("資料庫6欄"), "live page shows database cycle text");
   assert(liveMetrics.compactRoadCards === 5, `live compact road cards count is ${liveMetrics.compactRoadCards}`);
   assert(liveMetrics.manualCycleCells === 5, `live manual cycle cell count is ${liveMetrics.manualCycleCells}`);
+  assert(liveMetrics.cardInputPanels === 1, `live card input panel count is ${liveMetrics.cardInputPanels}`);
+  assert(liveMetrics.cardRankButtons === 26, `live card rank button count is ${liveMetrics.cardRankButtons}`);
+  assert(liveMetrics.cardModelPanels === 1, `live card model panel count is ${liveMetrics.cardModelPanels}`);
+  assert(liveMetrics.cardModelChips === 6, `live card model chip count is ${liveMetrics.cardModelChips}`);
   assert(liveMetrics.text.includes("復盤"), "live manual replay label is missing");
   assert(liveMetrics.text.includes("證據"), "live evidence label is missing");
   assert(liveMetrics.patternText.includes("莊對"), "live banker pair input is missing");
@@ -150,6 +171,14 @@ const report = {
 console.log(JSON.stringify(report, null, 2));
 if (errors.length) process.exitCode = 2;
 
+async function inputCards(page, cards = {}) {
+  for (const side of ["banker", "player"]) {
+    for (const rank of cards[side] || []) {
+      await page.click(`[data-card-side="${side}"][data-card-rank="${rank}"]`);
+    }
+  }
+}
+
 async function collectMetrics(page) {
   return page.evaluate(() => {
     const advancedText = document.querySelector("#advancedAnalysis")?.innerText || "";
@@ -168,6 +197,10 @@ async function collectMetrics(page) {
       checkIcons: document.querySelectorAll(".prediction-check-list .result-icon").length,
       recordRows: document.querySelectorAll(".analysis-record-row").length,
       manualCycleCells: document.querySelectorAll(".analysis-record-row .manual-cycle-cell").length,
+      cardInputPanels: document.querySelectorAll(".card-input-panel").length,
+      cardRankButtons: document.querySelectorAll("[data-card-rank]").length,
+      cardModelPanels: document.querySelectorAll(".card-model-panel").length,
+      cardModelChips: document.querySelectorAll(".card-model-grid div").length,
       percentCount: (advancedText.match(/\d+(?:\.\d+)?%/g) || []).length,
       summaryCards: document.querySelectorAll(".summary-card").length,
       isLiveMode: document.body.dataset.mode === "live",

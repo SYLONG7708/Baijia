@@ -8,12 +8,18 @@ const ROOT = path.resolve(__dirname, "..");
 const DATA_DIR = process.env.BAIJIA_DATA_DIR || path.join(ROOT, "data");
 const DB_PATH = process.env.BAIJIA_DB_PATH || path.join(DATA_DIR, "baijia-db.json");
 const STORAGE_DIR = process.env.BAIJIA_STORAGE_DIR || path.join(ROOT, "storage");
+const DB_VERSION_PATH = path.join(STORAGE_DIR, "baijia-db.version.json");
+const ANALYSIS_SNAPSHOT_PATH = path.join(STORAGE_DIR, "baijia-analysis-snapshot.json");
 const RUN_HISTORY_LIMIT = Number(process.env.COLLECT_RUN_HISTORY_LIMIT || 1200);
 const DB_WRITE_RETRIES = Number(process.env.BAIJIA_DB_WRITE_RETRIES || 8);
 const DB_WRITE_RETRY_BASE_MS = Number(process.env.BAIJIA_DB_WRITE_RETRY_BASE_MS || 80);
 const ANALYSIS_MAX_ROUNDS = Number(process.env.BAIJIA_ANALYSIS_MAX_ROUNDS || 24000);
 const ANALYSIS_TABLE_MAX_ROUNDS = Number(process.env.BAIJIA_ANALYSIS_TABLE_MAX_ROUNDS || 1800);
 const ANALYSIS_LIMIT_CAP = Number(process.env.BAIJIA_ANALYSIS_LIMIT_CAP || 60000);
+const ANALYSIS_SNAPSHOT_ALL_LIMIT = Number(process.env.BAIJIA_ANALYSIS_SNAPSHOT_ALL_LIMIT || 7200);
+const ANALYSIS_SNAPSHOT_TABLE_LIMIT = Number(process.env.BAIJIA_ANALYSIS_SNAPSHOT_TABLE_LIMIT || Math.max(ANALYSIS_TABLE_MAX_ROUNDS, 1800));
+const TEMP_FILE_MAX_AGE_MS = Number(process.env.BAIJIA_TEMP_FILE_MAX_AGE_MS || 6 * 60 * 60 * 1000);
+const TEMP_FILE_KEEP = Number(process.env.BAIJIA_TEMP_FILE_KEEP || 6);
 const DEFAULT_TARGET_TABLE_CODES = [
   "B201", "B202", "B203", "B219", "B220",
   "B501", "B502", "B503", "B504", "B505", "B506", "B507",
@@ -27,6 +33,10 @@ const TARGET_TABLE_CODES = readTargetTableCodes();
 const TARGET_TABLE_CODE_SET = new Set(TARGET_TABLE_CODES);
 let dbCache = null;
 let dbCacheKey = "";
+const analysisRoundsCache = new Map();
+let analysisTableOptionsCache = { key: "", value: null };
+let analysisSnapshotCache = { key: "", value: null };
+const ANALYSIS_ROUNDS_CACHE_MAX = Number(process.env.BAIJIA_ANALYSIS_ROUNDS_CACHE_MAX || 80);
 
 function ensureStore() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -156,6 +166,11 @@ function writeDb(db) {
       const stat = fs.statSync(DB_PATH);
       dbCache = next;
       dbCacheKey = `${stat.mtimeMs}:${stat.size}`;
+      analysisRoundsCache.clear();
+      analysisTableOptionsCache = { key: "", value: null };
+      writeDbVersion(next, stat);
+      writeAnalysisSnapshot(next);
+      cleanupTempFiles(DATA_DIR, `${path.basename(DB_PATH)}.`, ".tmp", TEMP_FILE_MAX_AGE_MS, TEMP_FILE_KEEP);
       return next;
     } catch (error) {
       lastError = error;
@@ -167,6 +182,148 @@ function writeDb(db) {
     }
   }
   throw lastError;
+}
+
+function writeDbVersion(db, stat = null) {
+  try {
+    fs.mkdirSync(STORAGE_DIR, { recursive: true });
+    const latestRound = latestRoundAt(db.rounds || []);
+    const summaryTables = (db.tables || []).filter((table) => table.summary).length;
+    const verifiedSummaryTables = (db.tables || []).filter((table) => table.summary?.verified).length;
+    const payload = {
+      updatedAt: db.updatedAt || "",
+      tables: Array.isArray(db.tables) ? db.tables.length : 0,
+      allbetTables: getTargetBaccaratTables(db).length,
+      summaryTables,
+      verifiedSummaryTables,
+      unverifiedSummaryTables: Math.max(0, summaryTables - verifiedSummaryTables),
+      rounds: Array.isArray(db.rounds) ? db.rounds.length : 0,
+      snapshots: Array.isArray(db.snapshots) ? db.snapshots.length : 0,
+      latestRoundAt: latestRound,
+      analysisVersion: buildAnalysisVersion(db, latestRound),
+      dbMtimeMs: stat?.mtimeMs || 0,
+      dbSize: stat?.size || 0,
+      collector: buildStatusCollector(db.collector || {})
+    };
+    fs.writeFileSync(DB_VERSION_PATH, JSON.stringify(payload), "utf8");
+  } catch (_) {}
+}
+
+function writeAnalysisSnapshot(db) {
+  let tmpPath = "";
+  try {
+    fs.mkdirSync(STORAGE_DIR, { recursive: true });
+    cleanupTempFiles(STORAGE_DIR, `${path.basename(ANALYSIS_SNAPSHOT_PATH)}.`, ".tmp", TEMP_FILE_MAX_AGE_MS, TEMP_FILE_KEEP);
+    const latestRound = latestRoundAt(db.rounds || []);
+    const analysisVersion = buildAnalysisVersion(db, latestRound);
+    const tableById = new Map((db.tables || []).map((table) => [table.id, table]));
+    const targetTables = getTargetBaccaratTables(db);
+    const manualTables = (db.tables || []).filter((table) => table.provider === "manual");
+    const snapshotTables = [...targetTables, ...manualTables];
+    const allowedTableIds = new Set(snapshotTables.map((table) => table.id));
+    const stats = buildRoundStats(db.rounds || []);
+    const rounds = selectRecentAnalysisRounds(db.rounds || [], {
+      allowedTableIds,
+      tableById,
+      perTableLimit: ANALYSIS_SNAPSHOT_TABLE_LIMIT
+    }).sort(compareRounds);
+    const payload = {
+      createdAt: new Date().toISOString(),
+      updatedAt: db.updatedAt || "",
+      analysisVersion,
+      allLimit: ANALYSIS_SNAPSHOT_ALL_LIMIT,
+      tableLimit: ANALYSIS_SNAPSHOT_TABLE_LIMIT,
+      tables: snapshotTables.map((table) => {
+        const tableCode = table.provider === "allbet"
+          ? getAllbetTableCode(table)
+          : normalizeTableCode(table.tableCode || table.name || table.id);
+        return {
+          id: table.id,
+          tableCode,
+          name: table.name || tableCode,
+          provider: table.provider || "",
+          rounds: stats.get(table.id)?.rounds || 0,
+          lastSeenAt: stats.get(table.id)?.lastSeenAt || table.lastSeenAt || ""
+        };
+      }),
+      rounds
+    };
+    tmpPath = `${ANALYSIS_SNAPSHOT_PATH}.${process.pid}.${Date.now()}.tmp`;
+    fs.writeFileSync(tmpPath, JSON.stringify(payload), "utf8");
+    fs.renameSync(tmpPath, ANALYSIS_SNAPSHOT_PATH);
+    tmpPath = "";
+    const stat = fs.statSync(ANALYSIS_SNAPSHOT_PATH);
+    analysisSnapshotCache = {
+      key: `${stat.mtimeMs}:${stat.size}`,
+      value: payload
+    };
+    cleanupTempFiles(STORAGE_DIR, `${path.basename(ANALYSIS_SNAPSHOT_PATH)}.`, ".tmp", TEMP_FILE_MAX_AGE_MS, TEMP_FILE_KEEP);
+  } catch (_) {
+    try {
+      if (tmpPath && fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath);
+    } catch (_) {}
+  }
+}
+
+function readDbVersionPayload() {
+  try {
+    if (!fs.existsSync(DB_VERSION_PATH)) return null;
+    return JSON.parse(fs.readFileSync(DB_VERSION_PATH, "utf8"));
+  } catch (_) {
+    return null;
+  }
+}
+
+function readAnalysisSnapshot() {
+  try {
+    if (!fs.existsSync(ANALYSIS_SNAPSHOT_PATH)) return null;
+    const stat = fs.statSync(ANALYSIS_SNAPSHOT_PATH);
+    const key = `${stat.mtimeMs}:${stat.size}`;
+    const payload = analysisSnapshotCache.key === key
+      ? analysisSnapshotCache.value
+      : JSON.parse(fs.readFileSync(ANALYSIS_SNAPSHOT_PATH, "utf8"));
+    const version = readDbVersionPayload();
+    if (
+      version?.analysisVersion
+      && payload?.analysisVersion
+      && String(version.analysisVersion) !== String(payload.analysisVersion)
+    ) {
+      return null;
+    }
+    analysisSnapshotCache = { key, value: payload };
+    return payload;
+  } catch (_) {
+    return null;
+  }
+}
+
+function buildAnalysisVersion(db, latestRound = "") {
+  const roundCount = Array.isArray(db.rounds) ? db.rounds.length : 0;
+  const tableCount = Array.isArray(db.tables) ? db.tables.length : 0;
+  const lastRound = Array.isArray(db.rounds) ? db.rounds.at(-1) || {} : {};
+  return [
+    tableCount,
+    roundCount,
+    latestRound,
+    lastRound.id || "",
+    lastRound.tableId || "",
+    lastRound.shoe || "",
+    lastRound.handNumber || ""
+  ].join("|");
+}
+
+function getAnalysisVersion() {
+  const version = readDbVersionPayload();
+  if (version?.analysisVersion) return String(version.analysisVersion);
+  try {
+    const db = readDb();
+    const stat = fs.statSync(DB_PATH);
+    writeDbVersion(db, stat);
+    writeAnalysisSnapshot(db);
+    return buildAnalysisVersion(db, latestRoundAt(db.rounds || []));
+  } catch (_) {
+    return "";
+  }
 }
 
 function mutateDb(mutator) {
@@ -246,6 +403,27 @@ function sleepSync(ms) {
   Atomics.wait(new Int32Array(buffer), 0, 0, Math.max(1, Math.round(ms)));
 }
 
+function cleanupTempFiles(dir, prefix, suffix, maxAgeMs, keep) {
+  try {
+    const resolvedDir = path.resolve(dir);
+    const entries = fs.readdirSync(resolvedDir, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && entry.name.startsWith(prefix) && entry.name.endsWith(suffix))
+      .map((entry) => {
+        const fullPath = path.join(resolvedDir, entry.name);
+        const stat = fs.statSync(fullPath);
+        return { fullPath, mtimeMs: stat.mtimeMs };
+      })
+      .sort((left, right) => right.mtimeMs - left.mtimeMs);
+    const nowMs = Date.now();
+    entries.forEach((entry, index) => {
+      const fullPath = path.resolve(entry.fullPath);
+      if (!fullPath.startsWith(`${resolvedDir}${path.sep}`)) return;
+      if (index < keep && nowMs - entry.mtimeMs <= maxAgeMs) return;
+      fs.unlinkSync(fullPath);
+    });
+  } catch (_) {}
+}
+
 function appendCollectorRunHistory(entry = {}) {
   return mutateDb((db) => {
     const collector = db.collector || {};
@@ -323,6 +501,7 @@ function getCollectorHealthSummary(hours = 24) {
   const collector = db.collector || {};
   const nowMs = Date.now();
   const intervalMs = Number(collector.runIntervalMs || 300000);
+  const configuredRunTimeoutMs = Number(process.env.COLLECT_RUN_TIMEOUT_MS || 0);
   const windowMs = hours * 60 * 60 * 1000;
   const windowSinceMs = nowMs - windowMs;
   const recentRuns = readRunHistory(collector, windowSinceMs);
@@ -331,6 +510,7 @@ function getCollectorHealthSummary(hours = 24) {
   const thresholdMs = Math.max(
     300000,
     Math.round(intervalMs * 5),
+    Number.isFinite(configuredRunTimeoutMs) ? Math.round(configuredRunTimeoutMs + intervalMs + 60000) : 0,
     Math.round(maxRecentElapsedMs + intervalMs + 60000),
     Number.isFinite(configuredGapMs) ? configuredGapMs : 0
   );
@@ -651,18 +831,38 @@ function getAllRounds() {
 }
 
 function getAnalysisTableOptions() {
+  const snapshot = readAnalysisSnapshot();
+  if (snapshot?.tables?.length) {
+    return snapshot.tables
+      .filter((table) => table.provider === "allbet")
+      .map((table) => ({
+        id: table.id,
+        tableCode: table.tableCode,
+        name: table.name || table.tableCode,
+        rounds: Number(table.rounds || 0),
+        lastSeenAt: table.lastSeenAt || ""
+      }));
+  }
   const db = readDb();
+  if (analysisTableOptionsCache.key === dbCacheKey && analysisTableOptionsCache.value) {
+    return analysisTableOptionsCache.value.map((table) => ({ ...table }));
+  }
   const roundStats = buildRoundStats(db.rounds || []);
-  return getTargetBaccaratTables(db).map((table) => ({
+  const value = getTargetBaccaratTables(db).map((table) => ({
     id: table.id,
     tableCode: getAllbetTableCode(table),
     name: table.name || getAllbetTableCode(table),
     rounds: roundStats.get(table.id)?.rounds || 0,
     lastSeenAt: roundStats.get(table.id)?.lastSeenAt || table.lastSeenAt || ""
   }));
+  analysisTableOptionsCache = { key: dbCacheKey, value };
+  return value.map((table) => ({ ...table }));
 }
 
 function getAnalysisRounds(options = {}) {
+  const snapshotRounds = getAnalysisRoundsFromSnapshot(options);
+  if (snapshotRounds) return snapshotRounds;
+
   const db = readDb();
   const tableById = new Map((db.tables || []).map((table) => [table.id, table]));
   const targetTables = getTargetBaccaratTables(db);
@@ -684,42 +884,150 @@ function getAnalysisRounds(options = {}) {
     Number(options.limit || 0),
     isTableScope ? ANALYSIS_TABLE_MAX_ROUNDS : ANALYSIS_MAX_ROUNDS
   );
+  const cacheKey = [
+    dbCacheKey,
+    requestedTableId,
+    requestedTableCode,
+    selectedTable?.id || "",
+    limit,
+    isTableScope ? "table" : "all"
+  ].join("|");
+  const cached = getAnalysisRoundsCache(cacheKey);
+  if (cached) return cached;
   const allowedTableIds = isTableScope
     ? new Set([selectedTable.id])
     : new Set([...targetTableIds, ...manualTableIds]);
-  const grouped = new Map();
-
-  for (const round of db.rounds || []) {
-    if (!allowedTableIds.has(round.tableId)) continue;
-    const table = tableById.get(round.tableId) || {};
-    const normalized = {
-      ...round,
-      tableCode: getAllbetTableCode(table),
-      tableName: table.name || "",
-      provider: table.provider || ""
-    };
-    if (!grouped.has(round.tableId)) grouped.set(round.tableId, []);
-    grouped.get(round.tableId).push(normalized);
-  }
-
   const perTableLimit = isTableScope
     ? limit
-    : Math.max(120, Math.ceil(limit / Math.max(1, grouped.size)));
+    : Math.max(120, Math.ceil(limit / Math.max(1, allowedTableIds.size)));
+  const rounds = selectRecentAnalysisRounds(db.rounds || [], {
+    allowedTableIds,
+    tableById,
+    perTableLimit
+  });
+  return setAnalysisRoundsCache(cacheKey, rounds.sort(compareRounds));
+}
+
+function getAnalysisRoundsFromSnapshot(options = {}) {
+  const snapshot = readAnalysisSnapshot();
+  if (!snapshot?.rounds?.length || !snapshot?.tables?.length) return null;
+  const tableById = new Map(snapshot.tables.map((table) => [table.id, table]));
+  const targetTables = snapshot.tables.filter((table) => table.provider === "allbet");
+  const manualTables = snapshot.tables.filter((table) => table.provider === "manual");
+  const requestedTableId = String(options.tableId || "").trim();
+  const requestedTableCode = normalizeTableCode(options.tableCode || "");
+  const selectedTable = requestedTableId
+    ? tableById.get(requestedTableId)
+    : requestedTableCode
+      ? targetTables.find((table) => normalizeTableCode(table.tableCode) === requestedTableCode)
+      : null;
+  const isTableScope = Boolean(selectedTable);
+  const limit = clampLimit(
+    Number(options.limit || 0),
+    isTableScope ? ANALYSIS_TABLE_MAX_ROUNDS : ANALYSIS_MAX_ROUNDS
+  );
+  if (isTableScope && limit > Number(snapshot.tableLimit || 0)) return null;
+  if (!isTableScope && limit > Number(snapshot.allLimit || 0)) return null;
+
+  const cacheKey = [
+    `snapshot:${snapshot.analysisVersion || snapshot.createdAt || ""}`,
+    requestedTableId,
+    requestedTableCode,
+    selectedTable?.id || "",
+    limit,
+    isTableScope ? "table" : "all"
+  ].join("|");
+  const cached = getAnalysisRoundsCache(cacheKey);
+  if (cached) return cached;
+
+  const allowedTableIds = isTableScope
+    ? new Set([selectedTable.id])
+    : new Set([...targetTables, ...manualTables].map((table) => table.id));
+  const perTableLimit = isTableScope
+    ? limit
+    : Math.max(120, Math.ceil(limit / Math.max(1, allowedTableIds.size)));
+  const rounds = selectRecentAnalysisRounds(snapshot.rounds, {
+    allowedTableIds,
+    tableById,
+    perTableLimit
+  });
+  return setAnalysisRoundsCache(cacheKey, rounds.sort(compareRounds));
+}
+
+function selectRecentAnalysisRounds(sourceRounds, { allowedTableIds, tableById, perTableLimit }) {
   const rounds = [];
-  for (const items of grouped.values()) {
-    items.sort(compareRounds);
-    rounds.push(...items.slice(-perTableLimit));
+  const counts = new Map();
+  let filledTables = 0;
+  for (let index = sourceRounds.length - 1; index >= 0; index -= 1) {
+    const round = sourceRounds[index];
+    if (!allowedTableIds.has(round.tableId)) continue;
+    const count = counts.get(round.tableId) || 0;
+    if (count >= perTableLimit) continue;
+    rounds.push(enrichAnalysisRound(round, tableById));
+    counts.set(round.tableId, count + 1);
+    if (count + 1 === perTableLimit) filledTables += 1;
+    if (filledTables >= allowedTableIds.size) break;
   }
-  return rounds.sort(compareRounds);
+  return rounds;
+}
+
+function enrichAnalysisRound(round, tableById) {
+  const table = tableById.get(round.tableId) || {};
+  return {
+    ...round,
+    tableCode: getAllbetTableCode(table),
+    tableName: table.name || "",
+    provider: table.provider || ""
+  };
+}
+
+function getAnalysisRoundsCache(key) {
+  const cached = analysisRoundsCache.get(key);
+  if (!cached) return null;
+  analysisRoundsCache.delete(key);
+  analysisRoundsCache.set(key, cached);
+  return cached.slice();
+}
+
+function setAnalysisRoundsCache(key, rounds) {
+  const value = Array.isArray(rounds) ? rounds.slice() : [];
+  analysisRoundsCache.set(key, value);
+  while (analysisRoundsCache.size > ANALYSIS_ROUNDS_CACHE_MAX) {
+    const oldest = analysisRoundsCache.keys().next().value;
+    analysisRoundsCache.delete(oldest);
+  }
+  return value.slice();
 }
 
 function getStatus() {
+  const version = readDbVersionPayload();
+  if (version && Number.isFinite(Number(version.tables)) && Number.isFinite(Number(version.rounds))) {
+    const summaryTables = Number(version.summaryTables || 0);
+    const verifiedSummaryTables = Number(version.verifiedSummaryTables || 0);
+    return {
+      ok: true,
+      dbPath: DB_PATH,
+      dataDir: DATA_DIR,
+      tables: Number(version.tables || 0),
+      allbetTables: Number(version.allbetTables || TARGET_TABLE_CODES.length),
+      summaryTables,
+      verifiedSummaryTables,
+      unverifiedSummaryTables: Number(version.unverifiedSummaryTables ?? Math.max(0, summaryTables - verifiedSummaryTables)),
+      rounds: Number(version.rounds || 0),
+      snapshots: Number(version.snapshots || 0),
+      updatedAt: version.updatedAt || "",
+      latestRoundAt: version.latestRoundAt || "",
+      analysisVersion: version.analysisVersion || "",
+      dbMtimeMs: Number(version.dbMtimeMs || 0),
+      dbSize: Number(version.dbSize || 0),
+      statusSource: "version",
+      collector: buildStatusCollector(version.collector || {})
+    };
+  }
   const db = readDb();
   const verifiedSummaryTables = db.tables.filter((table) => table.summary?.verified).length;
   const summaryTables = db.tables.filter((table) => table.summary).length;
   const allbetTables = getTargetBaccaratTables(db).length;
-  const collector = db.collector || {};
-  const runHistory = Array.isArray(collector.runHistory) ? collector.runHistory : [];
   return {
     ok: true,
     dbPath: DB_PATH,
@@ -732,11 +1040,17 @@ function getStatus() {
     rounds: db.rounds.length,
     snapshots: db.snapshots.length,
     updatedAt: db.updatedAt,
-    collector: {
-      ...collector,
-      runHistoryCount: runHistory.length,
-      runHistory: runHistory.slice(-20)
-    }
+    statusSource: "database",
+    collector: buildStatusCollector(db.collector || {})
+  };
+}
+
+function buildStatusCollector(collector = {}) {
+  const runHistory = Array.isArray(collector.runHistory) ? collector.runHistory : [];
+  return {
+    ...collector,
+    runHistoryCount: Number(collector.runHistoryCount ?? runHistory.length),
+    runHistory: runHistory.slice(-20)
   };
 }
 
@@ -984,6 +1298,7 @@ module.exports = {
   clearTable,
   getRounds,
   getAllRounds,
+  getAnalysisVersion,
   getAnalysisRounds,
   getAnalysisTableOptions,
   appendCollectorRunHistory,

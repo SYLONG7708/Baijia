@@ -39,12 +39,13 @@ function readConfig(overrides = {}) {
     captureMs: Number(overrides.captureMs || process.env.GOODWIN_CAPTURE_MS || DEFAULT_CAPTURE_MS),
     expectedTables: Number(overrides.expectedTables || process.env.GOODWIN_EXPECTED_TABLES || targetTableCodes.length || DEFAULT_EXPECTED_TABLES),
     targetTableCodes,
-    runTimeoutMs: Number(overrides.runTimeoutMs || process.env.COLLECT_RUN_TIMEOUT_MS || 360_000),
+    runTimeoutMs: Number(overrides.runTimeoutMs || process.env.COLLECT_RUN_TIMEOUT_MS || 600_000),
     maxRetries: Number(overrides.maxRetries || process.env.COLLECT_MAX_RETRIES || 4),
     retryBaseMs: Number(overrides.retryBaseMs || process.env.COLLECT_RETRY_BASE_MS || 30_000),
     retryMaxMs: Number(overrides.retryMaxMs || process.env.COLLECT_RETRY_MAX_MS || 240_000),
     allbetReadyTimeoutMs: Number(overrides.allbetReadyTimeoutMs || process.env.GOODWIN_ALLBET_READY_TIMEOUT_MS || 90_000),
     allbetReadyRetries: Number(overrides.allbetReadyRetries || process.env.GOODWIN_ALLBET_READY_RETRIES || 2),
+    allbetEntryRetries: Number(overrides.allbetEntryRetries || process.env.GOODWIN_ALLBET_ENTRY_RETRIES || 4),
     tableSwitchMs: Number(overrides.tableSwitchMs || process.env.GOODWIN_TABLE_SWITCH_MS || 700),
     tableWaitMs: Number(overrides.tableWaitMs || process.env.GOODWIN_TABLE_WAIT_MS || 2000),
     debug: parseBool(overrides.debug ?? process.env.GOODWIN_DEBUG, false),
@@ -144,6 +145,14 @@ async function runCollectorLoop(overrides = {}) {
         expectedTables: config.expectedTables,
         message: error.message || String(error)
       });
+      if (
+        error.code === "timeout"
+        && process.env.BAIJIA_COLLECTOR_WORKER === "true"
+        && parseBool(process.env.BAIJIA_COLLECTOR_RESTART_ON_TIMEOUT, true)
+      ) {
+        console.error("Collector timed out; restarting worker to cancel the stuck browser session.");
+        process.exit(2);
+      }
       await sleep(delay);
     }
   }
@@ -180,7 +189,7 @@ async function collectOnce(overrides = {}) {
     const page = await context.newPage();
     attachCapture(page, state);
     debugLog(config, "opening-goodwin");
-    const target = await openGoodwinAllbet(page, context, config);
+    const target = await openGoodwinAllbetWithRecovery(page, context, config);
     debugLog(config, "opened-allbet", sanitizeUrl(target.url()));
     attachCapture(target, state);
     await selectAllBaccarat(target);
@@ -268,6 +277,44 @@ async function openGoodwinAllbet(page, context, config) {
     error.code = "allbet-entry-not-open";
     throw error;
   }
+  return target;
+}
+
+async function openGoodwinAllbetWithRecovery(page, context, config) {
+  const attempts = Math.max(1, Number(config.allbetEntryRetries || 1));
+  let lastError = null;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      debugLog(config, "allbet-entry-open", { attempt, attempts });
+      return await openGoodwinAllbet(page, context, config);
+    } catch (error) {
+      lastError = error;
+      debugLog(config, "allbet-entry-open-failed", {
+        attempt,
+        attempts,
+        code: error.code || "",
+        message: error.message || String(error),
+        url: page?.isClosed?.() ? "closed" : sanitizeUrl(page.url())
+      });
+      if (attempt >= attempts) break;
+      page = await resetGoodwinEntryPage(page, context, config, attempt);
+    }
+  }
+  throw lastError;
+}
+
+async function resetGoodwinEntryPage(page, context, config, attempt) {
+  let target = page;
+  if (!target || target.isClosed?.()) {
+    target = context.pages().find((item) => !item.isClosed?.()) || await context.newPage();
+  }
+  await dismissGoodwinPopup(target).catch(() => {});
+  await target.waitForTimeout(Math.min(5000, 1000 + attempt * 1000)).catch(() => {});
+  await target.goto(config.url, { waitUntil: "domcontentloaded", timeout: 60_000 }).catch(async () => {
+    await target.reload({ waitUntil: "domcontentloaded", timeout: 45_000 }).catch(() => {});
+  });
+  await target.waitForTimeout(1500).catch(() => {});
+  await dismissGoodwinPopup(target).catch(() => {});
   return target;
 }
 

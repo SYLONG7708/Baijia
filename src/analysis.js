@@ -3,6 +3,11 @@
 const { RESULT_LABELS, normalizeRound, parseBulkRounds, buildRoads, summarizeBasic } = require("./roads");
 const { buildAdvancedAnalysis } = require("./advanced-analysis");
 const { buildRoadBreakdownAnalysis } = require("./road-breakdown");
+const { buildCardModelAnalysis } = require("./card-model");
+const { buildPredictionIndex, queryPredictionIndex } = require("./prediction-index");
+const { buildDecisionProfile } = require("./decision-profile");
+const { buildFiveStepRisk } = require("./five-step-risk");
+const { buildEnsembleBrain } = require("./ensemble-brain");
 
 const BASE_REFERENCE = {
   banker: 0.5068,
@@ -10,7 +15,7 @@ const BASE_REFERENCE = {
   tie: 0.095
 };
 
-function analyzePattern({ sequence, manualSequence = [], rounds = [], tableId = "" }) {
+function analyzePattern({ sequence, manualSequence = [], rounds = [], tableId = "", context = null }) {
   const inputRounds = Array.isArray(sequence)
     ? sequence.map((round) => normalizeRound(round)).filter(Boolean)
     : parseBulkRounds(sequence);
@@ -20,18 +25,23 @@ function analyzePattern({ sequence, manualSequence = [], rounds = [], tableId = 
     .filter(Boolean);
   const effectiveManualRounds = manualRounds.length >= inputRounds.length ? manualRounds : inputRounds;
   const pattern = inputRounds.map((round) => round.result);
-  const allRounds = rounds.map(normalizeAnalysisRound).filter(Boolean);
-  const scopedRounds = tableId ? allRounds.filter((round) => round.tableId === tableId) : allRounds;
-  const histories = groupHistories(scopedRounds);
-  const exact = collectMatches(histories, pattern, pattern.length);
+  const activeContext = context?.ok ? context : null;
+  const allRounds = activeContext?.allRounds || rounds.map(normalizeAnalysisRound).filter(Boolean);
+  const scopedRounds = activeContext?.scopedRounds || (tableId ? allRounds.filter((round) => round.tableId === tableId) : allRounds);
+  const historyGroups = activeContext?.historyGroups || groupHistoryObjects(scopedRounds);
+  const histories = activeContext?.histories || historyGroups.map((group) => group.rounds);
+  const exact = queryPredictionIndex(activeContext?.predictionIndex, pattern) || collectMatches(histories, pattern, pattern.length);
   const fuzzyLength = Math.max(3, Math.min(pattern.length - 1, 7));
-  const fuzzy = fuzzyLength >= 3 ? collectMatches(histories, pattern.slice(-fuzzyLength), fuzzyLength) : emptyMatches(fuzzyLength);
-  const global = collectGlobalNext(allRounds);
+  const fuzzy = fuzzyLength >= 3
+    ? queryPredictionIndex(activeContext?.predictionIndex, pattern.slice(-fuzzyLength)) || collectMatches(histories, pattern.slice(-fuzzyLength), fuzzyLength)
+    : emptyMatches(fuzzyLength);
+  const global = activeContext?.global || collectGlobalNext(scopedRounds);
   const patterns = detectPatterns(inputRounds);
   const roadSignal = summarizeRoadSignals(inputRounds);
   const source = exact.total >= 3 ? exact : fuzzy.total >= 5 ? fuzzy : global;
-  const resultRates = buildResultRates(source, pattern, patterns);
-  const sideRates = buildSideRates(source, global, effectiveManualRounds);
+  const cardModel = buildCardModelAnalysis(effectiveManualRounds);
+  const resultRates = buildResultRates(source, pattern, patterns, cardModel);
+  const sideRates = buildSideRates(source, global, effectiveManualRounds, cardModel);
   const fullRates = buildFullRates(resultRates, sideRates);
   const topResult = resultRates[0] || { result: "banker", label: "莊", rate: 0, count: 0 };
   const confidence = scoreConfidence({ source, exact, fuzzy, patternLength: pattern.length, roadSignal });
@@ -45,11 +55,29 @@ function analyzePattern({ sequence, manualSequence = [], rounds = [], tableId = 
     inputRounds,
     manualRounds: effectiveManualRounds,
     allRounds,
+    historicalGroups: historyGroups,
     source,
     resultRates
   });
+  const ensembleBrain = buildEnsembleBrain({
+    inputRounds: effectiveManualRounds,
+    historyGroups,
+    allRounds,
+    tableId
+  });
+  const fiveStepTarget = ensembleBrain?.directional?.result
+    || roadBreakdown?.overall?.preferred?.result
+    || roadBreakdown?.overall?.recommended?.result
+    || topResult.result;
+  const fiveStepRisk = buildFiveStepRisk({
+    inputRounds: effectiveManualRounds,
+    historyGroups,
+    targetResult: fiveStepTarget,
+    maxBets: 5,
+    windowSize: 8
+  });
 
-  return {
+  const result = {
     ok: true,
     generatedAt: new Date().toISOString(),
     input: {
@@ -64,7 +92,8 @@ function analyzePattern({ sequence, manualSequence = [], rounds = [], tableId = 
       tableId,
       totalRounds: scopedRounds.length,
       allRounds: allRounds.length,
-      histories: histories.length
+      histories: histories.length,
+      indexed: Boolean(activeContext?.predictionIndex)
     },
     source: {
       type: exact.total >= 3 ? "exact" : fuzzy.total >= 5 ? "fuzzy" : "global",
@@ -85,9 +114,36 @@ function analyzePattern({ sequence, manualSequence = [], rounds = [], tableId = 
     fullRates,
     patterns,
     roadSignal,
+    cardModel,
     advanced,
     roadBreakdown,
+    ensembleBrain,
+    fiveStepRisk,
     warnings: buildWarnings(pattern.length, source, confidence)
+  };
+  result.decisionProfile = buildDecisionProfile(result);
+  result.warnings = buildWarnings(pattern.length, source, confidence, result.decisionProfile);
+  return result;
+}
+
+function buildAnalysisContext(rounds = [], options = {}) {
+  const startedAt = Date.now();
+  const allRounds = rounds.map(normalizeAnalysisRound).filter(Boolean);
+  const scopedRounds = options.tableId
+    ? allRounds.filter((round) => round.tableId === options.tableId)
+    : allRounds;
+  const historyGroups = groupHistoryObjects(scopedRounds);
+  const histories = historyGroups.map((group) => group.rounds);
+  return {
+    ok: true,
+    generatedAt: new Date().toISOString(),
+    buildMs: Date.now() - startedAt,
+    allRounds,
+    scopedRounds,
+    historyGroups,
+    histories,
+    global: collectGlobalNext(scopedRounds),
+    predictionIndex: buildPredictionIndex(scopedRounds)
   };
 }
 
@@ -102,14 +158,29 @@ function normalizeAnalysisRound(round) {
   };
 }
 
-function groupHistories(rounds) {
+function groupHistoryObjects(rounds) {
   const groups = new Map();
   for (const round of rounds) {
     const key = `${round.tableId || "unknown"}::${round.shoe || "shoe"}`;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(round);
+    if (!groups.has(key)) {
+      groups.set(key, {
+        tableId: round.tableId || "",
+        tableCode: round.tableCode || "",
+        tableName: round.tableName || "",
+        rounds: []
+      });
+    }
+    const group = groups.get(key);
+    if (!group.tableCode && round.tableCode) group.tableCode = round.tableCode;
+    if (!group.tableName && round.tableName) group.tableName = round.tableName;
+    group.rounds.push(round);
   }
-  return [...groups.values()].map((items) => items.sort(compareRounds)).filter((items) => items.length >= 2);
+  return [...groups.values()]
+    .map((group) => ({
+      ...group,
+      rounds: group.rounds.sort(compareRounds)
+    }))
+    .filter((group) => group.rounds.length >= 2);
 }
 
 function collectMatches(histories, pattern, length) {
@@ -161,7 +232,7 @@ function emptyMatches(length) {
   return summarizeNextRounds([], length);
 }
 
-function buildResultRates(source, pattern, patterns) {
+function buildResultRates(source, pattern, patterns, cardModel = null) {
   const total = Math.max(source.total, 0);
   const patternCounts = countPatternResults(pattern);
   const baseCounts = total ? source.counts : patternCounts;
@@ -187,7 +258,7 @@ function buildResultRates(source, pattern, patterns) {
     item.rate = Math.min(0.64, item.rate + 0.08);
   }
 
-  return normalizeRates(rates).sort((a, b) => b.rate - a.rate);
+  return applyCardModelToResultRates(normalizeRates(rates), cardModel).sort((a, b) => b.rate - a.rate);
 }
 
 function countPatternResults(pattern = []) {
@@ -198,11 +269,11 @@ function countPatternResults(pattern = []) {
   };
 }
 
-function buildSideRates(source, global, inputRounds = []) {
+function buildSideRates(source, global, inputRounds = [], cardModel = null) {
   const manual = summarizeManualSpecials(inputRounds);
   const selected = source.total >= 5 ? source : global.total >= 5 ? global : manual;
   const denominator = Math.max(selected.total, 1);
-  return [
+  const rates = [
     {
       key: "bankerPair",
       label: "莊對",
@@ -222,6 +293,47 @@ function buildSideRates(source, global, inputRounds = []) {
       rate: selected.luckySix / denominator
     }
   ];
+  return applyCardModelToSideRates(rates, cardModel);
+}
+
+function applyCardModelToResultRates(rates, cardModel) {
+  const weight = getCardModelWeight(cardModel);
+  if (!weight) return rates;
+  const modelRates = new Map((cardModel.resultRates || []).map((item) => [item.key || item.result, Number(item.rate || 0)]));
+  return normalizeRates(rates.map((item) => {
+    const modelRate = modelRates.get(item.result);
+    if (!Number.isFinite(modelRate)) return item;
+    return {
+      ...item,
+      rate: item.rate * (1 - weight) + modelRate * weight,
+      cardRate: modelRate,
+      cardWeight: weight
+    };
+  }));
+}
+
+function applyCardModelToSideRates(rates, cardModel) {
+  const weight = getCardModelWeight(cardModel) * 0.85;
+  if (!weight) return rates;
+  const modelRates = new Map((cardModel.sideRates || []).map((item) => [item.key, Number(item.rate || 0)]));
+  return rates.map((item) => {
+    const modelRate = modelRates.get(item.key);
+    if (!Number.isFinite(modelRate)) return item;
+    return {
+      ...item,
+      rate: clamp(item.rate * (1 - weight) + modelRate * weight, 0, 1),
+      cardRate: modelRate,
+      cardWeight: weight
+    };
+  });
+}
+
+function getCardModelWeight(cardModel) {
+  if (!cardModel?.usable) return 0;
+  const seenCards = Number(cardModel.seenCards || 0);
+  const pointsKnown = Number(cardModel.pointsKnown || 0);
+  if (seenCards < 4) return 0;
+  return clamp(0.08 + Math.min(seenCards, 120) / 120 * 0.16 + Math.min(pointsKnown, 24) / 24 * 0.06, 0.08, 0.3);
 }
 
 function summarizeManualSpecials(rounds = []) {
@@ -237,6 +349,7 @@ function summarizeManualSpecials(rounds = []) {
 function buildFullRates(resultRates, sideRates) {
   return [
     ...resultRates.map((item) => ({
+      ...item,
       key: item.result,
       label: item.label,
       count: item.count,
@@ -366,13 +479,14 @@ function describeTopResult(topResult, source) {
   return `歷史樣本 ${source.total} 次中，下一手為「${topResult.label}」的比例約 ${formatPercent(topResult.rate)}。`;
 }
 
-function buildWarnings(patternLength, source, confidence) {
+function buildWarnings(patternLength, source, confidence, decisionProfile = null) {
   const warnings = [
     "百家樂每局仍是獨立事件，分析只代表歷史相似度與路型統計，不保證結果。"
   ];
   if (patternLength < 8) warnings.push("建議至少輸入 8 手。");
   if (source.total < 5) warnings.push("相同或相近路徑樣本偏少。");
   if (confidence < 0.35) warnings.push("目前不適合做強方向判斷。");
+  if (decisionProfile?.action === "observe") warnings.push(decisionProfile.read);
   return warnings;
 }
 
@@ -417,8 +531,13 @@ function formatPercent(value) {
   return `${(value * 100).toFixed(1)}%`;
 }
 
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, Number(value) || 0));
+}
+
 module.exports = {
   analyzePattern,
+  buildAnalysisContext,
   detectPatterns,
   summarizeRoadSignals,
   formatPercent

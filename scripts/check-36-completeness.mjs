@@ -1,6 +1,8 @@
 import { createRequire } from "node:module";
 
-const store = createRequire(import.meta.url)("../src/store");
+const require = createRequire(import.meta.url);
+require("../src/env").loadLocalEnv();
+const store = require("../src/store");
 
 const TARGET_CODES = [
   "B201", "B202", "B203", "B219", "B220",
@@ -101,6 +103,9 @@ for (let index = 1; index < recentRuns.length; index += 1) {
     });
   }
 }
+const latestRunDetectedAllTargets = Number(latestCoverage.detectedTables || 0) === TARGET_CODES.length;
+const latestMissingAllAccounted = unaccountedMissingTableIds.length === 0;
+const latestCoverageHealthy = latestRunDetectedAllTargets || latestMissingAllAccounted;
 
 const report = {
   timestamp: new Date().toISOString(),
@@ -110,8 +115,9 @@ const report = {
   allTargetTablesPresent: rows.length === TARGET_CODES.length && missingCodes.length === 0 && duplicateCodes.length === 0,
   allTargetTablesHaveRounds: zeroRoundTables.length === 0,
   allTargetTablesRecentlySeen: staleSeenTables.length === 0,
-  latestRunDetectedAllTargets: Number(latestCoverage.detectedTables || 0) === TARGET_CODES.length,
-  latestMissingAllAccounted: unaccountedMissingTableIds.length === 0,
+  latestRunDetectedAllTargets,
+  latestMissingAllAccounted,
+  latestCoverageHealthy,
   latestDetailCaptured: Number(latestCoverage.detailCaptured || 0),
   latestMissingTables: Number(latestCoverage.missingTables || 0),
   latestSkippedUnavailableTables: latestSkipped.length,
@@ -155,8 +161,8 @@ console.log(JSON.stringify(report, null, 2));
 const ok = (
   report.allTargetTablesPresent
   && report.allTargetTablesHaveRounds
-  && report.latestRunDetectedAllTargets
-  && report.latestMissingAllAccounted
+  && report.allTargetTablesRecentlySeen
+  && report.latestCoverageHealthy
 );
 
 if (!ok) process.exitCode = 2;

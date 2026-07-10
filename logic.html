@@ -9,7 +9,7 @@
     <title>百家樂五路分析邏輯</title>
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=20260710-ensemble-calibrated" />
   </head>
   <body>
     <main class="app-shell logic-shell">
@@ -21,6 +21,7 @@
         <nav class="top-actions logic-nav" aria-label="頁面切換">
           <a class="ghost-btn nav-link" href="./">24 小時監控</a>
           <a class="ghost-btn nav-link" href="./live.html">現場分析</a>
+          <a class="ghost-btn nav-link" href="./simulator.html">下注提醒</a>
         </nav>
       </header>
 
@@ -32,9 +33,38 @@
         </article>
         <article>
           <span>現場百家樂分析</span>
-          <strong>只讀你手動輸入的牌路</strong>
-          <p>不讀歐博資料庫，不看本機歷史紀錄。每多輸入一手，就用現場牌路重新計算五路、6 欄循環、莊問路/閒問路與復盤命中率。</p>
+          <strong>手動牌路 + 36 桌歷史校準</strong>
+          <p>目前牌路與卡牌由你手動輸入；每多一手就重算五路、6 欄循環、莊問路/閒問路與復盤，同時用 36 桌歷史資料訓練集成腦與檢查樣本外品質。</p>
         </article>
+      </section>
+
+      <section class="logic-section" aria-label="線上多專家集成">
+        <div class="logic-section-head">
+          <span>多專家集成腦</span>
+          <h2>先預測、後學習，自動降權與停止</h2>
+        </div>
+        <div class="logic-compare">
+          <article>
+            <strong>10 個基礎專家 + 8 個反向專家</strong>
+            <p>莊方理論基準、全庫與桌台貝葉斯、近期衰減、1/2/3 階轉移、連續長度、跳路節奏、牌靴局位各自給出機率；可反向的模型另有獨立權重，不用固定正打或反打。</p>
+          </article>
+          <article>
+            <strong>逐局樣本外驗證</strong>
+            <p>每一局一定先用當時可見資料預測，再用已開結果更新權重。Brier、log-loss 與命中紀錄都不能讀到未來局，避免回測資料洩漏。</p>
+          </article>
+          <article>
+            <strong>自動換腦與漂移</strong>
+            <p>表現較好的專家權重會逐步增加，近期損失惡化時會觸發漂移降權。若沒有任何邏輯證明優於莊方基準，正式決策會退回觀察。</p>
+          </article>
+          <article>
+            <strong>佣金與風險一起算</strong>
+            <p>品質閘門不只看命中率，也計算莊贏 0.95 賠付的平注 ROI、95% 下限、最大回撤與連敗。只有保守期望值轉正才可標示品質通過。</p>
+          </article>
+        </div>
+        <div class="logic-note">
+          <strong>5 注數字的正確讀法</strong>
+          <p>同一方向在 5 個非和局結果中至少出現一次，本來就有約 97% 的自然機率。系統現在同時顯示完成率、自然基準、超額與保守超額；沒有超越基準就不算模型能力。</p>
+        </div>
       </section>
 
       <section class="logic-section" aria-label="零基礎先看">
@@ -213,7 +243,7 @@
           <article>
             <b>D</b>
             <strong>分成本機資料庫與輸入資料</strong>
-            <p>24 小時監控版會比對 36 桌歷史；現場版只比你自己輸入的牌路，不會讀資料庫。</p>
+            <p>兩個版本都可用 36 桌歷史訓練集成腦；現場版的五路當前狀態與輸入 6 欄仍只由你手動輸入的牌路決定。</p>
           </article>
         </div>
       </section>
@@ -250,9 +280,9 @@
         </div>
         <div class="logic-table">
           <div><b>項目</b><b>24 小時監控</b><b>現場百家樂分析</b></div>
-          <div><span>資料來源</span><span>36 桌資料庫 + 你輸入的最近 8 手</span><span>只用你手動輸入的牌路</span></div>
-          <div><span>歷史樣本</span><span>會用相同/相近路型與跨桌資料</span><span>完全不讀歷史資料</span></div>
-          <div><span>6 欄循環</span><span>資料庫6欄 + 輸入6欄</span><span>只有輸入6欄</span></div>
+          <div><span>資料來源</span><span>36 桌資料庫 + 你輸入的最近 8 手</span><span>手動牌路 + 36 桌集成校準</span></div>
+          <div><span>歷史樣本</span><span>會用相同/相近路型與跨桌資料</span><span>歷史只用於集成權重與品質驗證</span></div>
+          <div><span>6 欄循環</span><span>資料庫6欄 + 輸入6欄</span><span>介面只顯示輸入6欄</span></div>
           <div><span>復盤</span><span>會看你手動輸入後的命中/失誤</span><span>現場每多一手就即時復盤</span></div>
           <div><span>適合情境</span><span>監控全場、看資料完整性、找跨桌規律</span><span>現場手打路單、手機快速判斷</span></div>
         </div>
