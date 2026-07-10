@@ -2,49 +2,29 @@
 <html lang="zh-Hant">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0f1417" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-title" content="Baijia" />
-    <title>百家樂 24 小時監控</title>
+    <meta name="apple-mobile-web-app-title" content="Baijia Live" />
+    <title>百家樂現場分析</title>
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="styles.css?v=20260710-ensemble-calibrated" />
   </head>
-  <body>
-    <main class="app-shell">
-      <header class="topbar">
+  <body data-mode="live">
+    <main class="app-shell live-shell">
+      <header class="topbar live-topbar">
         <div>
-          <p class="eyebrow">Baijia Monitor 24H</p>
-          <h1>百家樂 24 小時監控</h1>
+          <p class="eyebrow">Baijia Live</p>
+          <h1>現場百家樂分析</h1>
         </div>
-        <div class="top-actions">
-          <a class="ghost-btn nav-link" href="./simulator.html">下注提醒</a>
+        <nav class="top-actions" aria-label="頁面切換">
           <a class="ghost-btn nav-link" href="./logic.html">分析邏輯</a>
-          <a class="ghost-btn nav-link" href="./live.html">現場版</a>
-          <span id="serverBadge" class="status-pill">連線中</span>
-          <button id="refreshBtn" class="icon-btn" type="button" title="重新整理" aria-label="重新整理">↻</button>
-        </div>
+          <a class="ghost-btn nav-link" href="./">監控版</a>
+        </nav>
       </header>
 
-      <section class="summary-strip" aria-label="總局數">
-        <article class="summary-card">
-          <span>總局數（每 1 分鐘更新）</span>
-          <strong id="statusRoundCount">0 局</strong>
-          <p>最後更新：<span id="statusUpdateAt">-</span></p>
-        </article>
-        <article class="summary-card">
-          <span>歐博百家樂桌數</span>
-          <strong id="allbetTableCount">0 桌</strong>
-          <p><span id="savedDataCount">已保存 0 局</span></p>
-        </article>
-        <article class="summary-card status-summary-card">
-          <span>抓取狀態</span>
-          <strong id="collectorMessage">等待啟動</strong>
-        </article>
-      </section>
-
-      <section class="analysis-band" aria-label="前 8 手分析">
+      <section class="analysis-band live-analysis-band" aria-label="現場前 8 手分析">
         <div>
           <h2>輸入前 8 手</h2>
           <div class="pattern-buttons">
@@ -105,12 +85,6 @@
               </div>
             </div>
           </div>
-          <label class="analysis-table-control" for="analysisTableSelect">
-            <span>分析桌台</span>
-            <select id="analysisTableSelect">
-              <option value="">全部 36 桌</option>
-            </select>
-          </label>
           <textarea id="patternInput" readonly placeholder="莊 閒 莊 和 閒 莊 閒 莊"></textarea>
           <div class="pattern-tools">
             <span id="patternCount">0 手</span>
@@ -136,6 +110,6 @@
       </section>
     </main>
 
-    <script src="app.js?v=20260711-trend-repair"></script>
+    <script src="app.js?v=20260710-ensemble-calibrated"></script>
   </body>
 </html>
